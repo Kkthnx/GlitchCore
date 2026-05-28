@@ -4,13 +4,32 @@ const { getXpMultiplier, isDoubleXpActive } = require('../utils/isDoubleXp');
 const config = require('../../config.json');
 const { EmbedBuilder } = require('discord.js');
 
+const { checkMessage, getRandomClapback } = require('../utils/filterManager');
+
 module.exports = {
     name: 'messageCreate',
     async execute(message, client) {
         // 1. Ignore bot messages and DMs
         if (message.author.bot || !message.guild) return;
 
-        // 2. Cooldown Check (Prevents spamming for XP)
+        // 2. Auto-Moderator Check
+        const filterViolation = checkMessage(message.content);
+        if (filterViolation) {
+            try {
+                await message.delete();
+                console.log(`[MOD] Deleted message from ${message.author.tag}: "${message.content}" (Trigger: ${filterViolation})`);
+
+                const clapbackMsg = await message.channel.send(getRandomClapback(`<@${message.author.id}>`));
+                
+                // Auto-delete the clapback after 5 seconds to keep chat clean
+                setTimeout(() => clapbackMsg.delete().catch(() => {}), 5000);
+            } catch (err) {
+                console.error('Failed to moderate message:', err);
+            }
+            return; // Stop processing XP and commands for this message
+        }
+
+        // 3. Cooldown Check (Prevents spamming for XP)
         const cooldownKey = `${message.author.id}-${message.guild.id}`;
         if (client.cooldowns.has(cooldownKey)) return;
 
