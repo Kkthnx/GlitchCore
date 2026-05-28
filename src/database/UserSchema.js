@@ -5,7 +5,8 @@ const userSchema = new mongoose.Schema({
     guildId: { type: String, required: true },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 0 },
-    totalMessages: { type: Number, default: 0 }
+    totalMessages: { type: Number, default: 0 },
+    cardStyle: { type: String, default: 'default' }
 });
 
 // Create a compound index so database searches are lightning fast

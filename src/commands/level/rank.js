@@ -47,7 +47,7 @@ module.exports = {
         const xpToNextLevel = nextLevelThreshold - currentLevelThreshold; // XP span of this level
 
         // Generate the custom image
-        const imageBuffer = await buildRankCard(targetUser, currentLevelXp, xpToNextLevel, userData.level, rank);
+        const imageBuffer = await buildRankCard(targetUser, currentLevelXp, xpToNextLevel, userData.level, rank, userData.cardStyle);
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'rank-card.png' });
 
         await interaction.editReply({ files: [attachment] });
