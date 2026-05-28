@@ -1,7 +1,10 @@
-// Filter Definitions
-const politicalKeywords = ['trump', 'biden', 'democrat', 'republican', 'maga', 'libtard', 'conservatard'];
-const racistKeywords = ['nigger', 'nigga', 'faggot', 'chink', 'spic', 'wetback', 'gook', 'kike'];
+// Expanded Filter Definitions using word boundaries to prevent false positives (e.g., 'spice' triggering 'spic')
+const politicalRegex = /\b(trump|biden|obama|hillary|kamala|pelosi|mcconnell|democrat|republican|libtard|conservatard|maga|antifa|qanon|alt-right|proud boys|leftist|right-wing|fascist|marxist)\b/i;
+
+const racistRegex = /\b(nigger|nigga|n1gga|n1gger|nibba|faggot|fag|tranny|shemale|dyke|chink|gook|zipperhead|spic|wetback|beaner|kike|kyke|towelhead|camel jockey|sand nigger|porch monkey|jigaboo|coon|retard)\b/i;
+
 const analRegex = /\banal\b/i;
+
 // Regex matching Chinese Hanzi, Japanese Kanji/Kana, and Korean Hangul
 const cjkRegex = /[\u2E80-\u2FD5\u3190-\u319f\u3400-\u4DBF\u4E00-\u9FCC\uF900-\uFAAD\u3041-\u3096\u30A0-\u30FF\uAC00-\uD7AF\u1100-\u11FF]/;
 
@@ -17,20 +20,14 @@ const clapbacks = [
 ];
 
 function checkMessage(content) {
-    const lowerContent = content.toLowerCase();
-
     // Check Politics
-    for (const word of politicalKeywords) {
-        if (lowerContent.includes(word)) {
-            return 'American Politics';
-        }
+    if (politicalRegex.test(content)) {
+        return 'American Politics';
     }
 
     // Check Racism
-    for (const word of racistKeywords) {
-        if (lowerContent.includes(word)) {
-            return 'Racism/Slurs';
-        }
+    if (racistRegex.test(content)) {
+        return 'Racism/Slurs';
     }
 
     // Check Anal Spam
