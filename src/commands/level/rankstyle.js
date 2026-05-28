@@ -38,6 +38,31 @@ module.exports = {
         userData.cardStyle = themeId;
         await userData.save();
 
-        return interaction.editReply(`Successfully updated your rank card style to **${themeConfig.name}**! Use \`/rank\` to check it out.`);
+        // Improve: Generate a preview card to show the user immediately
+        const { xpRequiredForLevel } = require('../../utils/calculateXp');
+        const buildRankCard = require('../../utils/generateRankCard');
+        const { AttachmentBuilder } = require('discord.js');
+
+        const currentLevelThreshold = xpRequiredForLevel(userData.level);
+        const nextLevelThreshold = xpRequiredForLevel(userData.level + 1);
+        const currentLevelXp = userData.xp - currentLevelThreshold;
+        const xpToNextLevel = nextLevelThreshold - currentLevelThreshold;
+
+        // Fetch rank for the preview
+        const rank = await User.countDocuments({
+            guildId: interaction.guild.id,
+            $or: [
+                { level: { $gt: userData.level } },
+                { level: userData.level, xp: { $gt: userData.xp } },
+            ],
+        }) + 1;
+
+        const imageBuffer = await buildRankCard(interaction.user, currentLevelXp, xpToNextLevel, userData.level, rank, themeId);
+        const attachment = new AttachmentBuilder(imageBuffer, { name: 'preview-card.png' });
+
+        return interaction.editReply({ 
+            content: `Successfully updated your rank card style to **${themeConfig.name}**! Here is a preview:`,
+            files: [attachment]
+        });
     }
 };
