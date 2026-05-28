@@ -1,0 +1,28 @@
+{
+    "theme": {
+        "blue": "#0052CC",
+        "silver": "#C0C0C0",
+        "dark": "#1A1A1D",
+        "neonGreen": "#39FF14",
+        "neonRed": "#FF003C"
+    },
+    "xpSettings": {
+        "minBaseXp": 15,
+        "maxBaseXp": 25,
+        "lengthMultiplier": 0.1,
+        "maxTextXpPerMessage": 50,
+        "textCooldownSeconds": 60,
+        "voiceXpPerTick": 10,
+        "voiceTickMinutes": 5,
+        "doubleXpDays": [5, 6],
+        "doubleXpMultiplier": 2
+    },
+    "channels": {
+        "welcome": "1440433072288829533",
+        "announcements": "1354282113452736623",
+        "lfg": "1437896355560423544"
+    },
+    "roles": {
+        "member": "1354327309506707497"
+    }
+}
