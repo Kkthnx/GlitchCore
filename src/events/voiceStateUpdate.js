@@ -3,6 +3,7 @@ const User = require('../database/UserSchema');
 const config = require('../../config.json');
 const { getXpMultiplier, isDoubleXpActive } = require('../utils/isDoubleXp');
 const { xpRequiredForLevel } = require('../utils/calculateXp');
+const levelUpSayings = require('../utils/levelUpSayings');
 
 // In-memory map tracking active voice session start times: `${userId}-${guildId}` -> timestamp
 const voiceSessions = new Map();
@@ -26,8 +27,13 @@ function isMemberActive(member) {
     const channel = voiceState.channel;
     if (!channel) return false;
 
-    // Must be at least one other non-bot member in the channel (prevents solo farming)
-    const activeMembersCount = channel.members.filter(m => !m.user.bot).size;
+    // Must be at least one other non-bot, unmuted, undeafened member in the channel (prevents solo farming with alts)
+    const activeMembersCount = channel.members.filter(m => {
+        if (m.user.bot) return false;
+        if (m.voice.selfMute || m.voice.serverMute) return false;
+        if (m.voice.selfDeafen || m.voice.serverDeafen) return false;
+        return true;
+    }).size;
     return activeMembersCount >= 2;
 }
 
@@ -78,18 +84,19 @@ async function updateMemberSession(member, client) {
                 await userData.save();
                 console.log(`⬆️ ${member.user.tag} leveled up to Level ${userData.level} via voice!`);
 
-                const announcementsChannel = client.channels.cache.get(config.channels.announcements);
-                if (announcementsChannel) {
+                const chatroomChannel = client.channels.cache.get(config.channels.chatroom);
+                if (chatroomChannel) {
+                    const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
                     const levelUpEmbed = new EmbedBuilder()
                         .setTitle('⬆️ Level Up!')
                         .setDescription(
-                            `Congratulations ${member}! You just hit **Level ${userData.level}** by hanging out in voice!` +
+                            `Congratulations ${member}! You just hit **Level ${userData.level}** by hanging out in voice!\n\n*${randomSaying}*` +
                             (isDoubleXpActive() ? '\n\n🔥 **Double XP Weekend** — you earned 2× XP!' : '')
                         )
                         .setColor(config.theme.silver)
                         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }));
 
-                    await announcementsChannel.send({ content: `${member}`, embeds: [levelUpEmbed] });
+                    await chatroomChannel.send({ content: `${member}`, embeds: [levelUpEmbed] });
                 }
             }
         } catch (err) {

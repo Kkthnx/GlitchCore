@@ -3,6 +3,7 @@ const { xpRequiredForLevel } = require('./calculateXp');
 const { isDoubleXpActive } = require('./isDoubleXp');
 const config = require('../../config.json');
 const { EmbedBuilder } = require('discord.js');
+const levelUpSayings = require('./levelUpSayings');
 
 // In-Memory Buffer
 // Key: "userId-guildId"
@@ -74,17 +75,17 @@ function startXpSync(client) {
                     await user.save();
 
                     // Send the level up notification
-                    const cacheData = batch.get(`${user.userId}-${user.guildId}`);
-                    const channel = client.channels.cache.get(cacheData.lastChannelId);
+                    const channel = client.channels.cache.get(config.channels.chatroom);
                     
                     if (channel) {
                         // Fetch the discord user to get their avatar
                         const discordUser = await client.users.fetch(user.userId).catch(() => null);
                         
+                        const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
                         const levelUpEmbed = new EmbedBuilder()
                             .setTitle('⬆️ Level Up!')
                             .setDescription(
-                                `Congratulations <@${user.userId}>! You just hit **Level ${user.level}**!` +
+                                `Congratulations <@${user.userId}>! You just hit **Level ${user.level}**!\n\n*${randomSaying}*` +
                                 (isDoubleXpActive() ? '\n\n🔥 **Double XP Weekend** — you\'re earning 2× XP today!' : '')
                             )
                             .setColor(config.theme.silver);
