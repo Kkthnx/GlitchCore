@@ -62,7 +62,7 @@ async function updateMemberSession(member, client) {
             let userData = await User.findOneAndUpdate(
                 { userId, guildId },
                 { $inc: { xp: xpToGive } },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
 
             console.log(`🎙️ Gave ${xpToGive} voice XP to ${member.user.tag} for their active session.`);
