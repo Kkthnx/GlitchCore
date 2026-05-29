@@ -92,9 +92,11 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
 
     ctx.lineWidth = 2;
     ctx.strokeStyle = theme.borderColor;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Semi-transparent black background for readability
 
     const drawDataBox = (label, value) => {
+        // Reset fill style to dark background for the box
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        
         // Draw the angled box
         drawAngledBox(ctx, boxX, boxY, boxW, boxH, boxCut);
         ctx.fill();
@@ -150,8 +152,14 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     }
 
     // 7. System Warning Text (Right side under GH logo)
+    // Add a shadow to make text pop against the busy background
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    
     ctx.textAlign = 'center';
-    ctx.font = '16px "Rajdhani"';
+    ctx.font = '16px "Rajdhani-Regular"'; // Changed to regular for better legibility
     ctx.fillStyle = theme.subTextColor;
     
     // Draw an angled bracket box around the system text
@@ -173,6 +181,12 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     ctx.fillText("SECURED AND PROCESSED", 800, 200);
     ctx.fillStyle = theme.avatarBorderColor;
     ctx.fillText("BY [GLITCH_SYSTEM]", 800, 220);
+    
+    // Reset shadow just in case
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 
     return canvas.toBuffer('image/png');
 }
