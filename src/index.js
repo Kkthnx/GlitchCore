@@ -29,9 +29,26 @@ const client = new Client({
 client.commands = new Collection();
 client.cooldowns = new Collection();
 
+// Periodically clean up the cooldowns map to prevent memory leaks over long uptimes
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, timestamp] of client.cooldowns.entries()) {
+        // Remove timestamps older than 1 hour
+        if (now - timestamp > 60 * 60 * 1000) {
+            client.cooldowns.delete(key);
+        }
+    }
+}, 60 * 60 * 1000);
+
+const { startXpSync } = require('./utils/xpCache');
+
 // 2. Connect to the Database
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ Connected to MongoDB Atlas'))
+    .then(() => {
+        console.log('✅ Connected to MongoDB Atlas');
+        startXpSync(client);
+        console.log('✅ Background XP Sync started');
+    })
     .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
 // 3. Event Handler (loads .js files from src/events)

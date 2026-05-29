@@ -12,4 +12,7 @@ const userSchema = new mongoose.Schema({
 // Create a compound index so database searches are lightning fast
 userSchema.index({ guildId: 1, userId: 1 }, { unique: true });
 
+// Performance index for the /rank command (sorts by level descending, then xp descending)
+userSchema.index({ guildId: 1, level: -1, xp: -1 });
+
 module.exports = mongoose.model('User', userSchema);

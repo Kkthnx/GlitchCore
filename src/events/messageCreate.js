@@ -1,10 +1,7 @@
-const User = require('../database/UserSchema');
-const { xpRequiredForLevel } = require('../utils/calculateXp');
-const { getXpMultiplier, isDoubleXpActive } = require('../utils/isDoubleXp');
 const config = require('../../config.json');
-const { EmbedBuilder } = require('discord.js');
-
+const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { checkMessage, getRandomClapback } = require('../utils/filterManager');
+const { queueXp } = require('../utils/xpCache');
 
 module.exports = {
     name: 'messageCreate',
@@ -29,13 +26,19 @@ module.exports = {
             return; // Stop processing XP and commands for this message
         }
 
-        // 3. Cooldown Check (Prevents spamming for XP)
-        const cooldownKey = `${message.author.id}-${message.guild.id}`;
-        if (client.cooldowns.has(cooldownKey)) return;
-
-        // 3. Calculate Dynamic XP
         const { minBaseXp, maxBaseXp, lengthMultiplier, maxTextXpPerMessage, textCooldownSeconds } = config.xpSettings;
 
+        // 3. Cooldown Check (Timestamp-based instead of setTimeout for performance)
+        const cooldownKey = `${message.author.id}-${message.guild.id}`;
+        const now = Date.now();
+        const lastMessageTime = client.cooldowns.get(cooldownKey) || 0;
+        
+        if (now - lastMessageTime < (textCooldownSeconds * 1000)) return;
+        
+        // Update cooldown timestamp
+        client.cooldowns.set(cooldownKey, now);
+
+        // 4. Calculate Dynamic XP
         const baseXP = Math.floor(Math.random() * (maxBaseXp - minBaseXp + 1)) + minBaseXp;
         const lengthBonus = Math.floor(message.content.length * lengthMultiplier);
         let totalXpGained = Math.min(baseXP + lengthBonus, maxTextXpPerMessage);
@@ -44,38 +47,10 @@ module.exports = {
         totalXpGained = Math.floor(totalXpGained * getXpMultiplier());
 
         try {
-            // 4. Fetch or create user document
-            let userData = await User.findOneAndUpdate(
-                { userId: message.author.id, guildId: message.guild.id },
-                { $inc: { xp: totalXpGained, totalMessages: 1 } },
-                { upsert: true, new: true }
-            );
-
-            // 5. Check for Level Up — use a while loop so rapid XP gain can't skip levels
-            while (userData.xp >= xpRequiredForLevel(userData.level + 1)) {
-                userData.level += 1;
-
-                const levelUpEmbed = new EmbedBuilder()
-                    .setTitle('⬆️ Level Up!')
-                    .setDescription(
-                        `Congratulations ${message.author}! You just hit **Level ${userData.level}**!` +
-                        (isDoubleXpActive() ? '\n\n🔥 **Double XP Weekend** — you\'re earning 2× XP today!' : '')
-                    )
-                    .setColor(config.theme.silver)
-                    .setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-
-                // Fire and forget — don't await so it doesn't block the save
-                message.channel.send({ embeds: [levelUpEmbed] }).catch(console.error);
-            }
-
-            // 6. Save updated level to DB & apply cooldown
-            await userData.save();
-
-            client.cooldowns.set(cooldownKey, true);
-            setTimeout(() => client.cooldowns.delete(cooldownKey), textCooldownSeconds * 1000);
-
+            // 5. Queue XP in memory (Bulk written every 60s to prevent DB bottleneck)
+            queueXp(message.author.id, message.guild.id, totalXpGained, message.channel.id);
         } catch (error) {
-            console.error('Error processing text XP:', error);
+            console.error('Error queueing text XP:', error);
         }
     }
 };
