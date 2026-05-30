@@ -7,12 +7,12 @@
         "neonRed": "#FF003C"
     },
     "xpSettings": {
-        "minBaseXp": 15,
-        "maxBaseXp": 25,
+        "minBaseXp": 5,
+        "maxBaseXp": 15,
         "lengthMultiplier": 0.1,
         "maxTextXpPerMessage": 50,
         "textCooldownSeconds": 60,
-        "voiceXpPerTick": 10,
+        "voiceXpPerTick": 5,
         "voiceTickMinutes": 5,
         "doubleXpDays": [5, 6],
         "doubleXpMultiplier": 2
