@@ -84,8 +84,8 @@ async function updateMemberSession(member, client) {
                 await userData.save();
                 console.log(`⬆️ ${member.user.tag} leveled up to Level ${userData.level} via voice!`);
 
-                const chatroomChannel = client.channels.cache.get(config.channels.chatroom);
-                if (chatroomChannel) {
+                const levelUpLogChannel = client.channels.cache.get(config.channels.levelUpLog);
+                if (levelUpLogChannel) {
                     const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
                     const levelUpEmbed = new EmbedBuilder()
                         .setTitle('⬆️ Level Up!')
@@ -96,7 +96,7 @@ async function updateMemberSession(member, client) {
                         .setColor(config.theme.silver)
                         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }));
 
-                    await chatroomChannel.send({ content: `${member}`, embeds: [levelUpEmbed] });
+                    await levelUpLogChannel.send({ content: `${member}`, embeds: [levelUpEmbed] });
                 }
             }
         } catch (err) {

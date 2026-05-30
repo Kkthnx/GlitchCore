@@ -75,7 +75,7 @@ function startXpSync(client) {
                     await user.save();
 
                     // Send the level up notification
-                    const channel = client.channels.cache.get(config.channels.chatroom);
+                    const channel = client.channels.cache.get(config.channels.levelUpLog);
                     
                     if (channel) {
                         // Fetch the discord user to get their avatar
