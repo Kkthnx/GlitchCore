@@ -1,7 +1,8 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActivityType } = require('discord.js');
 const config = require('../../config.json');
 const { isDoubleXpActive } = require('../utils/isDoubleXp');
 const BotState = require('../database/BotStateSchema');
+const botStatuses = require('../utils/botStatuses');
 
 // ---------------------------------------------------------------------------
 // Returns today's date as a YYYY-MM-DD string for deduplication
@@ -119,6 +120,17 @@ module.exports = {
     async execute(client) {
         console.log(`✅ Logged in as ${client.user.tag}`);
         console.log(`📡 Serving ${client.guilds.cache.size} guild(s)`);
+
+        // Set initial random status and rotate every 10 minutes
+        const updateStatus = () => {
+            const status = botStatuses[Math.floor(Math.random() * botStatuses.length)];
+            client.user.setPresence({
+                activities: [{ name: 'Custom Status', type: ActivityType.Custom, state: status }],
+                status: 'online',
+            });
+        };
+        updateStatus();
+        setInterval(updateStatus, 10 * 60 * 1000);
 
         // Recover active voice sessions across all channels
         recoverActiveVoiceSessions(client);
