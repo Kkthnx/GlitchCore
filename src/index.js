@@ -21,7 +21,8 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,  // Required to read text for XP
         GatewayIntentBits.GuildMembers,    // Required for Welcome/Goodbye events
-        GatewayIntentBits.GuildVoiceStates // Required for Voice XP
+        GatewayIntentBits.GuildVoiceStates, // Required for Voice XP
+        GatewayIntentBits.GuildPresences   // Required for streaming announcements
     ]
 });
 
