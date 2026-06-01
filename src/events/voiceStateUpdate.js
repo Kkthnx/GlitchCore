@@ -93,7 +93,13 @@ async function updateMemberSession(member, client) {
         const minutesInVoice = (Date.now() - joinTime) / 1000 / 60;
         const ticks = Math.floor(minutesInVoice / voiceTickMinutes);
         if (ticks >= 1) {
-            await processVoiceXp(userId, guildId, member, client, ticks);
+            try {
+                await processVoiceXp(userId, guildId, member, client, ticks);
+            } catch (err) {
+                // Restore the session so the time is not silently lost if the DB is down
+                console.error('[VoiceXP] processVoiceXp failed; restoring session to retry next tick:', err);
+                voiceSessions.set(sessionKey, joinTime);
+            }
         }
     }
 }

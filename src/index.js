@@ -46,6 +46,8 @@ setInterval(() => {
 
 const { startXpSync } = require('./utils/xpCache');
 const { startVoiceXpSync } = require('./events/voiceStateUpdate');
+const { startChangelogCron } = require('./utils/changelogChecker');
+const { startNewsCron } = require('./utils/newsChecker');
 
 // 2. Connect to the Database
 mongoose.connect(process.env.MONGO_URI)
@@ -53,7 +55,9 @@ mongoose.connect(process.env.MONGO_URI)
         console.log('✅ Connected to MongoDB Atlas');
         startXpSync(client);
         startVoiceXpSync(client);
-        console.log('✅ Background XP & Voice Sync started');
+        startChangelogCron(client);
+        startNewsCron(client);
+        console.log('✅ Background XP & Voice & Changelog & News Sync started');
     })
     .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 

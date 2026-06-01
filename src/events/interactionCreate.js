@@ -1,4 +1,5 @@
 const { handleModalSubmit, handleInject, handleAbort, handleExecute } = require('../utils/lfgManager');
+const { MessageFlags } = require('discord.js');
 
 module.exports = {
     name: 'interactionCreate',
@@ -18,9 +19,9 @@ module.exports = {
             } catch (error) {
                 console.error(error);
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+                    await interaction.followUp({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
                 } else {
-                    await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                    await interaction.reply({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
                 }
             }
         }
@@ -34,7 +35,7 @@ module.exports = {
             } catch (error) {
                 console.error('Modal submission error:', error);
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '`ERROR_500` : Something went wrong creating the LFG.', ephemeral: true });
+                    await interaction.reply({ content: '`ERROR_500` : Something went wrong creating the LFG.', flags: MessageFlags.Ephemeral });
                 }
             }
         }
@@ -48,7 +49,7 @@ module.exports = {
             } catch (error) {
                 console.error('Button interaction error:', error);
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '`ERROR_500` : Something went wrong.', ephemeral: true });
+                    await interaction.reply({ content: '`ERROR_500` : Something went wrong.', flags: MessageFlags.Ephemeral });
                 }
             }
         }

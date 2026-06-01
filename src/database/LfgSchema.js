@@ -18,4 +18,8 @@ const lfgSchema = new mongoose.Schema({
     status:     { type: String, enum: ['OPEN', 'LOCKED'], default: 'OPEN' },
 }, { timestamps: true });
 
+// Index for the stale-session cleanup query: find OPEN sessions older than 24h.
+// Without this, cleanUpStaleLfgSessions does a full collection scan every 30 minutes.
+lfgSchema.index({ status: 1, createdAt: 1 });
+
 module.exports = mongoose.model('LfgSession', lfgSchema);

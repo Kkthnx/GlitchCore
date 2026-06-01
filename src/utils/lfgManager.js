@@ -1,6 +1,6 @@
 const {
     ModalBuilder, TextInputBuilder, TextInputStyle,
-    ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle,
+    ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, MessageFlags,
 } = require('discord.js');
 const LfgSession = require('../database/LfgSchema');
 const config = require('../../config.json');
@@ -137,11 +137,11 @@ async function handleModalSubmit(interaction) {
     if (isNaN(totalSlots) || totalSlots < 2 || totalSlots > 10) {
         return interaction.reply({
             content: '`ERROR_422` : Slots must be a number between **2** and **10**.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
         });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const lfgChannel = interaction.guild.channels.cache.get(config.channels.lfg);
     if (!lfgChannel) {
@@ -181,14 +181,14 @@ async function handleModalSubmit(interaction) {
 // ---------------------------------------------------------------------------
 async function handleInject(interaction) {
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
-    if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', ephemeral: true });
-    if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Session is **LOCKED**.', ephemeral: true });
+    if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
+    if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Session is **LOCKED**.', flags: MessageFlags.Ephemeral });
 
     if (session.roster.some(m => m.userId === interaction.user.id)) {
-        return interaction.reply({ content: '`ERROR_409` : You are already injected into this session.', ephemeral: true });
+        return interaction.reply({ content: '`ERROR_409` : You are already injected into this session.', flags: MessageFlags.Ephemeral });
     }
     if (session.roster.length >= session.totalSlots) {
-        return interaction.reply({ content: '`ERROR_503` : All slots occupied. Session full.', ephemeral: true });
+        return interaction.reply({ content: '`ERROR_503` : All slots occupied. Session full.', flags: MessageFlags.Ephemeral });
     }
 
     session.roster.push({ userId: interaction.user.id, username: interaction.user.username });
@@ -202,17 +202,17 @@ async function handleInject(interaction) {
 // ---------------------------------------------------------------------------
 async function handleAbort(interaction) {
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
-    if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', ephemeral: true });
-    if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Cannot abort a **LOCKED** session.', ephemeral: true });
+    if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
+    if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Cannot abort a **LOCKED** session.', flags: MessageFlags.Ephemeral });
 
     if (interaction.user.id === session.hostId) {
         return interaction.reply({
             content: '`ERROR_403` : Leaders cannot abort. Use 🔒 **EXECUTE** to lock and end the session.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
         });
     }
     if (!session.roster.some(m => m.userId === interaction.user.id)) {
-        return interaction.reply({ content: '`ERROR_404` : You are not in this session.', ephemeral: true });
+        return interaction.reply({ content: '`ERROR_404` : You are not in this session.', flags: MessageFlags.Ephemeral });
     }
 
     session.roster = session.roster.filter(m => m.userId !== interaction.user.id);
@@ -226,13 +226,13 @@ async function handleAbort(interaction) {
 // ---------------------------------------------------------------------------
 async function handleExecute(interaction) {
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
-    if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', ephemeral: true });
+    if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
 
     if (interaction.user.id !== session.hostId) {
-        return interaction.reply({ content: '`ERROR_403` : Only the **Leader** can EXECUTE the lock.', ephemeral: true });
+        return interaction.reply({ content: '`ERROR_403` : Only the **Leader** can EXECUTE the lock.', flags: MessageFlags.Ephemeral });
     }
     if (session.status === 'LOCKED') {
-        return interaction.reply({ content: '`ERROR_409` : Session is already **LOCKED**.', ephemeral: true });
+        return interaction.reply({ content: '`ERROR_409` : Session is already **LOCKED**.', flags: MessageFlags.Ephemeral });
     }
 
     session.status = 'LOCKED';

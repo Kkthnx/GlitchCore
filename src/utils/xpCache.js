@@ -2,8 +2,6 @@ const User = require('../database/UserSchema');
 const { xpRequiredForLevel } = require('./calculateXp');
 const { isDoubleXpActive } = require('./isDoubleXp');
 const config = require('../../config.json');
-const { EmbedBuilder } = require('discord.js');
-const levelUpSayings = require('./levelUpSayings');
 const { sendLevelUpEmbed } = require('./levelUpEmbed');
 // In-Memory Buffer
 // Key: "userId-guildId"

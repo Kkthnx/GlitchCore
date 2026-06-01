@@ -14,7 +14,7 @@ module.exports = {
         if (filterViolation) {
             try {
                 await message.delete();
-                console.log(`[MOD] Deleted message from ${message.author.tag}: "${message.content}" (Trigger: ${filterViolation})`);
+                console.log(`[MOD] Deleted message from ${message.author.tag}: "${message.content.slice(0, 50)}${message.content.length > 50 ? '…' : ''}" (Trigger: ${filterViolation})`);
 
                 const clapbackMsg = await message.channel.send(getRandomClapback(`<@${message.author.id}>`));
                 

@@ -1,6 +1,8 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
 const User = require('../../database/UserSchema');
 const themes = require('../../utils/cardThemes');
+const { xpRequiredForLevel } = require('../../utils/calculateXp');
+const buildRankCard = require('../../utils/generateRankCard');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -19,7 +21,7 @@ module.exports = {
         }),
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const themeId = interaction.options.getString('theme');
         const themeConfig = themes[themeId];
@@ -37,11 +39,6 @@ module.exports = {
         // Update theme
         userData.cardStyle = themeId;
         await userData.save();
-
-        // Improve: Generate a preview card to show the user immediately
-        const { xpRequiredForLevel } = require('../../utils/calculateXp');
-        const buildRankCard = require('../../utils/generateRankCard');
-        const { AttachmentBuilder } = require('discord.js');
 
         const currentLevelThreshold = xpRequiredForLevel(userData.level);
         const nextLevelThreshold = xpRequiredForLevel(userData.level + 1);

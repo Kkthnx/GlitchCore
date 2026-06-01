@@ -22,6 +22,9 @@ module.exports = {
         // 1. Ensure this is only firing for you (Kkthnx)
         if (newPresence.userId !== CONFIG.STREAMER_ID) return;
 
+        // Guard: user object may not be cached in all cases
+        if (!newPresence.user) return;
+
         const guild = newPresence.guild;
         // Use the chatroom ID from config
         const announceChannel = guild.channels.cache.get(config.channels.chatroom);
