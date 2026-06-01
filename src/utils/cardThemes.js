@@ -38,5 +38,15 @@ module.exports = {
         subTextColor: '#DAA520',
         progressBarBg: '#2A241A',
         progressBarFill: '#FFD700'
+    },
+    rgb: {
+        name: 'Gamer RGB',
+        bgColor: '#0F0F11',
+        borderColor: '#FFFFFF',
+        avatarBorderColor: 'RGB_GRADIENT',
+        textColor: '#FFFFFF',
+        subTextColor: '#CCCCCC',
+        progressBarBg: '#1A1A1D',
+        progressBarFill: 'RGB_GRADIENT'
     }
 };

@@ -16,9 +16,25 @@ function drawAngledBox(ctx, x, y, w, h, cut) {
     ctx.lineTo(x + w - cut, y + h);
     ctx.lineTo(x, y + h);
     ctx.lineTo(x, y + cut);
-    ctx.closePath();
 }
 
+// Helper to create an RGB gradient
+function getRgbGradient(ctx, x1, y1, x2, y2) {
+    const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+    gradient.addColorStop(0, '#FF0000');
+    gradient.addColorStop(0.16, '#FF7F00');
+    gradient.addColorStop(0.33, '#FFFF00');
+    gradient.addColorStop(0.5, '#00FF00');
+    gradient.addColorStop(0.66, '#0000FF');
+    gradient.addColorStop(0.83, '#4B0082');
+    gradient.addColorStop(1, '#8B00FF');
+    return gradient;
+}
+
+// Cache variables for performance
+let cachedBgImage = null;
+let bgExists = null;
+const bgPath = path.join(__dirname, '../assets/glitch-bg.png');
 async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId = 'default') {
     const theme = themes[themeId] || themes['default'];
 
@@ -28,14 +44,19 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
 
     // 2. Draw Background & Overlay Tint
     // Fallback to pure color if the user hasn't downloaded glitch-bg.png yet
-    const bgPath = path.join(__dirname, '../assets/glitch-bg.png');
-    if (fs.existsSync(bgPath)) {
-        const bg = await loadImage(bgPath);
-        ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+    if (bgExists === null) {
+        bgExists = fs.existsSync(bgPath);
+    }
+
+    if (bgExists) {
+        if (!cachedBgImage) {
+            cachedBgImage = await loadImage(bgPath);
+        }
+        ctx.drawImage(cachedBgImage, 0, 0, canvas.width, canvas.height);
         
         // Dynamic tinting using the theme's avatar color
         ctx.globalCompositeOperation = 'overlay';
-        ctx.fillStyle = theme.avatarBorderColor;
+        ctx.fillStyle = theme.avatarBorderColor === 'RGB_GRADIENT' ? '#FFFFFF' : theme.avatarBorderColor;
         ctx.globalAlpha = 0.25;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.globalCompositeOperation = 'source-over';
@@ -51,7 +72,11 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     const avatarRadius = 65;
 
     // Draw HUD Rings
-    ctx.strokeStyle = theme.avatarBorderColor;
+    if (theme.avatarBorderColor === 'RGB_GRADIENT') {
+        ctx.strokeStyle = getRgbGradient(ctx, avatarX - avatarRadius - 20, avatarY - avatarRadius - 20, avatarX + avatarRadius + 20, avatarY + avatarRadius + 20);
+    } else {
+        ctx.strokeStyle = theme.avatarBorderColor;
+    }
     
     // Outer dashed ring
     ctx.lineWidth = 6;
@@ -141,7 +166,12 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     const fillW = Math.max(barCut * 2, barW * progressPercent);
     
     if (progressPercent > 0) {
-        ctx.fillStyle = theme.progressBarFill;
+        if (theme.progressBarFill === 'RGB_GRADIENT') {
+            // Create a gradient that spans the full potential width of the bar for consistency
+            ctx.fillStyle = getRgbGradient(ctx, barX, barY, barX + barW, barY);
+        } else {
+            ctx.fillStyle = theme.progressBarFill;
+        }
         drawAngledBox(ctx, barX, barY, fillW, barH, barCut);
         ctx.fill();
         
@@ -179,7 +209,7 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
 
     ctx.fillText("YOUR COMMUNITY DATA", 800, 180);
     ctx.fillText("SECURED AND PROCESSED", 800, 200);
-    ctx.fillStyle = theme.avatarBorderColor;
+    ctx.fillStyle = theme.avatarBorderColor === 'RGB_GRADIENT' ? '#00FF00' : theme.avatarBorderColor;
     ctx.fillText("BY [GLITCH_SYSTEM]", 800, 220);
     
     // Reset shadow just in case

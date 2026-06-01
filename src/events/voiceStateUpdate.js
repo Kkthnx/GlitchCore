@@ -1,9 +1,8 @@
-const { EmbedBuilder } = require('discord.js');
 const User = require('../database/UserSchema');
 const config = require('../../config.json');
-const { getXpMultiplier, isDoubleXpActive } = require('../utils/isDoubleXp');
+const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { xpRequiredForLevel } = require('../utils/calculateXp');
-const levelUpSayings = require('../utils/levelUpSayings');
+const { sendLevelUpEmbed } = require('../utils/levelUpEmbed');
 
 // In-memory map tracking active voice session start times: `${userId}-${guildId}` -> timestamp
 const voiceSessions = new Map();
@@ -38,6 +37,39 @@ function isMemberActive(member) {
 }
 
 /**
+ * Shared function to grant voice XP, save to DB, and handle level ups.
+ */
+async function processVoiceXp(userId, guildId, member, client, ticks) {
+    const { voiceXpPerTick } = config.xpSettings;
+    const xpToGive = Math.floor(ticks * voiceXpPerTick * getXpMultiplier());
+
+    try {
+        let userData = await User.findOneAndUpdate(
+            { userId, guildId },
+            { $inc: { xp: xpToGive } },
+            { upsert: true, returnDocument: 'after' }
+        );
+
+        console.log(`🎙️ Gave ${xpToGive} voice XP to ${member ? member.user.tag : userId} for active voice time.`);
+
+        // Check for level ups (loop ensures multi-level jumps are handled)
+        let leveledUp = false;
+        while (userData.xp >= xpRequiredForLevel(userData.level + 1)) {
+            userData.level += 1;
+            leveledUp = true;
+        }
+
+        if (leveledUp) {
+            await userData.save();
+            console.log(`⬆️ ${member ? member.user.tag : userId} leveled up to Level ${userData.level} via voice!`);
+            await sendLevelUpEmbed(userId, guildId, userData.level, client);
+        }
+    } catch (err) {
+        console.error('Error processing voice XP:', err);
+    }
+}
+
+/**
  * Updates a member's session status. Starts a timer if active, or awards XP and clears it if inactive.
  */
 async function updateMemberSession(member, client) {
@@ -57,52 +89,48 @@ async function updateMemberSession(member, client) {
     if (!isActive && joinTime) {
         voiceSessions.delete(sessionKey);
 
-        const { voiceXpPerTick, voiceTickMinutes } = config.xpSettings;
+        const { voiceTickMinutes } = config.xpSettings;
         const minutesInVoice = (Date.now() - joinTime) / 1000 / 60;
         const ticks = Math.floor(minutesInVoice / voiceTickMinutes);
-        if (ticks < 1) return; // Not active long enough to earn a tick
-
-        const xpToGive = Math.floor(ticks * voiceXpPerTick * getXpMultiplier());
-
-        try {
-            let userData = await User.findOneAndUpdate(
-                { userId, guildId },
-                { $inc: { xp: xpToGive } },
-                { upsert: true, returnDocument: 'after' }
-            );
-
-            console.log(`🎙️ Gave ${xpToGive} voice XP to ${member.user.tag} for their active session.`);
-
-            // Check for level ups (loop ensures multi-level jumps are handled)
-            let leveledUp = false;
-            while (userData.xp >= xpRequiredForLevel(userData.level + 1)) {
-                userData.level += 1;
-                leveledUp = true;
-            }
-
-            if (leveledUp) {
-                await userData.save();
-                console.log(`⬆️ ${member.user.tag} leveled up to Level ${userData.level} via voice!`);
-
-                const levelUpLogChannel = client.channels.cache.get(config.channels.levelUpLog);
-                if (levelUpLogChannel) {
-                    const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
-                    const levelUpEmbed = new EmbedBuilder()
-                        .setTitle('⬆️ Level Up!')
-                        .setDescription(
-                            `Congratulations ${member}! You just hit **Level ${userData.level}** by hanging out in voice!\n\n*${randomSaying}*` +
-                            (isDoubleXpActive() ? '\n\n🔥 **Double XP Weekend** — you earned 2× XP!' : '')
-                        )
-                        .setColor(config.theme.silver)
-                        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }));
-
-                    await levelUpLogChannel.send({ content: `${member}`, embeds: [levelUpEmbed] });
-                }
-            }
-        } catch (err) {
-            console.error('Error granting voice XP or handling level up:', err);
+        if (ticks >= 1) {
+            await processVoiceXp(userId, guildId, member, client, ticks);
         }
     }
+}
+
+/**
+ * Periodically checks all active voice sessions and awards XP in real-time.
+ */
+function startVoiceXpSync(client) {
+    setInterval(async () => {
+        const now = Date.now();
+        const { voiceTickMinutes } = config.xpSettings;
+        
+        for (const [sessionKey, joinTime] of voiceSessions.entries()) {
+            const minutesInVoice = (now - joinTime) / 1000 / 60;
+            const ticks = Math.floor(minutesInVoice / voiceTickMinutes);
+            
+            if (ticks >= 1) {
+                const [userId, guildId] = sessionKey.split('-');
+                const guild = client.guilds.cache.get(guildId);
+                let member = null;
+                if (guild) {
+                    member = guild.members.cache.get(userId);
+                }
+                
+                // Sanity check: Ensure they are actually still active. If not, delete their ghost session.
+                if (!member || !isMemberActive(member)) {
+                    voiceSessions.delete(sessionKey);
+                    continue; // Skip awarding XP for this ghost session
+                }
+                
+                await processVoiceXp(userId, guildId, member, client, ticks);
+                
+                // Reset the joinTime so they can start earning the next tick
+                voiceSessions.set(sessionKey, now);
+            }
+        }
+    }, 60 * 1000); // Check every minute
 }
 
 module.exports = {
@@ -110,6 +138,7 @@ module.exports = {
     voiceSessions,
     isMemberActive,
     updateMemberSession,
+    startVoiceXpSync,
     async execute(oldState, newState, client) {
         const membersToUpdate = new Set();
 
@@ -137,5 +166,3 @@ module.exports = {
         }
     }
 };
-
-

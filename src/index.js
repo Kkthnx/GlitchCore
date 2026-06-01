@@ -26,6 +26,9 @@ const client = new Client({
     ]
 });
 
+// Client & Shard Error Handlers (prevents websocket disconnects from crashing)
+client.on('error', err => console.error('[CLIENT_ERROR]', err));
+client.on('shardError', (err, shardId) => console.error(`[SHARD_ERROR] Shard ${shardId} encountered an error:`, err));
 // Create collections to store commands and cooldowns
 client.commands = new Collection();
 client.cooldowns = new Collection();
@@ -42,13 +45,15 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 const { startXpSync } = require('./utils/xpCache');
+const { startVoiceXpSync } = require('./events/voiceStateUpdate');
 
 // 2. Connect to the Database
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log('✅ Connected to MongoDB Atlas');
         startXpSync(client);
-        console.log('✅ Background XP Sync started');
+        startVoiceXpSync(client);
+        console.log('✅ Background XP & Voice Sync started');
     })
     .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 

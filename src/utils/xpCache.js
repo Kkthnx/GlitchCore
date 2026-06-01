@@ -4,7 +4,7 @@ const { isDoubleXpActive } = require('./isDoubleXp');
 const config = require('../../config.json');
 const { EmbedBuilder } = require('discord.js');
 const levelUpSayings = require('./levelUpSayings');
-
+const { sendLevelUpEmbed } = require('./levelUpEmbed');
 // In-Memory Buffer
 // Key: "userId-guildId"
 // Value: { xp: Number, messages: Number, lastChannelId: String }
@@ -74,35 +74,23 @@ function startXpSync(client) {
                     // Save the new level to the database
                     await user.save();
 
-                    // Send the level up notification
-                    const channel = client.channels.cache.get(config.channels.levelUpLog);
-                    
-                    if (channel) {
-                        // Fetch the discord user to get their avatar
-                        const discordUser = await client.users.fetch(user.userId).catch(() => null);
-                        
-                        const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
-                        const levelUpEmbed = new EmbedBuilder()
-                            .setTitle('⬆️ Level Up!')
-                            .setDescription(
-                                `Congratulations <@${user.userId}>! You just hit **Level ${user.level}**!\n\n*${randomSaying}*` +
-                                (isDoubleXpActive() ? '\n\n🔥 **Double XP Weekend** — you\'re earning 2× XP today!' : '')
-                            )
-                            .setColor(config.theme.silver);
-
-                        if (discordUser) {
-                            levelUpEmbed.setThumbnail(discordUser.displayAvatarURL({ dynamic: true }));
-                        }
-
-                        channel.send({ embeds: [levelUpEmbed] }).catch(() => {});
-                    }
+                    // Send the level up notification using the new shared utility
+                    await sendLevelUpEmbed(user.userId, user.guildId, user.level, client);
                 }
             }
         } catch (err) {
             console.error('[XP_SYNC_ERROR] Failed to bulk write XP to database:', err);
-            // Optional: Re-queue the failed batch here if you want perfect data safety
+            // Re-queue the failed batch here for data safety
+            for (const [key, data] of batch.entries()) {
+                if (!xpBuffer.has(key)) {
+                    xpBuffer.set(key, data);
+                } else {
+                    const current = xpBuffer.get(key);
+                    current.xp += data.xp;
+                    current.messages += data.messages;
+                }
+            }
         }
-
     }, 60 * 1000); // 60 seconds
 }
 
