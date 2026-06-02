@@ -338,27 +338,24 @@ async function fetchAndPostChangelogs(client) {
 
         const postedHashes = new Set(botState.postedChangelogs || []);
         const toPost = [];
-        
-        // If this is the VERY FIRST time we are running and we have no history,
-        // we might not want to spam 50 historical changelogs.
-        // We will just mark all current ones as seen, but we DO want to post 
-        // the last 3 items so the user can verify it's working!
-        const isFirstRun = postedHashes.size === 0;
-        const totalItems = newChangelogs.length;
 
-        for (let i = 0; i < totalItems; i++) {
-            const item = newChangelogs[i];
+        // On first run (empty DB), mark everything currently on the page as seen
+        // and post nothing. This avoids spamming old entries whenever the DB is
+        // wiped or a fresh bot instance starts against existing changelog data.
+        const isFirstRun = postedHashes.size === 0;
+
+        for (const item of newChangelogs) {
             if (!postedHashes.has(item.hash)) {
-                if (!isFirstRun || i >= totalItems - 3) {
-                    toPost.push(item);
-                } else {
-                    // It's the first run and this is an old item, just mark it as posted
+                if (isFirstRun) {
+                    // Silently absorb all existing entries
                     botState.postedChangelogs.push(item.hash);
+                } else {
+                    toPost.push(item);
                 }
             }
         }
 
-        // Save immediately to mark the historical ones as seen during the first run
+        // Persist the absorbed hashes so the next cron tick sees them as posted
         if (isFirstRun) {
             await botState.save();
         }
