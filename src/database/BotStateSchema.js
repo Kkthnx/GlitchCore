@@ -8,13 +8,6 @@ const botStateSchema = new mongoose.Schema({
     // Stores the calendar date string (YYYY-MM-DD) of the last double XP announcement.
     // We compare this to today's date on startup to avoid re-announcing on restart.
     lastDoubleXpDate: { type: String, default: null },
-
-    // Stores the identifiers (hashes or strings) of recently posted changelogs
-    // to prevent duplicate posts when the bot restarts or re-checks.
-    postedChangelogs: { type: [String], default: [] },
-    
-    // Stores the identifiers (hashes) of recently posted news articles
-    postedNews: { type: [String], default: [] },
 }, { timestamps: true });
 
 module.exports = mongoose.model('BotState', botStateSchema);

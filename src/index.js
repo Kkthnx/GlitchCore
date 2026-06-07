@@ -1,34 +1,58 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, Options } = require('discord.js');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const logger = require('./utils/logger');
 
 // ---------------------------------------------------------------------------
 // Global error handlers — prevents the bot from dying on unhandled rejections
 // ---------------------------------------------------------------------------
 process.on('unhandledRejection', (reason) => {
-    console.error('❌ Unhandled Promise Rejection:', reason);
+    logger.error('Unhandled Promise Rejection:', reason);
 });
 process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err);
+    logger.error('Uncaught Exception:', err);
 });
 
 // 1. Initialize the Client with required Intents
+//    Least privilege: every intent below maps to an active feature.
+//    - MessageContent (privileged): text XP + auto-mod filter
+//    - GuildMembers   (privileged): welcome banner + auto-role
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,  // Required to read text for XP
-        GatewayIntentBits.GuildMembers,    // Required for Welcome/Goodbye events
-        GatewayIntentBits.GuildVoiceStates, // Required for Voice XP
-        GatewayIntentBits.GuildPresences   // Required for streaming announcements
-    ]
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates
+    ],
+    // Bound the largest caches so long uptimes can't grow unbounded (OOM guard).
+    makeCache: Options.cacheWithLimits({
+        ...Options.DefaultMakeCacheSettings,
+        MessageManager: 50,                 // keep at most 50 messages per channel
+        ReactionManager: 0,
+        GuildInviteManager: 0,
+    }),
+    // Periodically reclaim memory from inactive cached objects.
+    sweepers: {
+        ...Options.DefaultSweeperSettings,
+        messages: {
+            interval: 600,                  // every 10 minutes
+            lifetime: 1800,                 // drop messages older than 30 minutes
+        },
+        users: {
+            interval: 3600,                 // every hour
+            filter: () => (user) => user.id !== client.user?.id,
+        },
+    },
 });
 
 // Client & Shard Error Handlers (prevents websocket disconnects from crashing)
-client.on('error', err => console.error('[CLIENT_ERROR]', err));
-client.on('shardError', (err, shardId) => console.error(`[SHARD_ERROR] Shard ${shardId} encountered an error:`, err));
+client.on('error', err => logger.error('[CLIENT_ERROR]', err));
+client.on('shardError', (err, shardId) => logger.error(`[SHARD_ERROR] Shard ${shardId} encountered an error:`, err));
+client.on('warn', info => logger.warn(`[CLIENT_WARN] ${info}`));
+
 // Create collections to store commands and cooldowns
 client.commands = new Collection();
 client.cooldowns = new Collection();
@@ -46,20 +70,16 @@ setInterval(() => {
 
 const { startXpSync } = require('./utils/xpCache');
 const { startVoiceXpSync } = require('./events/voiceStateUpdate');
-const { startChangelogCron } = require('./utils/changelogChecker');
-const { startNewsCron } = require('./utils/newsChecker');
 
 // 2. Connect to the Database
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
-        console.log('✅ Connected to MongoDB Atlas');
+        logger.info('Connected to MongoDB Atlas');
         startXpSync(client);
         startVoiceXpSync(client);
-        startChangelogCron(client);
-        startNewsCron(client);
-        console.log('✅ Background XP & Voice & Changelog & News Sync started');
+        logger.info('Background XP & Voice Sync started');
     })
-    .catch((err) => console.error('❌ MongoDB Connection Error:', err));
+    .catch((err) => logger.error('MongoDB Connection Error:', err));
 
 // 3. Event Handler (loads .js files from src/events)
 const eventsPath = path.join(__dirname, 'events');
@@ -90,12 +110,12 @@ for (const folder of commandFolders) {
         if ('data' in command && 'execute' in command) {
             client.commands.set(command.data.name, command);
         } else {
-            console.warn(`[WARN] ${filePath} is missing "data" or "execute".`);
+            logger.warn(`[WARN] ${filePath} is missing "data" or "execute".`);
         }
     }
 }
 
 // 5. Log in to Discord
 client.login(process.env.TOKEN)
-    .then(() => console.log('✅ GlitchCore is online and running!'))
-    .catch((err) => console.error('❌ Failed to login:', err));
+    .then(() => logger.info('GlitchCore is online and running!'))
+    .catch((err) => logger.error('Failed to login:', err));

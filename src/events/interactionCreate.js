@@ -1,5 +1,21 @@
-const { handleModalSubmit, handleInject, handleAbort, handleExecute } = require('../utils/lfgManager');
+const { handleModalSubmit, handleInject, handleAbort, handleExecute, handleCancel } = require('../utils/lfgManager');
 const { MessageFlags } = require('discord.js');
+const logger = require('../utils/logger');
+
+// Safely send an error response. If the interaction already expired or was
+// acknowledged, this swallows the secondary failure so it can't bubble up as
+// an unhandled rejection.
+async function safeErrorReply(interaction, content) {
+    try {
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
+        } else {
+            await interaction.reply({ content, flags: MessageFlags.Ephemeral });
+        }
+    } catch (err) {
+        logger.warn(`Failed to deliver error reply for interaction ${interaction.id}: ${err.message}`);
+    }
+}
 
 module.exports = {
     name: 'interactionCreate',
@@ -10,19 +26,15 @@ module.exports = {
             const command = client.commands.get(interaction.commandName);
 
             if (!command) {
-                console.error(`No command matching ${interaction.commandName} was found.`);
+                logger.error(`No command matching ${interaction.commandName} was found.`);
                 return;
             }
 
             try {
                 await command.execute(interaction, client);
             } catch (error) {
-                console.error(error);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
-                } else {
-                    await interaction.reply({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
-                }
+                logger.error(`[CMD_ERROR] /${interaction.commandName}:`, error);
+                await safeErrorReply(interaction, 'There was an error while executing this command!');
             }
         }
 
@@ -33,10 +45,8 @@ module.exports = {
                     await handleModalSubmit(interaction);
                 }
             } catch (error) {
-                console.error('Modal submission error:', error);
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '`ERROR_500` : Something went wrong creating the LFG.', flags: MessageFlags.Ephemeral });
-                }
+                logger.error('Modal submission error:', error);
+                await safeErrorReply(interaction, '`ERROR_500` : Something went wrong creating the LFG.');
             }
         }
 
@@ -46,11 +56,10 @@ module.exports = {
                 if      (interaction.customId === 'lfg_inject')  await handleInject(interaction);
                 else if (interaction.customId === 'lfg_abort')   await handleAbort(interaction);
                 else if (interaction.customId === 'lfg_execute') await handleExecute(interaction);
+                else if (interaction.customId === 'lfg_cancel')  await handleCancel(interaction);
             } catch (error) {
-                console.error('Button interaction error:', error);
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '`ERROR_500` : Something went wrong.', flags: MessageFlags.Ephemeral });
-                }
+                logger.error('Button interaction error:', error);
+                await safeErrorReply(interaction, '`ERROR_500` : Something went wrong.');
             }
         }
     },

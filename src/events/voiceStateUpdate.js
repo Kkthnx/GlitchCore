@@ -3,6 +3,7 @@ const config = require('../../config.json');
 const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { xpRequiredForLevel } = require('../utils/calculateXp');
 const { sendLevelUpEmbed } = require('../utils/levelUpEmbed');
+const logger = require('../utils/logger');
 
 // In-memory map tracking active voice session start times: `${userId}-${guildId}` -> timestamp
 const voiceSessions = new Map();
@@ -50,7 +51,7 @@ async function processVoiceXp(userId, guildId, member, client, ticks) {
             { upsert: true, returnDocument: 'after' }
         );
 
-        console.log(`🎙️ Gave ${xpToGive} voice XP to ${member ? member.user.tag : userId} for active voice time.`);
+
 
         // Check for level ups (loop ensures multi-level jumps are handled)
         let leveledUp = false;
@@ -61,11 +62,11 @@ async function processVoiceXp(userId, guildId, member, client, ticks) {
 
         if (leveledUp) {
             await userData.save();
-            console.log(`⬆️ ${member ? member.user.tag : userId} leveled up to Level ${userData.level} via voice!`);
+
             await sendLevelUpEmbed(userId, guildId, userData.level, client);
         }
     } catch (err) {
-        console.error('Error processing voice XP:', err);
+        logger.error('Error processing voice XP:', err);
     }
 }
 
@@ -97,7 +98,7 @@ async function updateMemberSession(member, client) {
                 await processVoiceXp(userId, guildId, member, client, ticks);
             } catch (err) {
                 // Restore the session so the time is not silently lost if the DB is down
-                console.error('[VoiceXP] processVoiceXp failed; restoring session to retry next tick:', err);
+                logger.error('[VoiceXP] processVoiceXp failed; restoring session to retry next tick:', err);
                 voiceSessions.set(sessionKey, joinTime);
             }
         }
@@ -108,7 +109,11 @@ async function updateMemberSession(member, client) {
  * Periodically checks all active voice sessions and awards XP in real-time.
  */
 function startVoiceXpSync(client) {
+    let running = false;
     setInterval(async () => {
+        if (running) return;
+        running = true;
+        try {
         const now = Date.now();
         const { voiceTickMinutes } = config.xpSettings;
         
@@ -135,6 +140,9 @@ function startVoiceXpSync(client) {
                 // Reset the joinTime so they can start earning the next tick
                 voiceSessions.set(sessionKey, now);
             }
+        }
+        } finally {
+            running = false;
         }
     }, 60 * 1000); // Check every minute
 }

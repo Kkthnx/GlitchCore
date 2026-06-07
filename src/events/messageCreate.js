@@ -2,6 +2,7 @@ const config = require('../../config.json');
 const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { checkMessage, getRandomClapback } = require('../utils/filterManager');
 const { queueXp } = require('../utils/xpCache');
+const logger = require('../utils/logger');
 
 module.exports = {
     name: 'messageCreate',
@@ -14,14 +15,14 @@ module.exports = {
         if (filterViolation) {
             try {
                 await message.delete();
-                console.log(`[MOD] Deleted message from ${message.author.tag}: "${message.content.slice(0, 50)}${message.content.length > 50 ? '…' : ''}" (Trigger: ${filterViolation})`);
+                logger.info(`[MOD] Deleted message from ${message.author.tag}: "${message.content.slice(0, 50)}${message.content.length > 50 ? '…' : ''}" (Trigger: ${filterViolation})`);
 
                 const clapbackMsg = await message.channel.send(getRandomClapback(`<@${message.author.id}>`));
                 
                 // Auto-delete the clapback after 5 seconds to keep chat clean
                 setTimeout(() => clapbackMsg.delete().catch(() => {}), 5000);
             } catch (err) {
-                console.error('Failed to moderate message:', err);
+                logger.error('Failed to moderate message:', err);
             }
             return; // Stop processing XP and commands for this message
         }
@@ -50,7 +51,7 @@ module.exports = {
             // 5. Queue XP in memory (Bulk written every 60s to prevent DB bottleneck)
             queueXp(message.author.id, message.guild.id, totalXpGained, message.channel.id);
         } catch (error) {
-            console.error('Error queueing text XP:', error);
+            logger.error('Error queueing text XP:', error);
         }
     }
 };

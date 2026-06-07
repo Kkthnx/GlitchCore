@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Reproducible installs straight from the lockfile (no surprise updates).
+      - name: Install dependencies
+        run: npm ci
+
+      # Fail fast if any source file has a syntax error.
+      - name: Syntax check
+        run: |
+          for f in $(find src scripts shard.js -name '*.js'); do
+            node --check "$f"
+          done
+
+      - name: Run unit tests
+        run: npm test

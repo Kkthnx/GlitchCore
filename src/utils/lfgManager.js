@@ -3,7 +3,9 @@ const {
     ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, MessageFlags,
 } = require('discord.js');
 const LfgSession = require('../database/LfgSchema');
+const { fetchGameBanner } = require('./steamGridClient');
 const config = require('../../config.json');
+const logger = require('./logger');
 
 // ---------------------------------------------------------------------------
 // Color constants (hex -> decimal for discord.js EmbedBuilder)
@@ -21,22 +23,37 @@ const RST = `${ESC}[0m`;    // reset
 // Embed builder — reconstructs the terminal embed from a session document
 // ---------------------------------------------------------------------------
 function buildLfgEmbed(session) {
-    const isLocked = session.status === 'LOCKED';
-    const color    = isLocked ? NEON_RED : NEON_GREEN;
+    const isLocked   = session.status === 'LOCKED';
+    const isCanceled = session.status === 'CANCELLED';
+    
+    let color = NEON_GREEN;
+    if (isLocked) color = NEON_RED;
+    if (isCanceled) color = 0x555555; // Gray for canceled
+
     const filled   = session.roster.length;
 
     // Terminal status header inside an ANSI code block
-    const statusText = isLocked
-        ? `${R}[ LOCKED ]${RST}`
-        : `${G}[ OPEN   ]${RST}`;
+    let statusText = `${G}[ OPEN   ]${RST}`;
+    if (isLocked) statusText = `${R}[ LOCKED ]${RST}`;
+    if (isCanceled) statusText = `${ESC}[1;30m[ CANCELLED ]${RST}`; // Dark gray
 
-    const header = [
+    // Calculate expiration (1h after last activity/updatedAt, or now + 1h if new)
+    const lastActivity = session.updatedAt ? new Date(session.updatedAt) : new Date();
+    const expiresTimestamp = Math.floor((lastActivity.getTime() + 60 * 60 * 1000) / 1000);
+
+    const headerLines = [
         '```ansi',
         `${G}ACTIVITY${RST} : ${session.activity}`,
         `${G}STATUS  ${RST} : ${statusText}`,
         `${G}SLOTS   ${RST} : ${filled} / ${session.totalSlots}`,
-        '```',
-    ].join('\n');
+        '```'
+    ];
+
+    if (!isLocked && !isCanceled) {
+        headerLines.push(`**> EXPIRES:** <t:${expiresTimestamp}:R>`);
+    }
+
+    const header = headerLines.join('\n');
 
     // Roster lines — mentions work outside code blocks
     const rosterLines = ['\n**> ROSTER_DATA:**'];
@@ -50,13 +67,19 @@ function buildLfgEmbed(session) {
         }
     }
 
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(color)
         .setAuthor({ name: '⚡ SYSTEM.LFG_OVERRIDE' })
         .setTitle(`> INITIATING_LOBBY: ${session.game}`)
         .setDescription(header + rosterLines.join('\n'))
         .setFooter({ text: 'GLITCH_HAVEN // SYSTEM_ACTIVE_' })
         .setTimestamp();
+
+    if (session.imgUrl) {
+        embed.setImage(session.imgUrl);
+    }
+
+    return embed;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +104,12 @@ function buildLfgButtons(disabled = false) {
             .setLabel('EXECUTE')
             .setEmoji('🔒')
             .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled),
+        new ButtonBuilder()
+            .setCustomId('lfg_cancel')
+            .setLabel('CANCEL')
+            .setEmoji('🗑️')
+            .setStyle(ButtonStyle.Danger)
             .setDisabled(disabled),
     );
 }
@@ -148,10 +177,13 @@ async function handleModalSubmit(interaction) {
         return interaction.editReply({ content: '`ERROR_404` : LFG channel not configured. Contact an admin.' });
     }
 
+    // Try to fetch a banner from SteamGridDB
+    const imgUrl = await fetchGameBanner(game);
+
     // Host auto-fills slot 1 as Leader
     const roster = [{ userId: interaction.user.id, username: interaction.user.username }];
 
-    const sessionData = { hostId: interaction.user.id, game, activity, totalSlots, roster, status: 'OPEN' };
+    const sessionData = { hostId: interaction.user.id, game, activity, totalSlots, roster, status: 'OPEN', imgUrl };
     const embed   = buildLfgEmbed(sessionData);
     const buttons = buildLfgButtons(false);
 
@@ -169,7 +201,7 @@ async function handleModalSubmit(interaction) {
             content: `\`SESSION_ACTIVE\` — LFG is live! **[→ Jump to it](${msg.url})**`,
         });
     } catch (err) {
-        console.error('Failed to create LFG session:', err);
+        logger.error('Failed to create LFG session:', err);
         await interaction.editReply({
             content: '`ERROR_500` : Failed to post the LFG. Check that the bot has **Send Messages** permission in the LFG channel.',
         });
@@ -180,45 +212,66 @@ async function handleModalSubmit(interaction) {
 // INJECT — add user to roster
 // ---------------------------------------------------------------------------
 async function handleInject(interaction) {
+    const userId = interaction.user.id;
+
+    // Atomic add: the DB itself enforces "OPEN", "not already joined", and
+    // "roster has a free slot" in a single operation. This closes the race
+    // window where two simultaneous INJECT clicks could both pass a JS-side
+    // length check and overfill the lobby.
+    const updated = await LfgSession.findOneAndUpdate(
+        {
+            messageId: interaction.message.id,
+            status: 'OPEN',
+            'roster.userId': { $ne: userId },
+            $expr: { $lt: [{ $size: '$roster' }, '$totalSlots'] },
+        },
+        { $push: { roster: { userId, username: interaction.user.username } } },
+        { new: true }
+    );
+
+    if (updated) {
+        return interaction.update({ embeds: [buildLfgEmbed(updated)], components: [buildLfgButtons(false)] });
+    }
+
+    // The atomic update matched nothing — re-read to give a precise reason.
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
     if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
     if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Session is **LOCKED**.', flags: MessageFlags.Ephemeral });
-
-    if (session.roster.some(m => m.userId === interaction.user.id)) {
+    if (session.status === 'CANCELLED') return interaction.reply({ content: '`ERROR_410` : Session has been cancelled.', flags: MessageFlags.Ephemeral });
+    if (session.roster.some(m => m.userId === userId)) {
         return interaction.reply({ content: '`ERROR_409` : You are already injected into this session.', flags: MessageFlags.Ephemeral });
     }
-    if (session.roster.length >= session.totalSlots) {
-        return interaction.reply({ content: '`ERROR_503` : All slots occupied. Session full.', flags: MessageFlags.Ephemeral });
-    }
-
-    session.roster.push({ userId: interaction.user.id, username: interaction.user.username });
-    await session.save();
-
-    await interaction.update({ embeds: [buildLfgEmbed(session)], components: [buildLfgButtons(false)] });
+    return interaction.reply({ content: '`ERROR_503` : All slots occupied. Session full.', flags: MessageFlags.Ephemeral });
 }
 
 // ---------------------------------------------------------------------------
 // ABORT — remove user from roster
 // ---------------------------------------------------------------------------
 async function handleAbort(interaction) {
+    const userId = interaction.user.id;
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
     if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
     if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Cannot abort a **LOCKED** session.', flags: MessageFlags.Ephemeral });
 
-    if (interaction.user.id === session.hostId) {
+    if (userId === session.hostId) {
         return interaction.reply({
             content: '`ERROR_403` : Leaders cannot abort. Use 🔒 **EXECUTE** to lock and end the session.',
             flags: MessageFlags.Ephemeral,
         });
     }
-    if (!session.roster.some(m => m.userId === interaction.user.id)) {
+
+    // Atomic removal guarded so a concurrent LOCK can't be clobbered.
+    const updated = await LfgSession.findOneAndUpdate(
+        { messageId: interaction.message.id, status: { $ne: 'LOCKED' }, 'roster.userId': userId },
+        { $pull: { roster: { userId } } },
+        { new: true }
+    );
+
+    if (!updated) {
         return interaction.reply({ content: '`ERROR_404` : You are not in this session.', flags: MessageFlags.Ephemeral });
     }
 
-    session.roster = session.roster.filter(m => m.userId !== interaction.user.id);
-    await session.save();
-
-    await interaction.update({ embeds: [buildLfgEmbed(session)], components: [buildLfgButtons(false)] });
+    await interaction.update({ embeds: [buildLfgEmbed(updated)], components: [buildLfgButtons(false)] });
 }
 
 // ---------------------------------------------------------------------------
@@ -254,49 +307,93 @@ async function handleExecute(interaction) {
 }
 
 // ---------------------------------------------------------------------------
-// Auto-cleanup stale OPEN LFG sessions (older than 24 hours)
+// CANCEL — host deletes the session
+// ---------------------------------------------------------------------------
+async function handleCancel(interaction) {
+    try {
+        const session = await LfgSession.findOne({ messageId: interaction.message.id });
+        if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
+
+        if (interaction.user.id !== session.hostId) {
+            return interaction.reply({ content: '`ERROR_403` : Only the **Leader** can CANCEL the session.', flags: MessageFlags.Ephemeral });
+        }
+        
+        if (session.status === 'CANCELLED') {
+            return interaction.reply({ content: '`ERROR_409` : Session is already cancelling.', flags: MessageFlags.Ephemeral });
+        }
+
+        session.status = 'CANCELLED';
+        await session.save();
+
+        const embed = buildLfgEmbed(session);
+        // Append destruct warning
+        embed.setDescription(embed.data.description + `\n\n\`\`\`ansi\n${R}[ DESTRUCT SEQUENCE INITIATED... T-MINUS 5 SECONDS ]${RST}\n\`\`\``);
+
+        // Acknowledge interaction, update embed, and disable all buttons
+        await interaction.update({ embeds: [embed], components: [buildLfgButtons(true)] });
+
+        // Non-blocking 5-second wait
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // Delete the message if it still exists
+        try {
+            await interaction.message.delete();
+        } catch (err) {
+            logger.warn(`Could not delete LFG message ${interaction.message.id}: ${err.message}`);
+        }
+
+        // Scrub from DB
+        await LfgSession.deleteOne({ messageId: interaction.message.id });
+    } catch (err) {
+        logger.error('Error during LFG cancel:', err);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '`ERROR_500` : Failed to cancel session.', flags: MessageFlags.Ephemeral });
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-cleanup stale OPEN LFG sessions (inactive for 1 hour)
 // ---------------------------------------------------------------------------
 async function cleanUpStaleLfgSessions(client) {
-    const thresholdDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const thresholdDate = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
     try {
         const staleSessions = await LfgSession.find({
             status: 'OPEN',
-            createdAt: { $lt: thresholdDate }
+            updatedAt: { $lt: thresholdDate }
         });
 
         if (staleSessions.length === 0) return;
 
-        console.log(`🧹 Found ${staleSessions.length} stale LFG session(s) to auto-lock.`);
+        logger.info(`Found ${staleSessions.length} inactive LFG session(s) to self-destruct.`);
 
         for (const session of staleSessions) {
-            session.status = 'LOCKED';
-            await session.save();
-
             const guild = client.guilds.cache.get(session.guildId);
-            if (!guild) continue;
+            if (!guild) {
+                await LfgSession.deleteOne({ _id: session._id });
+                continue;
+            }
 
             const channel = guild.channels.cache.get(session.channelId);
-            if (!channel) continue;
+            if (!channel) {
+                await LfgSession.deleteOne({ _id: session._id });
+                continue;
+            }
 
             try {
                 const message = await channel.messages.fetch(session.messageId);
                 if (message) {
-                    // Rebuild embed in locked state, and disable buttons
-                    const embed = buildLfgEmbed(session);
-                    const buttons = buildLfgButtons(true);
-                    await message.edit({ embeds: [embed], components: [buttons] });
-                    
-                    // Send an expiration message
-                    await channel.send({
-                        content: `⚠️ **LOBBY EXPIRED** — The LFG session hosted by <@${session.hostId}> has reached the 24-hour limit and has been automatically closed.`
-                    });
+                    await message.delete();
                 }
             } catch (err) {
-                console.warn(`Could not update stale LFG message ${session.messageId}:`, err.message);
+                logger.warn(`Could not delete stale LFG message ${session.messageId}: ${err.message}`);
             }
+
+            // Scrub from DB
+            await LfgSession.deleteOne({ _id: session._id });
         }
     } catch (err) {
-        console.error('Error during stale LFG cleanup:', err);
+        logger.error('Error during stale LFG cleanup:', err);
     }
 }
 
@@ -306,6 +403,7 @@ module.exports = {
     handleInject,
     handleAbort,
     handleExecute,
+    handleCancel,
     cleanUpStaleLfgSessions
 };
 

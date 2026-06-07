@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const levelUpSayings = require('./levelUpSayings');
 const { isDoubleXpActive } = require('./isDoubleXp');
 const config = require('../../config.json');
+const logger = require('./logger');
 
 /**
  * Generates and sends a stylized level up embed.
@@ -21,7 +22,8 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
         let color = config.theme.silver; // Default fallback color
 
         if (guild) {
-            member = await guild.members.fetch(userId).catch(() => null);
+            // Check cache first (free), only fall back to a REST fetch if not cached
+            member = guild.members.cache.get(userId) || await guild.members.fetch(userId).catch(() => null);
             if (member) {
                 discordUser = member.user;
                 // Use the highest role color if they have one set
@@ -57,7 +59,7 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
         // Send with ping outside the embed so they actually get notified
         await channel.send({ content: `<@${userId}>`, embeds: [embed] });
     } catch (err) {
-        console.error('Failed to send level up embed:', err);
+        logger.error('Failed to send level up embed:', err);
     }
 }
 

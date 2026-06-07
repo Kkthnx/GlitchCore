@@ -4,8 +4,20 @@ GlitchCore is a custom Discord bot built with [Discord.js](https://discord.js.or
 
 ## Features
 - **XP & Leveling System**: Earn XP through text messages and voice chat, including double XP days.
-- **Configurable Settings**: Easily manage roles, channels, and theme colors.
+- **LFG System**: Slash-command-driven looking-for-group lobbies with live roster buttons.
+- **Auto-Moderation**: Configurable content filter.
+- **Configurable Settings**: Easily manage roles, channels, and theme colors via `config.json`.
 - **Canvas Integrations**: Uses `@napi-rs/canvas` for image manipulation and generation.
+- **Structured Logging**: Winston-based logging with automatic secret redaction.
+
+See [PRIVACY.md](./PRIVACY.md) for the data-handling policy.
+
+## Testing
+
+Run the unit test suite with:
+```bash
+npm test
+```
 
 ## Prerequisites
 - Node.js (v16.9.0 or newer recommended)
@@ -20,10 +32,17 @@ GlitchCore is a custom Discord bot built with [Discord.js](https://discord.js.or
    npm install
    ```
 3. Configure your environment:
-   Create a `.env` file in the root directory and add your bot token and database URI:
+   Create a `.env` file in the root directory:
    ```env
-   DISCORD_TOKEN=your_bot_token_here
+   TOKEN=your_bot_token_here
+   CLIENT_ID=your_application_client_id
+   GUILD_ID=your_dev_guild_id
    MONGO_URI=your_mongodb_uri_here
+   # Optional: enables LFG game banners
+   STEAMGRIDDB_API_KEY=your_steamgriddb_key
+   # Optional: set to "production" for JSON structured logs
+   NODE_ENV=development
+   LOG_LEVEL=info
    ```
 4. Update `config.json` with your specific channel and role IDs.
 

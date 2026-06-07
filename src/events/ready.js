@@ -3,6 +3,7 @@ const config = require('../../config.json');
 const { isDoubleXpActive } = require('../utils/isDoubleXp');
 const BotState = require('../database/BotStateSchema');
 const botStatuses = require('../utils/botStatuses');
+const logger = require('../utils/logger');
 
 // ---------------------------------------------------------------------------
 // Returns today's date as a YYYY-MM-DD string for deduplication
@@ -18,7 +19,7 @@ function getTodayString() {
 async function announceDoubleXp(client, guildId) {
     try {
         const channel = client.channels.cache.get(config.channels.announcements);
-        if (!channel) return console.warn('⚠️  Announcements channel not found. Check config.json.');
+        if (!channel) return logger.warn('Announcements channel not found. Check config.json.');
 
         const dayName = new Date().getDay() === 5 ? 'Friday' : 'Saturday';
 
@@ -36,7 +37,7 @@ async function announceDoubleXp(client, guildId) {
             .setTimestamp();
 
         await channel.send({ content: '@everyone', embeds: [embed] });
-        console.log(`📢 Double XP announcement sent for ${dayName}.`);
+        logger.info(`Double XP announcement sent for ${dayName}.`);
 
         // Persist today's date so we don't re-announce on restart
         await BotState.findOneAndUpdate(
@@ -45,7 +46,7 @@ async function announceDoubleXp(client, guildId) {
             { upsert: true }
         );
     } catch (err) {
-        console.error('❌ Failed to send double XP announcement:', err);
+        logger.error('Failed to send double XP announcement:', err);
     }
 }
 
@@ -59,7 +60,7 @@ async function checkAndAnnounceDoubleXp(client, guildId) {
     const alreadyAnnouncedToday = state?.lastDoubleXpDate === getTodayString();
 
     if (alreadyAnnouncedToday) {
-        console.log('⏭️  Double XP already announced today — skipping.');
+        logger.info('Double XP already announced today — skipping.');
         return;
     }
 
@@ -82,7 +83,7 @@ function scheduleMidnightCheck(client, guildId) {
 
     const hrs  = Math.floor(msUntilMidnight / 1000 / 60 / 60);
     const mins = Math.floor((msUntilMidnight / 1000 / 60) % 60);
-    console.log(`⏰ Next double XP check scheduled in ${hrs}h ${mins}m (midnight).`);
+    logger.info(`Next double XP check scheduled in ${hrs}h ${mins}m (midnight).`);
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +108,7 @@ function recoverActiveVoiceSessions(client) {
     }
 
     if (recoveredCount > 0) {
-        console.log(`📡 Recovered and initialized ${recoveredCount} active voice sessions from startup check.`);
+        logger.info(`Recovered and initialized ${recoveredCount} active voice sessions from startup check.`);
     }
 }
 
@@ -118,8 +119,8 @@ module.exports = {
     name: 'clientReady',
     once: true,
     async execute(client) {
-        console.log(`✅ Logged in as ${client.user.tag}`);
-        console.log(`📡 Serving ${client.guilds.cache.size} guild(s)`);
+        logger.info(`Logged in as ${client.user.tag}`);
+        logger.info(`Serving ${client.guilds.cache.size} guild(s)`);
 
         // Set initial random status and rotate every 10 minutes
         const updateStatus = () => {
@@ -137,16 +138,16 @@ module.exports = {
 
         // Run stale LFG cleanup once on startup
         const { cleanUpStaleLfgSessions } = require('../utils/lfgManager');
-        cleanUpStaleLfgSessions(client).catch(console.error);
+        cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
 
         // Schedule periodic stale LFG cleanup every 30 minutes (1,800,000 ms)
         setInterval(() => {
-            cleanUpStaleLfgSessions(client).catch(console.error);
+            cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
         }, 30 * 60 * 1000);
 
         // Use the first guild's ID for state tracking (single-server setup)
         const guildId = client.guilds.cache.first()?.id;
-        if (!guildId) return console.warn('⚠️  No guilds found in cache.');
+        if (!guildId) return logger.warn('No guilds found in cache.');
 
         // Only announce if it's a double XP day AND we haven't already announced today
         await checkAndAnnounceDoubleXp(client, guildId);

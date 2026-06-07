@@ -2,6 +2,7 @@ const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
 const path = require('path');
 const themes = require('./cardThemes');
 const fs = require('fs');
+const logger = require('./logger');
 
 // Load custom fonts
 GlobalFonts.registerFromPath(path.join(__dirname, '../assets/Rajdhani-Bold.ttf'), 'Rajdhani');
@@ -104,7 +105,7 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
             ctx.drawImage(avatar, avatarX - avatarRadius, avatarY - avatarRadius, avatarRadius * 2, avatarRadius * 2);
             ctx.restore();
         } catch (err) {
-            console.error('Failed to load avatar', err);
+            logger.error('Failed to load avatar', err);
         }
     }
 

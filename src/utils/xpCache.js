@@ -3,6 +3,7 @@ const { xpRequiredForLevel } = require('./calculateXp');
 const { isDoubleXpActive } = require('./isDoubleXp');
 const config = require('../../config.json');
 const { sendLevelUpEmbed } = require('./levelUpEmbed');
+const logger = require('./logger');
 // In-Memory Buffer
 // Key: "userId-guildId"
 // Value: { xp: Number, messages: Number, lastChannelId: String }
@@ -12,7 +13,7 @@ const xpBuffer = new Map();
  * Queues XP to be written to the database later.
  */
 function queueXp(userId, guildId, xpAmount, channelId) {
-    const key = `${userId}-${guildId}`;
+    const key = `${userId}::${guildId}`;
     if (!xpBuffer.has(key)) {
         xpBuffer.set(key, { xp: 0, messages: 0, lastChannelId: channelId });
     }
@@ -39,7 +40,7 @@ function startXpSync(client) {
         const queryConditions = [];
 
         for (const [key, data] of batch.entries()) {
-            const [userId, guildId] = key.split('-');
+            const [userId, guildId] = key.split('::');
             
             bulkOps.push({
                 updateOne: {
@@ -56,8 +57,12 @@ function startXpSync(client) {
             // 2. Execute the bulk write (One single network request for thousands of updates!)
             await User.bulkWrite(bulkOps);
 
-            // 3. Fetch the updated users to check if anyone crossed a level threshold
-            const updatedUsers = await User.find({ $or: queryConditions });
+            // 3. Fetch the updated users to check if anyone crossed a level threshold.
+            //    Project only the fields we actually need to keep the payload small.
+            const updatedUsers = await User.find(
+                { $or: queryConditions },
+                { userId: 1, guildId: 1, xp: 1, level: 1, _id: 0 }
+            );
 
             for (const user of updatedUsers) {
                 let leveledUp = false;
@@ -77,7 +82,7 @@ function startXpSync(client) {
                 }
             }
         } catch (err) {
-            console.error('[XP_SYNC_ERROR] Failed to bulk write XP to database:', err);
+            logger.error('[XP_SYNC_ERROR] Failed to bulk write XP to database:', err);
             // Re-queue the failed batch here for data safety
             for (const [key, data] of batch.entries()) {
                 if (!xpBuffer.has(key)) {

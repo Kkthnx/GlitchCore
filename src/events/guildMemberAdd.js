@@ -1,6 +1,7 @@
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const buildWelcomeImage = require('../utils/generateWelcomeImage');
 const config = require('../../config.json');
+const logger = require('../utils/logger');
 
 module.exports = {
     name: 'guildMemberAdd',
@@ -11,10 +12,10 @@ module.exports = {
             if (memberRole) {
                 await member.roles.add(memberRole);
             } else {
-                console.warn('Member role ID is invalid or missing in config.json');
+                logger.warn('Member role ID is invalid or missing in config.json');
             }
         } catch (err) {
-            console.error(`Failed to assign role to ${member.user.tag}:`, err);
+            logger.error(`Failed to assign role to ${member.user.tag}:`, err);
         }
 
         // 2. Private Message the User
@@ -27,13 +28,13 @@ module.exports = {
             await member.send({ embeds: [dmEmbed] });
         } catch (err) {
             // This triggers if the user has their DMs locked/disabled
-            console.log(`Could not send DM to ${member.user.tag}.`);
+            logger.info(`Could not send DM to ${member.user.tag}.`);
         }
 
         // 3. Generate and Send Welcome Banner
         try {
             const welcomeChannel = member.guild.channels.cache.get(config.channels.welcome);
-            if (!welcomeChannel) return console.warn('Welcome channel ID is invalid or missing.');
+            if (!welcomeChannel) return logger.warn('Welcome channel ID is invalid or missing.');
 
             // Generate the image buffer from our canvas utility
             const imageBuffer = await buildWelcomeImage(member.user);
@@ -47,7 +48,7 @@ module.exports = {
 
             await welcomeChannel.send({ embeds: [welcomeEmbed], files: [attachment] });
         } catch (err) {
-            console.error('Failed to send welcome message:', err);
+            logger.error('Failed to send welcome message:', err);
         }
     }
 };

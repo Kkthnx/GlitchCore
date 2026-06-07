@@ -14,12 +14,13 @@ const lfgSchema = new mongoose.Schema({
     game:       { type: String, required: true },
     activity:   { type: String, required: true },
     totalSlots: { type: Number, required: true, min: 2, max: 10 },
+    imgUrl:     { type: String, default: null },
     roster:     { type: [rosterMemberSchema], default: [] },
-    status:     { type: String, enum: ['OPEN', 'LOCKED'], default: 'OPEN' },
+    status:     { type: String, enum: ['OPEN', 'LOCKED', 'CANCELLED'], default: 'OPEN' },
 }, { timestamps: true });
 
-// Index for the stale-session cleanup query: find OPEN sessions older than 24h.
+// Index for the stale-session cleanup query: find OPEN sessions inactive for 1h.
 // Without this, cleanUpStaleLfgSessions does a full collection scan every 30 minutes.
-lfgSchema.index({ status: 1, createdAt: 1 });
+lfgSchema.index({ status: 1, updatedAt: 1 });
 
 module.exports = mongoose.model('LfgSession', lfgSchema);
