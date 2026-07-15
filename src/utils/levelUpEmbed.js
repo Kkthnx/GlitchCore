@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const levelUpSayings = require('./levelUpSayings');
 const { isDoubleXpActive } = require('./isDoubleXp');
+const { getGuildConfig } = require('../utils/guildConfigCache');
 const config = require('../../config.json');
 const logger = require('./logger');
 
@@ -12,7 +13,15 @@ const logger = require('./logger');
  * @param {Client} client - The Discord.js client
  */
 async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
-    const channel = client.channels.cache.get(config.channels.levelUpLog);
+    let channelId = config.channels.levelUpLog;
+    try {
+        const guildSettings = await getGuildConfig(guildId) || {};
+        channelId = guildSettings.levelUpLogChannelId || channelId;
+    } catch (err) {
+        logger.warn('Could not load guild settings for level up log channel fallback:', err);
+    }
+
+    const channel = client.channels.cache.get(channelId);
     if (!channel) return;
 
     try {
@@ -39,12 +48,12 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
         }
 
         const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
-        
+
         const embed = new EmbedBuilder()
             .setColor(color)
-            .setAuthor({ 
-                name: `Level Up! - ${discordUser ? discordUser.username : 'User'}`, 
-                iconURL: discordUser ? discordUser.displayAvatarURL({ dynamic: true }) : null 
+            .setAuthor({
+                name: `Level Up! - ${discordUser ? discordUser.username : 'User'}`,
+                iconURL: discordUser ? discordUser.displayAvatarURL({ dynamic: true }) : null
             })
             .setDescription(
                 `🎉 **Congratulations <@${userId}>!**\n\n` +

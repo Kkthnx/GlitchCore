@@ -1,8 +1,9 @@
 # GlitchCore
 
-GlitchCore is a custom Discord bot built with [Discord.js](https://discord.js.org/) and Node.js. 
+GlitchCore is a custom Discord bot built with [Discord.js](https://discord.js.org/) and Node.js.
 
 ## Features
+
 - **XP & Leveling System**: Earn XP through text messages and voice chat, including double XP days.
 - **LFG System**: Slash-command-driven looking-for-group lobbies with live roster buttons.
 - **Auto-Moderation**: Configurable content filter.
@@ -15,11 +16,13 @@ See [PRIVACY.md](./PRIVACY.md) for the data-handling policy.
 ## Testing
 
 Run the unit test suite with:
+
 ```bash
 npm test
 ```
 
 ## Prerequisites
+
 - Node.js (v16.9.0 or newer recommended)
 - MongoDB instance (Mongoose)
 - A Discord Bot Token
@@ -28,11 +31,20 @@ npm test
 
 1. Clone the repository
 2. Install dependencies:
+
    ```bash
    npm install
    ```
+
 3. Configure your environment:
-   Create a `.env` file in the root directory:
+   Copy `.env.example` to `.env` and fill in the values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Example values:
+
    ```env
    TOKEN=your_bot_token_here
    CLIENT_ID=your_application_client_id
@@ -44,21 +56,25 @@ npm test
    NODE_ENV=development
    LOG_LEVEL=info
    ```
+
 4. Update `config.json` with your specific channel and role IDs.
 
 ## Usage
 
 Start the bot normally:
+
 ```bash
 npm start
 ```
 
 For development (using nodemon):
+
 ```bash
 npm run dev
 ```
 
 Deploy slash commands:
+
 ```bash
 npm run deploy
 ```
@@ -66,4 +82,5 @@ npm run deploy
 Windows users can also simply run the `start_bot.bat` script to launch the bot.
 
 ## License
+
 ISC

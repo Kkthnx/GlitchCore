@@ -4,23 +4,28 @@ const fs = require('fs');
 const path = require('path');
 
 const commands = [];
-// Grab all the command folders from the commands directory
 const foldersPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
 
-for (const folder of commandFolders) {
-    const commandsPath = path.join(foldersPath, folder);
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-    for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file);
-        const command = require(filePath);
-        if ('data' in command && 'execute' in command) {
-            commands.push(command.data.toJSON());
-        } else {
-            console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+function gatherCommandFiles(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            gatherCommandFiles(fullPath);
+            continue;
+        }
+        if (entry.isFile() && entry.name.endsWith('.js')) {
+            const command = require(fullPath);
+            if ('data' in command && 'execute' in command) {
+                commands.push(command.data.toJSON());
+            } else {
+                console.log(`[WARNING] The command at ${fullPath} is missing a required "data" or "execute" property.`);
+            }
         }
     }
 }
+
+gatherCommandFiles(foldersPath);
 
 // Construct and prepare an instance of the REST module
 const rest = new REST().setToken(process.env.TOKEN);

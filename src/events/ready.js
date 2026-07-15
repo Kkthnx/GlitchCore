@@ -5,6 +5,11 @@ const BotState = require('../database/BotStateSchema');
 const botStatuses = require('../utils/botStatuses');
 const logger = require('../utils/logger');
 
+// Import the background synchronization handlers
+const { startXpSync } = require('../utils/xpCache');
+const { startVoiceXpSync } = require('./voiceStateUpdate');
+const { getGuildConfig } = require('../utils/guildConfigCache');
+
 // ---------------------------------------------------------------------------
 // Returns today's date as a YYYY-MM-DD string for deduplication
 // ---------------------------------------------------------------------------
@@ -18,8 +23,10 @@ function getTodayString() {
 // ---------------------------------------------------------------------------
 async function announceDoubleXp(client, guildId) {
     try {
-        const channel = client.channels.cache.get(config.channels.announcements);
-        if (!channel) return logger.warn('Announcements channel not found. Check config.json.');
+        const guildConfig = await getGuildConfig(guildId) || {};
+        const channelId = guildConfig.announcementsChannelId || config.channels.announcements;
+        const channel = client.channels.cache.get(channelId);
+        if (!channel) return logger.warn(`Announcements channel not found for guild ${guildId}. Check guild settings or config.json.`);
 
         const dayName = new Date().getDay() === 5 ? 'Friday' : 'Saturday';
 
@@ -70,18 +77,20 @@ async function checkAndAnnounceDoubleXp(client, guildId) {
 // ---------------------------------------------------------------------------
 // Schedules a check at the next midnight, then reschedules itself every 24h.
 // ---------------------------------------------------------------------------
-function scheduleMidnightCheck(client, guildId) {
+function scheduleMidnightCheck(client) {
     const now = new Date();
     const nextMidnight = new Date(now);
     nextMidnight.setHours(24, 0, 0, 0);
     const msUntilMidnight = nextMidnight - now;
 
     setTimeout(async () => {
-        await checkAndAnnounceDoubleXp(client, guildId);
-        scheduleMidnightCheck(client, guildId); // reschedule for next midnight
+        await Promise.all(
+            Array.from(client.guilds.cache.values()).map(guild => checkAndAnnounceDoubleXp(client, guild.id))
+        );
+        scheduleMidnightCheck(client);
     }, msUntilMidnight);
 
-    const hrs  = Math.floor(msUntilMidnight / 1000 / 60 / 60);
+    const hrs = Math.floor(msUntilMidnight / 1000 / 60 / 60);
     const mins = Math.floor((msUntilMidnight / 1000 / 60) % 60);
     logger.info(`Next double XP check scheduled in ${hrs}h ${mins}m (midnight).`);
 }
@@ -91,24 +100,26 @@ function scheduleMidnightCheck(client, guildId) {
 // ---------------------------------------------------------------------------
 function recoverActiveVoiceSessions(client) {
     const { voiceSessions, isMemberActive } = require('./voiceStateUpdate');
-    let recoveredCount = 0;
+    const { voiceTickMinutes } = config.xpSettings;
+    const recoveredCount = { value: 0 };
 
     for (const guild of client.guilds.cache.values()) {
         for (const channel of guild.channels.cache.values()) {
-            if (channel.isVoiceBased()) {
-                for (const member of channel.members.values()) {
-                    if (isMemberActive(member)) {
-                        const sessionKey = `${member.id}-${guild.id}`;
-                        voiceSessions.set(sessionKey, Date.now());
-                        recoveredCount++;
-                    }
-                }
+            if (!channel.isVoiceBased()) continue;
+
+            for (const member of channel.members.values()) {
+                if (!isMemberActive(member)) continue;
+
+                const sessionKey = `${member.id}-${guild.id}`;
+                const joinTime = Date.now() - Math.max(0, (voiceTickMinutes * 60 * 1000) - 15 * 1000);
+                voiceSessions.set(sessionKey, joinTime);
+                recoveredCount.value += 1;
             }
         }
     }
 
-    if (recoveredCount > 0) {
-        logger.info(`Recovered and initialized ${recoveredCount} active voice sessions from startup check.`);
+    if (recoveredCount.value > 0) {
+        logger.info(`Recovered and initialized ${recoveredCount.value} active voice sessions from startup check.`);
     }
 }
 
@@ -133,10 +144,15 @@ module.exports = {
         updateStatus();
         setInterval(updateStatus, 10 * 60 * 1000);
 
-        // Recover active voice sessions across all channels
+        // 1. Initialize High-Performance Caching & Voice Real-time Loops
+        startXpSync(client);
+        startVoiceXpSync(client);
+        logger.info('[XP_SYSTEM] Dynamic background synchronization processors actively running.');
+
+        // 2. Recover active voice sessions across all channels
         recoverActiveVoiceSessions(client);
 
-        // Run stale LFG cleanup once on startup
+        // 3. Run stale LFG cleanup once on startup
         const { cleanUpStaleLfgSessions } = require('../utils/lfgManager');
         cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
 
@@ -145,16 +161,14 @@ module.exports = {
             cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
         }, 30 * 60 * 1000);
 
-        // Use the first guild's ID for state tracking (single-server setup)
-        const guildId = client.guilds.cache.first()?.id;
-        if (!guildId) return logger.warn('No guilds found in cache.');
+        if (client.guilds.cache.size === 0) {
+            return logger.warn('No guilds found in cache.');
+        }
 
-        // Only announce if it's a double XP day AND we haven't already announced today
-        await checkAndAnnounceDoubleXp(client, guildId);
+        for (const guild of client.guilds.cache.values()) {
+            await checkAndAnnounceDoubleXp(client, guild.id);
+        }
 
-        // Schedule all future midnight checks
-        scheduleMidnightCheck(client, guildId);
+        scheduleMidnightCheck(client);
     },
 };
-
-

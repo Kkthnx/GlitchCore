@@ -8,17 +8,15 @@ const logger = require('./utils/logger');
 // ---------------------------------------------------------------------------
 // Global error handlers — prevents the bot from dying on unhandled rejections
 // ---------------------------------------------------------------------------
-process.on('unhandledRejection', (reason) => {
-    logger.error('Unhandled Promise Rejection:', reason);
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Promise Rejection:', { reason, promise });
 });
 process.on('uncaughtException', (err) => {
     logger.error('Uncaught Exception:', err);
+    process.exit(1);
 });
 
 // 1. Initialize the Client with required Intents
-//    Least privilege: every intent below maps to an active feature.
-//    - MessageContent (privileged): text XP + auto-mod filter
-//    - GuildMembers   (privileged): welcome banner + auto-role
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -68,17 +66,11 @@ setInterval(() => {
     }
 }, 60 * 60 * 1000);
 
-const { startXpSync } = require('./utils/xpCache');
-const { startVoiceXpSync } = require('./events/voiceStateUpdate');
-
 // 2. Connect to the Database
+// Note: Background XP loops are safely managed within events/ready.js 
+// to guarantee Discord guild caches are loaded before data aggregation hooks begin.
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => {
-        logger.info('Connected to MongoDB Atlas');
-        startXpSync(client);
-        startVoiceXpSync(client);
-        logger.info('Background XP & Voice Sync started');
-    })
+    .then(() => logger.info('Connected to MongoDB Atlas'))
     .catch((err) => logger.error('MongoDB Connection Error:', err));
 
 // 3. Event Handler (loads .js files from src/events)
@@ -96,24 +88,29 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// 4. Command Loader — only reads entries that are actually directories
+// 4. Command Loader — recursively load all command files
 const commandsPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(commandsPath)
-    .filter(entry => fs.statSync(path.join(commandsPath, entry)).isDirectory());
 
-for (const folder of commandFolders) {
-    const folderPath = path.join(commandsPath, folder);
-    const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-    for (const file of commandFiles) {
-        const filePath = path.join(folderPath, file);
-        const command = require(filePath);
+function loadCommandFiles(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            loadCommandFiles(fullPath);
+            continue;
+        }
+
+        if (!entry.isFile() || !entry.name.endsWith('.js')) continue;
+        const command = require(fullPath);
         if ('data' in command && 'execute' in command) {
             client.commands.set(command.data.name, command);
         } else {
-            logger.warn(`[WARN] ${filePath} is missing "data" or "execute".`);
+            logger.warn(`[WARN] ${fullPath} is missing "data" or "execute".`);
         }
     }
 }
+
+loadCommandFiles(commandsPath);
 
 // 5. Log in to Discord
 client.login(process.env.TOKEN)
