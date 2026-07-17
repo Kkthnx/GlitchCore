@@ -66,12 +66,49 @@ setInterval(() => {
     }
 }, 60 * 60 * 1000);
 
-// 2. Connect to the Database
+// 2. Connect to the Database with Automatic Reconnect & Exponential Backoff
 // Note: Background XP loops are safely managed within events/ready.js 
 // to guarantee Discord guild caches are loaded before data aggregation hooks begin.
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => logger.info('Connected to MongoDB Atlas'))
-    .catch((err) => logger.error('MongoDB Connection Error:', err));
+let mongoRetryCount = 0;
+const MAX_RETRY_ATTEMPTS = 5;
+const BASE_RETRY_DELAY = 1000; // 1 second
+
+function connectMongo() {
+    mongoose.connect(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        retryWrites: true,
+    })
+        .then(() => {
+            logger.info('Connected to MongoDB Atlas');
+            mongoRetryCount = 0; // Reset on successful connection
+        })
+        .catch((err) => {
+            logger.error('MongoDB Connection Error:', err.message);
+
+            if (mongoRetryCount < MAX_RETRY_ATTEMPTS) {
+                mongoRetryCount += 1;
+                const delayMs = BASE_RETRY_DELAY * Math.pow(2, mongoRetryCount - 1);
+                logger.warn(`Retrying MongoDB connection in ${delayMs}ms (attempt ${mongoRetryCount}/${MAX_RETRY_ATTEMPTS})...`);
+                setTimeout(connectMongo, delayMs);
+            } else {
+                logger.error('MongoDB connection failed after maximum retries. Bot will continue without DB.');
+            }
+        });
+}
+
+connectMongo();
+
+// Listen for connection events to detect and handle disconnects
+mongoose.connection.on('disconnected', () => {
+    logger.warn('MongoDB connection lost. Attempting to reconnect...');
+    mongoRetryCount = 0;
+    setTimeout(connectMongo, BASE_RETRY_DELAY);
+});
+
+mongoose.connection.on('error', (err) => {
+    logger.error('MongoDB connection error:', err.message);
+});
 
 // 3. Event Handler (loads .js files from src/events)
 const eventsPath = path.join(__dirname, 'events');
