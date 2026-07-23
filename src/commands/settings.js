@@ -23,9 +23,12 @@ module.exports = {
                         .addChoices(
                             { name: 'xp_enabled', value: 'xpEnabled' },
                             { name: 'voice_xp_enabled', value: 'voiceXpEnabled' },
+                            { name: 'anti_spam_enabled', value: 'antiSpamEnabled' },
                             { name: 'lfg_channel_id', value: 'lfgChannelId' },
                             { name: 'announcements_channel_id', value: 'announcementsChannelId' },
                             { name: 'levelup_log_channel_id', value: 'levelUpLogChannelId' },
+                            { name: 'mod_log_channel_id', value: 'modLogChannelId' },
+                            { name: 'double_xp_role_id', value: 'doubleXpRoleId' },
                             { name: 'text_cooldown_seconds', value: 'textCooldownSeconds' },
                             { name: 'voice_xp_per_tick', value: 'voiceXpPerTick' },
                             { name: 'voice_tick_minutes', value: 'voiceTickMinutes' },
@@ -71,6 +74,10 @@ module.exports = {
                 `lfgChannelId: ${config.lfgChannelId || 'not set'}`,
                 `announcementsChannelId: ${config.announcementsChannelId || 'not set'}`,
                 `levelUpLogChannelId: ${config.levelUpLogChannelId || 'not set'}`,
+                `modLogChannelId: ${config.modLogChannelId || 'not set'}`,
+                `doubleXpRoleId: ${config.doubleXpRoleId || 'not set'}`,
+                `antiSpamEnabled: ${config.antiSpamEnabled}`,
+                `selfRoles: ${config.selfRoles?.length || 0} configured (manage with /roles)`,
                 `textCooldownSeconds: ${config.textCooldownSeconds}`,
                 `voiceXpPerTick: ${config.voiceXpPerTick}`,
                 `voiceTickMinutes: ${config.voiceTickMinutes}`,
@@ -89,7 +96,7 @@ module.exports = {
                     return interaction.reply({ content: 'That value must be a number.', ephemeral: true });
                 }
                 config[key] = Number(value);
-            } else if (['xpEnabled', 'voiceXpEnabled'].includes(key)) {
+            } else if (['xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled'].includes(key)) {
                 if (!['true', 'false'].includes(value.toLowerCase())) {
                     return interaction.reply({ content: 'That value must be true or false.', ephemeral: true });
                 }

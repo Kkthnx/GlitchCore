@@ -5,6 +5,10 @@ GlitchCore is a custom Discord bot built with [Discord.js](https://discord.js.or
 ## Features
 
 - **XP & Leveling System**: Earn XP through text messages and voice chat, including double XP days.
+- **Opt-in Double XP role**: Announcements ping a self-assigned `@DoubleXP` role instead of `@everyone` (falls back to `@everyone` if unset).
+- **Self-Assign Roles**: `/roles` menu + postable panels so members pick the games they play and the pings they want.
+- **Moderation Suite**: `/warn`, `/timeout`, `/kick`, `/ban`, and `/infractions` with a persistent infraction log and an optional mod-log channel.
+- **Anti-Raid / Anti-Spam**: Auto-detects invite links, mass mentions, and message flooding; auto-timeouts offenders (per-guild toggle).
 - **LFG System**: Slash-command-driven looking-for-group lobbies with live roster buttons.
 - **Auto-Moderation**: Configurable content filter.
 - **Configurable Settings**: Easily manage roles, channels, and theme colors via `config.json`.
@@ -57,7 +61,11 @@ npm test
    LOG_LEVEL=info
    ```
 
-4. Update `config.json` with your specific channel and role IDs.
+4. Update `config.json` with your specific channel and role IDs. Set
+   `timezone` (an IANA name like `America/New_York`) to your community's
+   timezone — Double XP days, the announcement, and its once-per-day dedup
+   are all evaluated in this timezone, so the host server can run in UTC
+   without the weekend posting early or re-posting on restart.
 
 ## Usage
 

@@ -1,5 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const config = require('../../config.json');
+const { SlashCommandBuilder } = require('discord.js');
+const { brandedEmbed, COLORS } = require('../utils/brand');
+
+// Admin-only commands are grouped separately so they don't clutter the
+// member-facing list. Everything else is auto-discovered from the loaded
+// command collection, so this never drifts out of sync with reality.
+const ADMIN_COMMANDS = new Set(['settings', 'warn', 'timeout', 'kick', 'ban', 'infractions']);
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -7,19 +12,24 @@ module.exports = {
         .setDescription('Show help information for GlitchCore commands'),
 
     async execute(interaction) {
-        const embed = new EmbedBuilder()
-            .setTitle('GlitchCore Help')
-            .setDescription('A quick reference for the bot commands and features.')
-            .setColor(config.theme.blue)
-            .addFields(
-                { name: '/lfg', value: 'Create a Looking For Group post in the LFG channel.', inline: false },
-                { name: '/rank', value: 'View your level profile and XP progress.', inline: false },
-                { name: '/leaderboard', value: 'Show the top ranked users in the server.', inline: false },
-                { name: '/rankstyle', value: 'Select your rank card theme and preview it.', inline: false },
-                { name: '/profile', value: 'See your XP, level, role rewards, and activity summary.', inline: false },
-                { name: '/settings', value: 'Server admin command to manage bot configuration.', inline: false },
-            )
-            .setFooter({ text: 'Use /help <command> to get more details.' });
+        const commands = [...interaction.client.commands.values()]
+            .sort((a, b) => a.data.name.localeCompare(b.data.name));
+
+        const member = commands.filter(c => !ADMIN_COMMANDS.has(c.data.name));
+        const admin = commands.filter(c => ADMIN_COMMANDS.has(c.data.name));
+
+        const format = list => list
+            .map(c => `\`/${c.data.name}\` — ${c.data.description}`)
+            .join('\n') || '*None available.*';
+
+        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • GlitchCore' })
+            .setTitle('GlitchCore — Command Guide')
+            .setDescription('Earn XP by chatting and hanging in voice, climb the leaderboard, and squad up with LFG.')
+            .addFields({ name: '🎮 Members', value: format(member) });
+
+        if (admin.length) {
+            embed.addFields({ name: '🛠️ Server Admins', value: format(admin) });
+        }
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
     },

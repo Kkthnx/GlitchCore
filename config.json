@@ -1,10 +1,17 @@
 {
+    "timezone": "America/New_York",
     "theme": {
-        "blue": "#0052CC",
-        "silver": "#C0C0C0",
-        "dark": "#1A1A1D",
-        "neonGreen": "#39FF14",
-        "neonRed": "#FF003C"
+        "accent": "#5cc8ff",
+        "wow": "#b483ff",
+        "teal": "#34d3b4",
+        "gold": "#f0b429",
+        "text": "#cbd5e6",
+        "dim": "#7c8aa0",
+        "blue": "#5cc8ff",
+        "silver": "#cbd5e6",
+        "dark": "#0a0d13",
+        "neonGreen": "#34d3b4",
+        "neonRed": "#ff6b6b"
     },
     "xpSettings": {
         "minBaseXp": 5,
@@ -16,6 +23,16 @@
         "voiceTickMinutes": 5,
         "doubleXpDays": [5, 6],
         "doubleXpMultiplier": 2
+    },
+    "moderation": {
+        "antiSpam": {
+            "enabled": true,
+            "maxMessages": 5,
+            "windowSeconds": 5,
+            "maxMentions": 5,
+            "blockInvites": true,
+            "timeoutMinutes": 5
+        }
     },
     "channels": {
         "welcome": "1440433072288829533",

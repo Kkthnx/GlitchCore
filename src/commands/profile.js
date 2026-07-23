@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const User = require('../database/UserSchema');
 const GuildConfig = require('../database/GuildConfigSchema');
 const { xpRequiredForLevel } = require('../utils/calculateXp');
+const { brandedEmbed, COLORS, progressBar } = require('../utils/brand');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -38,17 +39,32 @@ module.exports = {
             .map(reward => `<@&${reward.roleId}> (level ${reward.level})`)
             .join('\n') || 'None';
 
-        const embed = new EmbedBuilder()
-            .setTitle(`${targetUser.username}'s Profile`)
-            .setDescription(targetUser.id === interaction.user.id ? 'Your current level summary.' : `Profile for ${targetUser.username}`)
+        // Server rank — count members strictly ahead (same query shape as /rank)
+        const rank = await User.countDocuments({
+            guildId: interaction.guild.id,
+            $or: [
+                { level: { $gt: currentLevel } },
+                { level: currentLevel, xp: { $gt: userData.xp } },
+            ],
+        }) + 1;
+
+        const span = nextLevelThreshold - currentLevelThreshold;
+        const bar = `${progressBar(span > 0 ? progress / span : 1)} **${percent}%**`;
+
+        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Profile' })
+            .setAuthor({
+                name: `${targetUser.username}'s Profile`,
+                iconURL: targetUser.displayAvatarURL({ dynamic: true }),
+            })
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
             .addFields(
+                { name: 'Rank', value: `#${rank}`, inline: true },
                 { name: 'Level', value: `${currentLevel}`, inline: true },
-                { name: 'XP', value: `${userData.xp}`, inline: true },
-                { name: 'Progress', value: `${progress}/${nextLevelThreshold - currentLevelThreshold} (${percent}%)`, inline: true },
+                { name: 'Total XP', value: userData.xp.toLocaleString(), inline: true },
+                { name: 'Progress to Next Level', value: `${bar}\n${progress.toLocaleString()} / ${span.toLocaleString()} XP`, inline: false },
                 { name: 'Rank Card Style', value: userData.cardStyle || 'default', inline: true },
                 { name: 'Earned Rewards', value: earnedRewards, inline: false },
-            )
-            .setTimestamp();
+            );
 
         await interaction.editReply({ embeds: [embed] });
     },

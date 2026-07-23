@@ -153,3 +153,31 @@ loadCommandFiles(commandsPath);
 client.login(process.env.TOKEN)
     .then(() => logger.info('GlitchCore is online and running!'))
     .catch((err) => logger.error('Failed to login:', err));
+
+// ---------------------------------------------------------------------------
+// 6. Graceful shutdown — persist queued XP before exiting so a restart or
+// redeploy never drops the XP buffered in memory since the last flush.
+// ---------------------------------------------------------------------------
+let shuttingDown = false;
+async function gracefulShutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info(`Received ${signal} — flushing XP buffer and shutting down...`);
+
+    try {
+        const { flushXpBuffer } = require('./utils/xpCache');
+        await flushXpBuffer(client);
+        logger.info('Final XP flush complete.');
+    } catch (err) {
+        logger.error('Error during final XP flush:', err);
+    }
+
+    try { await mongoose.connection.close(); } catch (err) { logger.error('Error closing MongoDB:', err); }
+    try { client.destroy(); } catch (err) { logger.error('Error destroying client:', err); }
+
+    process.exit(0);
+}
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.on(signal, () => gracefulShutdown(signal));
+}

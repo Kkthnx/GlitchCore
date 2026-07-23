@@ -1,5 +1,6 @@
-const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { AttachmentBuilder } = require('discord.js');
 const buildWelcomeImage = require('../utils/generateWelcomeImage');
+const { brandedEmbed, COLORS } = require('../utils/brand');
 const config = require('../../config.json');
 const logger = require('../utils/logger');
 
@@ -20,10 +21,9 @@ module.exports = {
 
         // 2. Private Message the User
         try {
-            const dmEmbed = new EmbedBuilder()
-                .setTitle('Welcome to GlitchHaven!')
-                .setDescription(`Hey ${member.user.username}, thanks for joining! Head over to the chat channels to level up, or use our LFG channels to squad up.`)
-                .setColor(config.theme.blue);
+            const dmEmbed = brandedEmbed({ color: COLORS.primary })
+                .setTitle('Welcome to Glitch Haven!')
+                .setDescription(`Hey ${member.user.username}, thanks for joining! Head over to the chat channels to level up, or use our LFG channels to squad up.`);
 
             await member.send({ embeds: [dmEmbed] });
         } catch (err) {
@@ -40,10 +40,9 @@ module.exports = {
             const imageBuffer = await buildWelcomeImage(member.user);
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'welcome-image.png' });
 
-            const welcomeEmbed = new EmbedBuilder()
+            const welcomeEmbed = brandedEmbed({ color: COLORS.success })
                 .setTitle('A new gamer has arrived!')
                 .setDescription(`Welcome to the server, ${member}! You are member **#${member.guild.memberCount}**.`)
-                .setColor(config.theme.silver)
                 .setImage('attachment://welcome-image.png');
 
             await welcomeChannel.send({ embeds: [welcomeEmbed], files: [attachment] });

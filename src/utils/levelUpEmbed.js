@@ -1,7 +1,7 @@
-const { EmbedBuilder } = require('discord.js');
 const levelUpSayings = require('./levelUpSayings');
 const { isDoubleXpActive } = require('./isDoubleXp');
 const { getGuildConfig } = require('../utils/guildConfigCache');
+const { brandedEmbed, COLORS } = require('./brand');
 const config = require('../../config.json');
 const logger = require('./logger');
 
@@ -28,7 +28,7 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
         const guild = client.guilds.cache.get(guildId);
         let member = null;
         let discordUser = null;
-        let color = config.theme.silver; // Default fallback color
+        let color = COLORS.success; // Default: Glitch Haven success teal
 
         if (guild) {
             // Check cache first (free), only fall back to a REST fetch if not cached
@@ -49,8 +49,7 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
 
         const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
 
-        const embed = new EmbedBuilder()
-            .setColor(color)
+        const embed = brandedEmbed({ color, footer: 'Glitch Haven • Leveling' })
             .setAuthor({
                 name: `Level Up! - ${discordUser ? discordUser.username : 'User'}`,
                 iconURL: discordUser ? discordUser.displayAvatarURL({ dynamic: true }) : null
@@ -61,9 +60,7 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
                 `*"${randomSaying}"*` +
                 (isDoubleXpActive() ? '\n\n🔥 **Double XP Weekend** — you\'re earning 2× XP today!' : '')
             )
-            .setThumbnail(discordUser ? discordUser.displayAvatarURL({ dynamic: true, size: 256 }) : null)
-            .setFooter({ text: 'GlitchCore Leveling System' })
-            .setTimestamp();
+            .setThumbnail(discordUser ? discordUser.displayAvatarURL({ dynamic: true, size: 256 }) : null);
 
         // Send with ping outside the embed so they actually get notified
         await channel.send({ content: `<@${userId}>`, embeds: [embed] });

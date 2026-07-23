@@ -1,11 +1,13 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const User = require('../../database/UserSchema');
-const config = require('../../../config.json');
+const { brandedEmbed, COLORS } = require('../../utils/brand');
+
+const MEDALS = ['🥇', '🥈', '🥉'];
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('leaderboard')
-        .setDescription('Displays the top 10 highest-level members in GlitchHaven'),
+        .setDescription('Displays the top 10 highest-level members in Glitch Haven'),
 
     async execute(interaction) {
         await interaction.deferReply();
@@ -16,21 +18,40 @@ module.exports = {
             .limit(10);
 
         if (!topUsers.length) {
-            return interaction.editReply('No one has earned any XP yet!');
+            return interaction.editReply('No one has earned any XP yet — be the first to start chatting!');
         }
 
-        const embed = new EmbedBuilder()
-            .setTitle('🏆 GlitchHaven Leaderboard')
-            .setColor(config.theme.blue)
+        const embed = brandedEmbed({ color: COLORS.hype })
+            .setTitle('🏆 Glitch Haven Leaderboard')
             .setThumbnail(interaction.guild.iconURL({ dynamic: true }));
 
-        let description = '';
-        topUsers.forEach((user, index) => {
-            // Using <@id> pings/formats the user visually without notifying them in embeds
-            description += `**#${index + 1}** <@${user.userId}> — Level ${user.level} (${user.xp} XP)\n`;
+        const lines = topUsers.map((user, index) => {
+            const marker = MEDALS[index] || `**#${index + 1}**`;
+            // <@id> formats the user without notifying them inside an embed
+            return `${marker} <@${user.userId}> — Level **${user.level}** · ${user.xp.toLocaleString()} XP`;
         });
 
-        embed.setDescription(description);
+        embed.setDescription(lines.join('\n'));
+
+        // If the requester isn't in the top 10, append their standing so the
+        // command is useful to everyone, not just the leaders.
+        const inTop = topUsers.some(u => u.userId === interaction.user.id);
+        if (!inTop) {
+            const me = await User.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+            if (me) {
+                const rank = await User.countDocuments({
+                    guildId: interaction.guild.id,
+                    $or: [
+                        { level: { $gt: me.level } },
+                        { level: me.level, xp: { $gt: me.xp } },
+                    ],
+                }) + 1;
+                embed.addFields({
+                    name: 'Your Standing',
+                    value: `**#${rank}** — Level **${me.level}** · ${me.xp.toLocaleString()} XP`,
+                });
+            }
+        }
 
         await interaction.editReply({ embeds: [embed] });
     }

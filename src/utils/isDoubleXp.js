@@ -1,13 +1,14 @@
 const config = require('../../config.json');
+const { getLocalDay } = require('./time');
 
 /**
  * Returns true if today is a double XP day (Friday or Saturday by default).
- * Days are checked in the server's local time using JS getDay():
+ * The day of week is evaluated in the community timezone (config.timezone),
+ * NOT the host's local time — so a UTC server can't flip the flag early.
  *   0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
  */
 function isDoubleXpActive() {
-    const today = new Date().getDay();
-    return config.xpSettings.doubleXpDays.includes(today);
+    return config.xpSettings.doubleXpDays.includes(getLocalDay());
 }
 
 /**

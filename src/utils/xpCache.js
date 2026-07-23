@@ -141,5 +141,6 @@ function startXpSync(client) {
 
 module.exports = {
     queueXp,
-    startXpSync
+    startXpSync,
+    flushXpBuffer
 };

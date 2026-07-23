@@ -1,5 +1,6 @@
-const { EmbedBuilder, ActivityType } = require('discord.js');
+const { ActivityType } = require('discord.js');
 const config = require('../../config.json');
+const { brandedEmbed, COLORS } = require('../utils/brand');
 const { isDoubleXpActive } = require('../utils/isDoubleXp');
 const BotState = require('../database/BotStateSchema');
 const botStatuses = require('../utils/botStatuses');
@@ -9,12 +10,15 @@ const logger = require('../utils/logger');
 const { startXpSync } = require('../utils/xpCache');
 const { startVoiceXpSync } = require('./voiceStateUpdate');
 const { getGuildConfig } = require('../utils/guildConfigCache');
+const { getLocalDateString, getLocalDayName, msUntilNextLocalMidnight } = require('../utils/time');
 
 // ---------------------------------------------------------------------------
-// Returns today's date as a YYYY-MM-DD string for deduplication
+// Returns today's date as a YYYY-MM-DD string (community timezone) for dedup.
+// Must use the SAME timezone as isDoubleXpActive(), or the announce check and
+// the dedup key can disagree and produce a duplicate post.
 // ---------------------------------------------------------------------------
 function getTodayString() {
-    return new Date().toISOString().slice(0, 10);
+    return getLocalDateString();
 }
 
 // ---------------------------------------------------------------------------
@@ -28,22 +32,29 @@ async function announceDoubleXp(client, guildId) {
         const channel = client.channels.cache.get(channelId);
         if (!channel) return logger.warn(`Announcements channel not found for guild ${guildId}. Check guild settings or config.json.`);
 
-        const dayName = new Date().getDay() === 5 ? 'Friday' : 'Saturday';
+        const dayName = getLocalDayName();
 
-        const embed = new EmbedBuilder()
+        // Prefer pinging the opt-in @DoubleXP role so we don't @everyone twice a
+        // week. Falls back to @everyone only if no role is configured.
+        const roleId = guildConfig.doubleXpRoleId;
+        const optInLine = roleId
+            ? `\n\n🔔 Not pinged? Opt in with \`/roles menu\` to grab the Double XP role.`
+            : '';
+
+        const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven • Double XP Weekend' })
             .setTitle('🔥 Double XP Weekend — ACTIVE!')
             .setDescription(
-                `It's **${dayName}**, which means **Double XP is now live in GlitchHaven!**\n\n` +
+                `It's **${dayName}**, which means **Double XP is now live in Glitch Haven!**\n\n` +
                 `> 💬 **Send messages** — earn **2× text XP**\n` +
                 `> 🎙️ **Hang in voice** — earn **2× voice XP**\n` +
                 `> 📈 **Climb the leaderboard** — use \`/rank\` to check your progress\n\n` +
-                `⏰ Double XP runs every **Friday & Saturday**. Don't sleep on it!`
-            )
-            .setColor(config.theme.blue)
-            .setFooter({ text: 'GlitchHaven • Double XP Weekend' })
-            .setTimestamp();
+                `⏰ Double XP runs every **Friday & Saturday**. Don't sleep on it!` +
+                optInLine
+            );
 
-        await channel.send({ content: '@everyone', embeds: [embed] });
+        const content = roleId ? `<@&${roleId}>` : '@everyone';
+        const allowedMentions = roleId ? { roles: [roleId] } : { parse: ['everyone'] };
+        await channel.send({ content, embeds: [embed], allowedMentions });
         logger.info(`Double XP announcement sent for ${dayName}.`);
 
         // Persist today's date so we don't re-announce on restart
@@ -78,10 +89,8 @@ async function checkAndAnnounceDoubleXp(client, guildId) {
 // Schedules a check at the next midnight, then reschedules itself every 24h.
 // ---------------------------------------------------------------------------
 function scheduleMidnightCheck(client) {
-    const now = new Date();
-    const nextMidnight = new Date(now);
-    nextMidnight.setHours(24, 0, 0, 0);
-    const msUntilMidnight = nextMidnight - now;
+    // Fire at the next midnight in the community timezone, not the host's.
+    const msUntilMidnight = msUntilNextLocalMidnight();
 
     setTimeout(async () => {
         await Promise.all(
