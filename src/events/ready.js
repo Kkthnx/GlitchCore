@@ -41,16 +41,21 @@ async function announceDoubleXp(client, guildId) {
             ? `\n\n🔔 Not pinged? Opt in with \`/roles menu\` to grab the Double XP role.`
             : '';
 
-        const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven • Double XP Weekend' })
-            .setTitle('🔥 Double XP Weekend — ACTIVE!')
+        const guild = client.guilds.cache.get(guildId);
+        const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven • Runs every Friday & Saturday' })
+            .setAuthor({ name: 'Double XP Weekend' })
+            .setTitle('🔥 Double XP is LIVE!')
             .setDescription(
-                `It's **${dayName}**, which means **Double XP is now live in Glitch Haven!**\n\n` +
-                `> 💬 **Send messages** — earn **2× text XP**\n` +
-                `> 🎙️ **Hang in voice** — earn **2× voice XP**\n` +
-                `> 📈 **Climb the leaderboard** — use \`/rank\` to check your progress\n\n` +
-                `⏰ Double XP runs every **Friday & Saturday**. Don't sleep on it!` +
+                `It's **${dayName}** — every message and minute in voice counts **double** all weekend long.` +
                 optInLine
+            )
+            .addFields(
+                { name: '💬 Text', value: '`2× XP` / message', inline: true },
+                { name: '🎙️ Voice', value: '`2× XP` / minute', inline: true },
+                { name: '📈 Progress', value: 'Track it with `/rank`', inline: true },
             );
+        const icon = guild?.iconURL({ size: 128 });
+        if (icon) embed.setThumbnail(icon);
 
         const content = roleId ? `<@&${roleId}>` : '@everyone';
         const allowedMentions = roleId ? { roles: [roleId] } : { parse: ['everyone'] };
@@ -141,6 +146,15 @@ module.exports = {
     async execute(client) {
         logger.info(`Logged in as ${client.user.tag}`);
         logger.info(`Serving ${client.guilds.cache.size} guild(s)`);
+
+        // Forward error logs to a Discord channel if ERROR_CHANNEL_ID is set.
+        require('../utils/errorAlerts').attachErrorAlerts(client);
+
+        // Keep slash commands in sync automatically (guild commands are instant),
+        // so a code deploy never leaves stale commands. Runs once (shard 0).
+        if (process.env.AUTO_DEPLOY !== 'false' && (!client.shard || client.shard.ids.includes(0))) {
+            await require('../utils/registerCommands').registerGuildCommands(client);
+        }
 
         // Set initial random status and rotate every 10 minutes
         const updateStatus = () => {
