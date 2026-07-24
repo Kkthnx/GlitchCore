@@ -39,6 +39,14 @@ const guildConfigSchema = new mongoose.Schema({
     // Moderation
     modLogChannelId: { type: String, default: null },
     antiSpamEnabled: { type: Boolean, default: config.moderation?.antiSpam?.enabled ?? true },
+
+    // Automated milestone level-roles (e.g. a role every 10 levels up to 1000).
+    // interval 0 = disabled. Roles are created on demand and named from the
+    // template ({level} is substituted). stack=false keeps only the highest.
+    levelRoleInterval: { type: Number, default: 0 },
+    levelRoleMax: { type: Number, default: config.xpSettings.maxLevel || 1000 },
+    levelRoleTemplate: { type: String, default: 'Level {level}' },
+    levelRoleStack: { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('GuildConfig', guildConfigSchema);

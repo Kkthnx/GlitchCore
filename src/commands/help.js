@@ -4,7 +4,7 @@ const { brandedEmbed, COLORS } = require('../utils/brand');
 // Admin-only commands are grouped separately so they don't clutter the
 // member-facing list. Everything else is auto-discovered from the loaded
 // command collection, so this never drifts out of sync with reality.
-const ADMIN_COMMANDS = new Set(['settings', 'warn', 'timeout', 'kick', 'ban', 'infractions']);
+const ADMIN_COMMANDS = new Set(['settings', 'levelrewards', 'warn', 'timeout', 'kick', 'ban', 'infractions']);
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,7 +24,7 @@ module.exports = {
 
         const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • GlitchCore' })
             .setTitle('GlitchCore — Command Guide')
-            .setDescription('Earn XP by chatting and hanging in voice, climb the leaderboard, and squad up with LFG.')
+            .setDescription('Earn XP by chatting and hanging in voice, climb the leaderboard, squad up with LFG, and join game-night events.')
             .addFields({ name: '🎮 Members', value: format(member) });
 
         if (admin.length) {

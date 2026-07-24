@@ -22,7 +22,8 @@
         "voiceXpPerTick": 5,
         "voiceTickMinutes": 5,
         "doubleXpDays": [5, 6],
-        "doubleXpMultiplier": 2
+        "doubleXpMultiplier": 2,
+        "maxLevel": 1000
     },
     "moderation": {
         "antiSpam": {

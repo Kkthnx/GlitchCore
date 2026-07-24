@@ -5,6 +5,7 @@ const { sendLevelUpEmbed } = require('./levelUpEmbed');
 const { applyLevelRewards } = require('./levelRewardManager');
 const logger = require('./logger');
 
+const MAX_LEVEL = config.xpSettings.maxLevel || 1000;
 const MAX_BUFFER_ENTRIES = 2000;
 const xpBuffer = new Map();
 let isFlushing = false;
@@ -77,7 +78,8 @@ async function flushXpBuffer(client = null) {
             let currentLevel = user.level || 0;
             let newLevel = currentLevel;
 
-            while (user.xp >= xpRequiredForLevel(newLevel + 1)) {
+            // Level up until the XP curve says otherwise, but never past the cap.
+            while (newLevel < MAX_LEVEL && user.xp >= xpRequiredForLevel(newLevel + 1)) {
                 newLevel += 1;
             }
 
