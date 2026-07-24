@@ -49,6 +49,9 @@ const guildConfigSchema = new mongoose.Schema({
     streamerChannelId: { type: String, default: null },
     streamerPingRoleId: { type: String, default: null },
 
+    // Suggestion board channel.
+    suggestionChannelId: { type: String, default: null },
+
     // Automated milestone level-roles (e.g. a role every 10 levels up to 1000).
     // interval 0 = disabled. Roles are created on demand and named from the
     // template ({level} is substituted). stack=false keeps only the highest.

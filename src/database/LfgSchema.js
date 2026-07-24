@@ -16,6 +16,7 @@ const lfgSchema = new mongoose.Schema({
     totalSlots: { type: Number, required: true, min: 2, max: 10 },
     imgUrl:     { type: String, default: null },
     roster:     { type: [rosterMemberSchema], default: [] },
+    waitlist:   { type: [rosterMemberSchema], default: [] },
     status:     { type: String, enum: ['OPEN', 'LOCKED', 'CANCELLED'], default: 'OPEN' },
 }, { timestamps: true });
 

@@ -67,6 +67,14 @@ function buildLfgEmbed(session) {
         }
     }
 
+    // Waitlist (only shown when someone is queued behind a full roster).
+    if (session.waitlist && session.waitlist.length) {
+        rosterLines.push('\n**> WAITLIST:**');
+        session.waitlist.forEach((member, i) => {
+            rosterLines.push(`\`(${i + 1})\` <@${member.userId}>`);
+        });
+    }
+
     const embed = new EmbedBuilder()
         .setColor(color)
         .setAuthor({ name: '⚡ SYSTEM.LFG_OVERRIDE' })
@@ -214,34 +222,53 @@ async function handleModalSubmit(interaction) {
 async function handleInject(interaction) {
     const userId = interaction.user.id;
 
-    // Atomic add: the DB itself enforces "OPEN", "not already joined", and
-    // "roster has a free slot" in a single operation. This closes the race
-    // window where two simultaneous INJECT clicks could both pass a JS-side
-    // length check and overfill the lobby.
-    const updated = await LfgSession.findOneAndUpdate(
+    const member = { userId, username: interaction.user.username };
+
+    // 1. Atomic roster add — enforces OPEN, not already in roster/waitlist, and
+    // a free slot in a single operation (closes the overfill race).
+    const joined = await LfgSession.findOneAndUpdate(
         {
             messageId: interaction.message.id,
             status: 'OPEN',
             'roster.userId': { $ne: userId },
+            'waitlist.userId': { $ne: userId },
             $expr: { $lt: [{ $size: '$roster' }, '$totalSlots'] },
         },
-        { $push: { roster: { userId, username: interaction.user.username } } },
+        { $push: { roster: member } },
         { new: true }
     );
 
-    if (updated) {
-        return interaction.update({ embeds: [buildLfgEmbed(updated)], components: [buildLfgButtons(false)] });
+    if (joined) {
+        return interaction.update({ embeds: [buildLfgEmbed(joined)], components: [buildLfgButtons(false)] });
     }
 
-    // The atomic update matched nothing — re-read to give a precise reason.
+    // 2. Roster full — atomically join the waitlist instead.
+    const waitlisted = await LfgSession.findOneAndUpdate(
+        {
+            messageId: interaction.message.id,
+            status: 'OPEN',
+            'roster.userId': { $ne: userId },
+            'waitlist.userId': { $ne: userId },
+            $expr: { $gte: [{ $size: '$roster' }, '$totalSlots'] },
+        },
+        { $push: { waitlist: member } },
+        { new: true }
+    );
+
+    if (waitlisted) {
+        await interaction.update({ embeds: [buildLfgEmbed(waitlisted)], components: [buildLfgButtons(false)] });
+        return interaction.followUp({ content: '`QUEUED` : Roster is full — you\'re on the **waitlist** and will be pulled in automatically if a slot opens.', flags: MessageFlags.Ephemeral });
+    }
+
+    // 3. Nothing matched — re-read to give a precise reason.
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
     if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
     if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Session is **LOCKED**.', flags: MessageFlags.Ephemeral });
     if (session.status === 'CANCELLED') return interaction.reply({ content: '`ERROR_410` : Session has been cancelled.', flags: MessageFlags.Ephemeral });
-    if (session.roster.some(m => m.userId === userId)) {
-        return interaction.reply({ content: '`ERROR_409` : You are already injected into this session.', flags: MessageFlags.Ephemeral });
+    if (session.waitlist.some(m => m.userId === userId)) {
+        return interaction.reply({ content: '`ERROR_409` : You are already on the **waitlist**.', flags: MessageFlags.Ephemeral });
     }
-    return interaction.reply({ content: '`ERROR_503` : All slots occupied. Session full.', flags: MessageFlags.Ephemeral });
+    return interaction.reply({ content: '`ERROR_409` : You are already injected into this session.', flags: MessageFlags.Ephemeral });
 }
 
 // ---------------------------------------------------------------------------
@@ -260,18 +287,49 @@ async function handleAbort(interaction) {
         });
     }
 
-    // Atomic removal guarded so a concurrent LOCK can't be clobbered.
-    const updated = await LfgSession.findOneAndUpdate(
+    // Atomic removal from the roster (guarded so a concurrent LOCK can't be clobbered).
+    let updated = await LfgSession.findOneAndUpdate(
         { messageId: interaction.message.id, status: { $ne: 'LOCKED' }, 'roster.userId': userId },
         { $pull: { roster: { userId } } },
         { new: true }
     );
 
-    if (!updated) {
+    if (updated) {
+        // A roster slot freed up — atomically promote the first waitlister.
+        const next = updated.waitlist[0];
+        if (next) {
+            const promoted = await LfgSession.findOneAndUpdate(
+                {
+                    messageId: interaction.message.id,
+                    status: { $ne: 'LOCKED' },
+                    'waitlist.userId': next.userId,
+                    $expr: { $lt: [{ $size: '$roster' }, '$totalSlots'] },
+                },
+                { $pull: { waitlist: { userId: next.userId } }, $push: { roster: { userId: next.userId, username: next.username } } },
+                { new: true }
+            );
+            if (promoted) {
+                updated = promoted;
+                interaction.client.users.fetch(next.userId)
+                    .then(u => u.send(`⏳➡️✅ A slot opened in the **${promoted.game}** LFG — you've been pulled off the waitlist! ${interaction.message.url}`))
+                    .catch(() => {});
+            }
+        }
+        return interaction.update({ embeds: [buildLfgEmbed(updated)], components: [buildLfgButtons(false)] });
+    }
+
+    // Not in the roster — try removing them from the waitlist instead.
+    const leftWaitlist = await LfgSession.findOneAndUpdate(
+        { messageId: interaction.message.id, status: { $ne: 'LOCKED' }, 'waitlist.userId': userId },
+        { $pull: { waitlist: { userId } } },
+        { new: true }
+    );
+
+    if (!leftWaitlist) {
         return interaction.reply({ content: '`ERROR_404` : You are not in this session.', flags: MessageFlags.Ephemeral });
     }
 
-    await interaction.update({ embeds: [buildLfgEmbed(updated)], components: [buildLfgButtons(false)] });
+    await interaction.update({ embeds: [buildLfgEmbed(leftWaitlist)], components: [buildLfgButtons(false)] });
 }
 
 // ---------------------------------------------------------------------------

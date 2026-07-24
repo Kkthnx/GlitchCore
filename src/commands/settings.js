@@ -34,6 +34,7 @@ module.exports = {
                             { name: 'starboard_emoji', value: 'starboardEmoji' },
                             { name: 'streamer_channel_id', value: 'streamerChannelId' },
                             { name: 'streamer_ping_role_id', value: 'streamerPingRoleId' },
+                            { name: 'suggestion_channel_id', value: 'suggestionChannelId' },
                             { name: 'text_cooldown_seconds', value: 'textCooldownSeconds' },
                             { name: 'voice_xp_per_tick', value: 'voiceXpPerTick' },
                             { name: 'voice_tick_minutes', value: 'voiceTickMinutes' },
