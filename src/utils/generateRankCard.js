@@ -8,7 +8,7 @@ GlobalFonts.registerFromPath(path.join(__dirname, '../assets/Rajdhani-Bold.ttf')
 GlobalFonts.registerFromPath(path.join(__dirname, '../assets/Rajdhani-Regular.ttf'), 'Rajdhani-Regular');
 
 const W = 900;
-const H = 280;
+const H = 240;
 
 // ── low-level helpers ────────────────────────────────────────────────────────
 function roundRect(ctx, x, y, w, h, r) {
@@ -72,9 +72,9 @@ function drawBackground(ctx, bg) {
         case 'aurora': {
             ctx.fillStyle = colors[0]; ctx.fillRect(0, 0, W, H);
             ctx.globalCompositeOperation = 'lighter';
-            const blobs = [[W * 0.25, H * 0.2, colors[1]], [W * 0.75, H * 0.75, colors[2]], [W * 0.55, H * 0.4, colors[1]]];
+            const blobs = [[W * 0.25, H * 0.2, colors[1]], [W * 0.75, H * 0.78, colors[2]], [W * 0.55, H * 0.4, colors[1]]];
             for (const [bx, by, col] of blobs) {
-                const g = ctx.createRadialGradient(bx, by, 10, bx, by, 320);
+                const g = ctx.createRadialGradient(bx, by, 10, bx, by, 300);
                 g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.globalAlpha = 0.35; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
             }
@@ -119,7 +119,7 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     const ctx = canvas.getContext('2d');
 
     // Rounded card clip so all corners are soft.
-    roundRect(ctx, 0, 0, W, H, 28);
+    roundRect(ctx, 0, 0, W, H, 26);
     ctx.clip();
 
     drawBackground(ctx, theme.bg);
@@ -130,19 +130,19 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     vg.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 
-    // Ghost level numeral (big, faint, behind content on the right).
+    // Ghost level numeral — subtle texture behind the hero number.
     ctx.save();
-    ctx.globalAlpha = 0.10;
+    ctx.globalAlpha = 0.06;
     ctx.fillStyle = theme.accent;
-    ctx.font = '190px "Rajdhani"';
+    ctx.font = '200px "Rajdhani"';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(level), W - 24, H / 2 + 6);
+    ctx.fillText(String(level), W - 26, H / 2 + 2);
     ctx.restore();
     ctx.textBaseline = 'alphabetic';
 
     // ── Avatar (left) with glowing ring ──────────────────────────────────────
-    const cx = 112, cy = 118, r = 66;
+    const cx = 116, cy = 100, r = 72;
     ctx.save();
     ctx.shadowColor = theme.ring === 'rgb' ? '#a24bff' : theme.accent;
     ctx.shadowBlur = 22;
@@ -153,7 +153,6 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
 
-    // Avatar image (or a lettered placeholder).
     const url = user.displayAvatarURL ? user.displayAvatarURL({ extension: 'png', size: 256 }) : user.avatarURL;
     ctx.save();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
@@ -164,58 +163,65 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     }
     if (!drew) {
         ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-        ctx.fillStyle = theme.text; ctx.font = '64px "Rajdhani"'; ctx.textAlign = 'center';
-        ctx.fillText((user.username || 'U')[0].toUpperCase(), cx, cy + 22);
+        ctx.fillStyle = theme.text; ctx.font = '68px "Rajdhani"'; ctx.textAlign = 'center';
+        ctx.fillText((user.username || 'U')[0].toUpperCase(), cx, cy + 24);
     }
     ctx.restore();
 
+    // Brand wordmark under the avatar.
+    ctx.textAlign = 'center';
+    ctx.fillStyle = theme.sub;
+    ctx.font = '17px "Rajdhani"';
+    ctx.fillText('GLITCH HAVEN', cx, 200);
+
     // ── Text block ────────────────────────────────────────────────────────────
-    const tx = 205;
+    const tx = 210;
 
     ctx.textAlign = 'left';
     ctx.fillStyle = theme.text;
-    ctx.font = '46px "Rajdhani"';
+    ctx.font = '58px "Rajdhani"';
     const name = (user.globalName || user.username || 'USER');
-    ctx.fillText(truncate(ctx, name, 400), tx, 96);
+    ctx.fillText(truncate(ctx, name, 400), tx, 92);
 
     ctx.fillStyle = theme.sub;
-    ctx.font = '26px "Rajdhani-Regular"';
+    ctx.font = '32px "Rajdhani-Regular"';
     ctx.fillText(`RANK #${rank.toLocaleString()}`, tx, 132);
 
     // Hero level (top-right).
     ctx.textAlign = 'right';
     ctx.fillStyle = theme.sub;
-    ctx.font = '22px "Rajdhani-Regular"';
-    ctx.fillText('LEVEL', W - 40, 66);
+    ctx.font = '24px "Rajdhani-Regular"';
+    ctx.fillText('LEVEL', W - 40, 56);
     ctx.fillStyle = theme.accent;
-    ctx.font = '72px "Rajdhani"';
-    ctx.fillText(String(level), W - 40, 128);
+    ctx.font = '92px "Rajdhani"';
+    ctx.fillText(String(level), W - 40, 132);
 
     // ── Progress bar ──────────────────────────────────────────────────────────
-    const bx = tx, by = 212, bw = W - tx - 40, bh = 26, br = 13;
+    const bx = tx, by = 188, bw = W - tx - 40, bh = 30, brad = 15;
     const pct = requiredXp > 0 ? Math.max(0, Math.min(currentXp / requiredXp, 1)) : 1;
 
     // XP labels above the bar.
-    ctx.font = '22px "Rajdhani-Regular"';
+    ctx.font = '26px "Rajdhani-Regular"';
     ctx.textAlign = 'left';
-    ctx.fillStyle = theme.sub;
-    ctx.fillText(`${Math.max(0, currentXp).toLocaleString()} / ${requiredXp.toLocaleString()} XP`, bx, by - 12);
+    ctx.fillStyle = theme.text;
+    ctx.fillText(`${Math.max(0, currentXp).toLocaleString()} / ${requiredXp.toLocaleString()} XP`, bx, by - 14);
     ctx.textAlign = 'right';
     ctx.fillStyle = theme.accent;
-    ctx.fillText(`${Math.round(pct * 100)}%`, bx + bw, by - 12);
+    ctx.font = '26px "Rajdhani"';
+    ctx.fillText(`${Math.round(pct * 100)}%`, bx + bw, by - 14);
 
     // Track.
-    roundRect(ctx, bx, by, bw, bh, br);
+    roundRect(ctx, bx, by, bw, bh, brad);
     ctx.fillStyle = theme.track; ctx.fill();
 
-    // Fill.
+    // Fill — clip to the FULL track so even a tiny % renders as a clean
+    // rounded sliver instead of a lone circle.
     if (pct > 0) {
-        const fw = Math.max(bh, bw * pct);
         ctx.save();
-        roundRect(ctx, bx, by, fw, bh, br); ctx.clip();
+        roundRect(ctx, bx, by, bw, bh, brad); ctx.clip();
+        const fw = Math.max(8, bw * pct);
         ctx.fillStyle = resolveFill(ctx, theme.bar, bx, by, bw, theme.accent);
         ctx.fillRect(bx, by, fw, bh);
-        // Glossy highlight along the top of the fill.
         const gloss = ctx.createLinearGradient(0, by, 0, by + bh);
         gloss.addColorStop(0, 'rgba(255,255,255,0.35)');
         gloss.addColorStop(0.5, 'rgba(255,255,255,0)');
@@ -223,14 +229,8 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
         ctx.restore();
     }
 
-    // Brand wordmark under the avatar.
-    ctx.textAlign = 'center';
-    ctx.fillStyle = theme.sub;
-    ctx.font = '18px "Rajdhani"';
-    ctx.fillText('GLITCH HAVEN', cx, 210);
-
     // Crisp inner border to frame the rounded card.
-    roundRect(ctx, 1, 1, W - 2, H - 2, 27);
+    roundRect(ctx, 1, 1, W - 2, H - 2, 25);
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgba(255,255,255,0.10)';
     ctx.stroke();
