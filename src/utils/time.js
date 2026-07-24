@@ -69,10 +69,50 @@ function msUntilNextLocalMidnight(date = new Date()) {
     return dayMs - elapsedMs;
 }
 
+/**
+ * Offset (ms) between the community timezone and UTC at a given instant,
+ * accounting for DST. Positive east of UTC.
+ */
+function tzOffsetMs(date) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    }).formatToParts(date).reduce((acc, p) => {
+        acc[p.type] = p.value;
+        return acc;
+    }, {});
+    const asUtc = Date.UTC(
+        Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+        Number(parts.hour) % 24, Number(parts.minute), Number(parts.second),
+    );
+    return asUtc - date.getTime();
+}
+
+/**
+ * Convert a wall-clock time in the community timezone to a UTC Date.
+ * Accepts "YYYY-MM-DD HH:mm" (or with a "T" separator).
+ * @returns {Date|null}
+ */
+function zonedWallTimeToDate(input) {
+    const m = String(input).trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+    if (!m) return null;
+    const [, y, mo, d, h, mi] = m.map(Number);
+    if (h > 23 || mi > 59 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+
+    // Interpret the wall time as UTC, then subtract the zone's offset at that
+    // instant to land on the correct UTC moment.
+    const utcGuess = Date.UTC(y, mo - 1, d, h, mi);
+    const offset = tzOffsetMs(new Date(utcGuess));
+    return new Date(utcGuess - offset);
+}
+
 module.exports = {
     TIMEZONE,
     getLocalDateString,
     getLocalDay,
     getLocalDayName,
     msUntilNextLocalMidnight,
+    tzOffsetMs,
+    zonedWallTimeToDate,
 };

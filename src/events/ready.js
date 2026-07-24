@@ -170,6 +170,10 @@ module.exports = {
             cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
         }, 30 * 60 * 1000);
 
+        // 3b. Game-night event scheduler — pings rosters at start time (1-min ticks)
+        const { startEventScheduler } = require('../utils/eventManager');
+        startEventScheduler(client);
+
         if (client.guilds.cache.size === 0) {
             return logger.warn('No guilds found in cache.');
         }
