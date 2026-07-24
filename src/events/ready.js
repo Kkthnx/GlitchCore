@@ -188,6 +188,10 @@ module.exports = {
         const { startEventScheduler } = require('../utils/eventManager');
         startEventScheduler(client);
 
+        // 3c. Giveaway scheduler — draws winners when giveaways end (30s ticks)
+        const { startGiveawayScheduler } = require('../utils/giveawayManager');
+        startGiveawayScheduler(client);
+
         if (client.guilds.cache.size === 0) {
             return logger.warn('No guilds found in cache.');
         }

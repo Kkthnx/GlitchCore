@@ -29,6 +29,9 @@ module.exports = {
                             { name: 'levelup_log_channel_id', value: 'levelUpLogChannelId' },
                             { name: 'mod_log_channel_id', value: 'modLogChannelId' },
                             { name: 'double_xp_role_id', value: 'doubleXpRoleId' },
+                            { name: 'starboard_channel_id', value: 'starboardChannelId' },
+                            { name: 'starboard_threshold', value: 'starboardThreshold' },
+                            { name: 'starboard_emoji', value: 'starboardEmoji' },
                             { name: 'text_cooldown_seconds', value: 'textCooldownSeconds' },
                             { name: 'voice_xp_per_tick', value: 'voiceXpPerTick' },
                             { name: 'voice_tick_minutes', value: 'voiceTickMinutes' },
@@ -90,7 +93,7 @@ module.exports = {
             const key = interaction.options.getString('key');
             const value = interaction.options.getString('value');
 
-            const numericKeys = ['textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes'];
+            const numericKeys = ['textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes', 'starboardThreshold'];
             if (numericKeys.includes(key)) {
                 if (isNaN(value)) {
                     return interaction.reply({ content: 'That value must be a number.', ephemeral: true });

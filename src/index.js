@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, Options } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, Options, Partials } = require('discord.js');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
@@ -23,8 +23,12 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessageReactions
     ],
+    // Partials let reaction events fire for messages that aren't cached
+    // (e.g. older messages), which the starboard relies on.
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
     // Bound the largest caches so long uptimes can't grow unbounded (OOM guard).
     makeCache: Options.cacheWithLimits({
         ...Options.DefaultMakeCacheSettings,

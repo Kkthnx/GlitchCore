@@ -2,6 +2,7 @@ const { handleModalSubmit, handleInject, handleAbort, handleExecute, handleCance
 const { SELECT_ID, handleSelfRoleSelect } = require('../utils/selfRoleManager');
 const { BTN: EVENT_BTN, handleEventRsvp, handleEventCancel } = require('../utils/eventManager');
 const { CONFIRM_ID: FORGET_CONFIRM_ID, handleForgetConfirm } = require('../utils/privacyManager');
+const { ENTER_ID: GIVEAWAY_ENTER_ID, handleGiveawayEntry } = require('../utils/giveawayManager');
 const { MessageFlags } = require('discord.js');
 const logger = require('../utils/logger');
 
@@ -77,6 +78,7 @@ module.exports = {
                 else if (interaction.customId === EVENT_BTN.decline) await handleEventRsvp(interaction, 'decline');
                 else if (interaction.customId === EVENT_BTN.cancel)  await handleEventCancel(interaction);
                 else if (interaction.customId === FORGET_CONFIRM_ID) await handleForgetConfirm(interaction);
+                else if (interaction.customId === GIVEAWAY_ENTER_ID)  await handleGiveawayEntry(interaction);
             } catch (error) {
                 logger.error('Button interaction error:', error);
                 await safeErrorReply(interaction, '`ERROR_500` : Something went wrong.');
