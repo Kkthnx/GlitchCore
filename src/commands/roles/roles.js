@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const GuildConfig = require('../../database/GuildConfigSchema');
 const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
-const { buildSelfRolesRow, parseEmoji } = require('../../utils/selfRoleManager');
+const { buildSelfRolesRow } = require('../../utils/selfRoleManager');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 async function loadConfig(guildId) {

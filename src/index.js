@@ -55,7 +55,8 @@ client.on('warn', info => logger.warn(`[CLIENT_WARN] ${info}`));
 client.commands = new Collection();
 client.cooldowns = new Collection();
 
-// Periodically clean up the cooldowns map to prevent memory leaks over long uptimes
+// Periodically clean up in-memory maps to prevent leaks over long uptimes
+const { sweepIdle } = require('./utils/antiSpam');
 setInterval(() => {
     const now = Date.now();
     for (const [key, timestamp] of client.cooldowns.entries()) {
@@ -64,6 +65,8 @@ setInterval(() => {
             client.cooldowns.delete(key);
         }
     }
+    // Evict idle anti-spam rate buckets.
+    sweepIdle(now);
 }, 60 * 60 * 1000);
 
 // 2. Connect to the Database with Automatic Reconnect & Exponential Backoff

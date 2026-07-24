@@ -25,6 +25,18 @@ function resetRate(key) {
     buckets.delete(key);
 }
 
+/**
+ * Drops buckets whose most recent message is older than `idleMs`, so users who
+ * chatted once and went quiet don't linger in memory forever.
+ */
+function sweepIdle(now = Date.now(), idleMs = 5 * 60 * 1000) {
+    for (const [key, timestamps] of buckets) {
+        if (!timestamps.length || now - timestamps[timestamps.length - 1] > idleMs) {
+            buckets.delete(key);
+        }
+    }
+}
+
 /** True if the text contains a Discord invite link. */
 function containsInvite(text) {
     return INVITE_REGEX.test(String(text || ''));
@@ -49,6 +61,7 @@ function _clearAll() {
 module.exports = {
     recordAndCheckRate,
     resetRate,
+    sweepIdle,
     containsInvite,
     mentionCount,
     INVITE_REGEX,

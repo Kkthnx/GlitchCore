@@ -4,12 +4,15 @@ GlitchCore is a custom Discord bot built with [Discord.js](https://discord.js.or
 
 ## Features
 
-- **XP & Leveling System**: Earn XP through text messages and voice chat, including double XP days.
+- **XP & Leveling System**: Earn XP through text messages and voice chat, including double XP days (max level 1000).
+- **Milestone Level-Roles**: `/levelrewards milestones interval:10` auto-creates and grants a prestige role every N levels (rank or stacking mode).
 - **Opt-in Double XP role**: Announcements ping a self-assigned `@DoubleXP` role instead of `@everyone` (falls back to `@everyone` if unset).
 - **Self-Assign Roles**: `/roles` menu + postable panels so members pick the games they play and the pings they want.
 - **Moderation Suite**: `/warn`, `/timeout`, `/kick`, `/ban`, and `/infractions` with a persistent infraction log and an optional mod-log channel.
 - **Anti-Raid / Anti-Spam**: Auto-detects invite links, mass mentions, and message flooding; auto-timeouts offenders (per-guild toggle).
+- **Game-Night Events**: `/event create` schedules a session with RSVP buttons (Going/Maybe/Can't), an auto-promoting waitlist, and a roster ping at start time (timezone-correct).
 - **LFG System**: Slash-command-driven looking-for-group lobbies with live roster buttons.
+- **Privacy**: `/forgetme export` downloads a user's stored data; `/forgetme delete` erases their profile on confirmation.
 - **Auto-Moderation**: Configurable content filter.
 - **Configurable Settings**: Easily manage roles, channels, and theme colors via `config.json`.
 - **Canvas Integrations**: Uses `@napi-rs/canvas` for image manipulation and generation.
