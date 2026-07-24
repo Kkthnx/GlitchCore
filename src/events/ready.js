@@ -192,6 +192,10 @@ module.exports = {
         const { startGiveawayScheduler } = require('../utils/giveawayManager');
         startGiveawayScheduler(client);
 
+        // 3d. Twitch go-live poller (no-op if Twitch creds aren't configured)
+        const { startStreamerScheduler } = require('../utils/streamerManager');
+        startStreamerScheduler(client);
+
         if (client.guilds.cache.size === 0) {
             return logger.warn('No guilds found in cache.');
         }
