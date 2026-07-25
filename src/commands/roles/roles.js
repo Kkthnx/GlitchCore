@@ -117,7 +117,8 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('remove')
             .setDescription('(Admin) Remove a role from the self-assign list')
-            .addRoleOption(o => o.setName('role').setDescription('Role to remove').setRequired(true)))
+            .addRoleOption(o => o.setName('role').setDescription('Role to remove').setRequired(true))
+            .addBooleanOption(o => o.setName('delete_role').setDescription('Also delete the Discord role entirely (default: no)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('list')
             .setDescription('(Admin) Show the configured self-assign roles'))
@@ -255,15 +256,37 @@ module.exports = {
 
         if (sub === 'remove') {
             const role = interaction.options.getRole('role');
+            const deleteRole = interaction.options.getBoolean('delete_role') ?? false;
+            const roleName = role.name;
+
             const cfg = await loadConfig(guildId);
             const before = cfg.selfRoles.length;
             cfg.selfRoles = cfg.selfRoles.filter(r => r.roleId !== role.id);
-            if (cfg.selfRoles.length === before) {
+            const wasListed = cfg.selfRoles.length !== before;
+            if (wasListed) {
+                await cfg.save();
+                invalidateGuildConfig(guildId);
+            }
+
+            if (deleteRole) {
+                if (role.id === guildId) {
+                    return interaction.reply({ content: 'I can\'t delete the @everyone role.', ephemeral: true });
+                }
+                if (!role.deletable) {
+                    return interaction.reply({ content: `Removed from the menu, but I can't delete **${roleName}** — it's above my role or managed by an integration.`, ephemeral: true });
+                }
+                try {
+                    await role.delete('Deleted via /roles remove');
+                    return interaction.reply({ content: `🗑️ Deleted the **${roleName}** role${wasListed ? ' and removed it from the menu' : ''}.`, ephemeral: true });
+                } catch (err) {
+                    return interaction.reply({ content: `Removed from the menu, but couldn't delete the role: ${err.message}`, ephemeral: true });
+                }
+            }
+
+            if (!wasListed) {
                 return interaction.reply({ content: `${role} wasn't in the self-assign list.`, ephemeral: true });
             }
-            await cfg.save();
-            invalidateGuildConfig(guildId);
-            return interaction.reply({ content: `Removed ${role} from the self-assign menu.`, ephemeral: true });
+            return interaction.reply({ content: `Removed ${role} from the self-assign menu (the role itself still exists).`, ephemeral: true });
         }
 
         if (sub === 'list') {
