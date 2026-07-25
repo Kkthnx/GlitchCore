@@ -7,7 +7,9 @@
     "start": "node shard.js",
     "dev": "nodemon shard.js",
     "deploy": "node src/deploy-commands.js",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,9 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0",
     "jest": "^30.4.2",
     "nodemon": "^3.1.14"
   },

@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 // config so the self-assign menu and feature pings never point at a dead role.
 module.exports = {
     name: 'roleDelete',
-    async execute(role, client) {
+    async execute(role) {
         try {
             const cfg = await GuildConfig.findOne({ guildId: role.guild.id });
             if (!cfg) return;

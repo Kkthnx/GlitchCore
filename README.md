@@ -20,12 +20,24 @@ GlitchCore is a custom Discord bot built with [Discord.js](https://discord.js.or
 
 See [PRIVACY.md](./PRIVACY.md) for the data-handling policy.
 
-## Testing
+## Testing & Linting
 
 Run the unit test suite with:
 
 ```bash
 npm test
+```
+
+Lint the codebase (catches unused imports, dead vars, bad patterns):
+
+```bash
+npm run lint
+```
+
+Auto-fix what can be fixed:
+
+```bash
+npm run lint:fix
 ```
 
 ## Prerequisites

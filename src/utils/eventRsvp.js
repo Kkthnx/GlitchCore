@@ -12,9 +12,9 @@ const { zonedWallTimeToDate } = require('./time');
  */
 function applyRsvp(lists, member, choice, capacity = 0) {
     const without = arr => (arr || []).filter(m => m.userId !== member.userId);
-    let going = without(lists.going);
-    let maybe = without(lists.maybe);
-    let waitlist = without(lists.waitlist);
+    const going = without(lists.going);
+    const maybe = without(lists.maybe);
+    const waitlist = without(lists.waitlist);
 
     let status = 'removed';
     if (choice === 'going') {

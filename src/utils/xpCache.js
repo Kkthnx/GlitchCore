@@ -75,7 +75,7 @@ async function flushXpBuffer(client = null) {
         const usersToNotify = [];
 
         for (const user of updatedUsers) {
-            let currentLevel = user.level || 0;
+            const currentLevel = user.level || 0;
             let newLevel = currentLevel;
 
             // Level up until the XP curve says otherwise, but never past the cap.

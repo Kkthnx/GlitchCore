@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 
 module.exports = {
     name: 'guildMemberAdd',
-    async execute(member, client) {
+    async execute(member) {
         // 1. Auto-Role Assignment
         try {
             const memberRole = member.guild.roles.cache.get(config.roles.member);

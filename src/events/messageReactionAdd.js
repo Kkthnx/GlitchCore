@@ -14,7 +14,7 @@ async function resolvePartial(obj) {
 
 module.exports = {
     name: 'messageReactionAdd',
-    async execute(reaction, user, client) {
+    async execute(reaction, user) {
         if (user.bot) return;
 
         reaction = await resolvePartial(reaction);

@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../utils/guildConfigCache');
-const logger = require('../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
