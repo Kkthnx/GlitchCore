@@ -11,3 +11,7 @@ yarn-error.log*
 
 # Generated emoji output
 generated-emojis/
+
+# Host regenerates this on every boot (npm install) — don't track it,
+# it conflicts with the auto git pull on deploy.
+package-lock.json
