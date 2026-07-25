@@ -16,3 +16,4 @@ generated-emojis/
 # it conflicts with the auto git pull on deploy.
 package-lock.json
 generated-banners/
+generated-identity/
