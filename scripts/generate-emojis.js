@@ -115,6 +115,45 @@ function glitch(ctx, text, accent) {
     ctx.lineWidth = 2; ctx.strokeStyle = rgba(accent, 0.6); ctx.stroke();
 }
 
+// ── Glitch faces (original expressions, not copies of any existing meme) ─────
+function glitchFacePanel(ctx, faceFn, accent) {
+    ctx.clearRect(0, 0, S, S);
+    roundRect(ctx, 6, 6, S - 12, S - 12, 24);
+    const g = ctx.createLinearGradient(0, 0, 0, S);
+    g.addColorStop(0, '#0c1018'); g.addColorStop(1, '#05070c');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save();
+    roundRect(ctx, 6, 6, S - 12, S - 12, 24); ctx.clip();
+    ctx.fillStyle = rgba(accent, 0.18); ctx.fillRect(0, 44, S, 7);
+    // chromatic triple-draw
+    faceFn(ctx, -4, -1, '#00e6ff');
+    faceFn(ctx, 4, 1, '#ff2d6b');
+    faceFn(ctx, 0, 0, '#ffffff');
+    ctx.fillStyle = 'rgba(0,0,0,0.20)';
+    for (let y = 8; y < S - 8; y += 4) ctx.fillRect(8, y, S - 16, 2);
+    ctx.restore();
+    roundRect(ctx, 7.5, 7.5, S - 15, S - 15, 22);
+    ctx.lineWidth = 2; ctx.strokeStyle = rgba(accent, 0.6); ctx.stroke();
+}
+function dot(ctx, x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+function line(ctx, pts, c, w = 7) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+function arc(ctx, x, y, r, a0, a1, c, w = 7) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke(); }
+const P = Math.PI;
+const FACES = {
+    grin(ctx, ox, oy, c) { dot(ctx, 46 + ox, 50 + oy, 6, c); dot(ctx, 82 + ox, 50 + oy, 6, c); arc(ctx, 64 + ox, 66 + oy, 22, 0.15 * P, 0.85 * P, c); },
+    laugh(ctx, ox, oy, c) { arc(ctx, 46 + ox, 54 + oy, 9, 1.15 * P, 1.85 * P, c); arc(ctx, 82 + ox, 54 + oy, 9, 1.15 * P, 1.85 * P, c); line(ctx, [[44 + ox, 78 + oy], [84 + ox, 78 + oy], [64 + ox, 96 + oy], [44 + ox, 78 + oy]], c); },
+    cool(ctx, ox, oy, c) { ctx.fillStyle = c; roundRect(ctx, 34 + ox, 46 + oy, 60, 16, 8); ctx.fill(); line(ctx, [[58 + ox, 54 + oy], [70 + ox, 54 + oy]], c, 4); arc(ctx, 64 + ox, 74 + oy, 16, 0.15 * P, 0.85 * P, c); },
+    angry(ctx, ox, oy, c) { line(ctx, [[38 + ox, 44 + oy], [54 + ox, 52 + oy]], c); line(ctx, [[90 + ox, 44 + oy], [74 + ox, 52 + oy]], c); dot(ctx, 46 + ox, 60 + oy, 5, c); dot(ctx, 82 + ox, 60 + oy, 5, c); arc(ctx, 64 + ox, 96 + oy, 20, 1.15 * P, 1.85 * P, c); },
+    cry(ctx, ox, oy, c) { arc(ctx, 46 + ox, 52 + oy, 8, 1.15 * P, 1.85 * P, c); arc(ctx, 82 + ox, 52 + oy, 8, 1.15 * P, 1.85 * P, c); line(ctx, [[44 + ox, 62 + oy], [42 + ox, 92 + oy]], '#00e6ff', 5); line(ctx, [[84 + ox, 62 + oy], [86 + ox, 92 + oy]], '#00e6ff', 5); arc(ctx, 64 + ox, 98 + oy, 16, 1.15 * P, 1.85 * P, c); },
+    shock(ctx, ox, oy, c) { arc(ctx, 46 + ox, 50 + oy, 9, 0, 2 * P, c, 6); arc(ctx, 82 + ox, 50 + oy, 9, 0, 2 * P, c, 6); arc(ctx, 64 + ox, 84 + oy, 12, 0, 2 * P, c, 6); },
+    smug(ctx, ox, oy, c) { line(ctx, [[38 + ox, 52 + oy], [54 + ox, 52 + oy]], c); line(ctx, [[74 + ox, 52 + oy], [90 + ox, 52 + oy]], c); line(ctx, [[48 + ox, 80 + oy], [80 + ox, 74 + oy]], c); },
+    dead(ctx, ox, oy, c) { line(ctx, [[38 + ox, 44 + oy], [54 + ox, 58 + oy]], c); line(ctx, [[54 + ox, 44 + oy], [38 + ox, 58 + oy]], c); line(ctx, [[74 + ox, 44 + oy], [90 + ox, 58 + oy]], c); line(ctx, [[90 + ox, 44 + oy], [74 + ox, 58 + oy]], c); line(ctx, [[46 + ox, 84 + oy], [56 + ox, 78 + oy], [64 + ox, 84 + oy], [72 + ox, 78 + oy], [82 + ox, 84 + oy]], c); },
+    love(ctx, ox, oy, c) { for (const ex of [46, 82]) { ctx.fillStyle = '#ff2d6b'; ctx.beginPath(); const x = ex + ox, y = 52 + oy; ctx.moveTo(x, y + 8); ctx.bezierCurveTo(x - 12, y - 4, x - 6, y - 12, x, y - 4); ctx.bezierCurveTo(x + 6, y - 12, x + 12, y - 4, x, y + 8); ctx.fill(); } arc(ctx, 64 + ox, 68 + oy, 18, 0.15 * P, 0.85 * P, c); },
+    wink(ctx, ox, oy, c) { line(ctx, [[38 + ox, 52 + oy], [54 + ox, 52 + oy]], c); dot(ctx, 82 + ox, 50 + oy, 6, c); arc(ctx, 64 + ox, 68 + oy, 18, 0.15 * P, 0.85 * P, c); },
+    neutral(ctx, ox, oy, c) { dot(ctx, 46 + ox, 52 + oy, 6, c); dot(ctx, 82 + ox, 52 + oy, 6, c); line(ctx, [[46 + ox, 84 + oy], [82 + ox, 84 + oy]], c); },
+    uwu(ctx, ox, oy, c) { arc(ctx, 46 + ox, 54 + oy, 9, 1.15 * P, 1.85 * P, c); arc(ctx, 82 + ox, 54 + oy, 9, 1.15 * P, 1.85 * P, c); arc(ctx, 55 + ox, 80 + oy, 9, 0, P, c, 6); arc(ctx, 73 + ox, 80 + oy, 9, 0, P, c, 6); },
+};
+
 // ── Item catalog ─────────────────────────────────────────────────────────────
 const BADGES = [
     { name: 'doublexp', text: '2X', color: '#f0b429' }, { name: 'boost', glyph: 'bolt', color: '#f0b429' },
@@ -137,11 +176,18 @@ const GLITCH = [
     ['noob', '#ff6b6b'], ['pro', '#2fe07a'], ['afk', '#34d3b4'], ['gigachad', '#f0b429'], ['bonk', '#b483ff'],
 ].map(([name, color]) => ({ name, text: name.toUpperCase(), color, style: 'glitch' }));
 
-const ITEMS = [...BADGES, ...GLITCH];
+const FACE_ITEMS = [
+    ['face_grin', '#2fe07a'], ['face_laugh', '#f0b429'], ['face_cool', '#5cc8ff'], ['face_angry', '#ff6b6b'],
+    ['face_cry', '#5cc8ff'], ['face_shock', '#f0b429'], ['face_smug', '#34d3b4'], ['face_dead', '#b483ff'],
+    ['face_love', '#ff5fd0'], ['face_wink', '#ff5fd0'], ['face_neutral', '#8aa0c0'], ['face_uwu', '#ff5fd0'],
+].map(([name, color]) => ({ name, face: name.replace('face_', ''), color, style: 'face' }));
+
+const ITEMS = [...BADGES, ...GLITCH, ...FACE_ITEMS];
 
 function render(item) {
     const canvas = createCanvas(S, S);
     const ctx = canvas.getContext('2d');
+    if (item.style === 'face') { glitchFacePanel(ctx, FACES[item.face], item.color); return canvas; }
     if (item.style === 'glitch') { glitch(ctx, item.text, item.color); return canvas; }
     badge(ctx, item.color);
     if (item.glyph) GLYPHS[item.glyph](ctx); else badgeText(ctx, item.text);
@@ -165,5 +211,6 @@ function contactSheet(items, file) {
 }
 contactSheet(BADGES, '_contact-badges.png');
 contactSheet(GLITCH, '_contact-glitch.png');
+contactSheet(FACE_ITEMS, '_contact-faces.png');
 
-console.log(`Generated ${ITEMS.length} emojis (${BADGES.length} badge + ${GLITCH.length} glitch) in ${OUT}`);
+console.log(`Generated ${ITEMS.length} emojis (${BADGES.length} badge + ${GLITCH.length} glitch + ${FACE_ITEMS.length} faces) in ${OUT}`);
