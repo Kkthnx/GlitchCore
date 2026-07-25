@@ -167,10 +167,14 @@ async function handleEventCancel(interaction) {
 
 // ── Cleanup: sweep away concluded events (started + grace) and stray cancels ──
 async function cleanUpFinishedEvents(client) {
+    const guildIds = [...client.guilds.cache.keys()];
+    if (!guildIds.length) return;
+
     const now = Date.now();
     let stale;
     try {
         stale = await Event.find({
+            guildId: { $in: guildIds },
             $or: [
                 { status: 'STARTED', startsAt: { $lt: new Date(now - CONCLUDE_GRACE_MS) } },
                 { status: 'CANCELLED' },
@@ -193,10 +197,13 @@ async function cleanUpFinishedEvents(client) {
 
 // ── Scheduler: ping rosters for events whose start time has arrived ───────────
 async function processStartingEvents(client) {
+    const guildIds = [...client.guilds.cache.keys()];
+    if (!guildIds.length) return;
+
     const now = new Date();
     let due;
     try {
-        due = await Event.find({ status: 'SCHEDULED', startNotified: false, startsAt: { $lte: now } });
+        due = await Event.find({ guildId: { $in: guildIds }, status: 'SCHEDULED', startNotified: false, startsAt: { $lte: now } });
     } catch (err) {
         return logger.error('[EVENTS] Failed to query due events:', err);
     }

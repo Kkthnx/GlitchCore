@@ -172,11 +172,21 @@ client.login(process.env.TOKEN)
 // 6. Graceful shutdown — persist queued XP before exiting so a restart or
 // redeploy never drops the XP buffered in memory since the last flush.
 // ---------------------------------------------------------------------------
+// Exposed so the ShardingManager can flush this shard's XP on host shutdown,
+// since the child process may not receive the stop signal directly.
+client.flushXp = async () => {
+    try {
+        await require('./utils/xpCache').flushXpBuffer(client);
+    } catch (err) {
+        logger.error('flushXp failed:', err);
+    }
+};
+
 let shuttingDown = false;
 async function gracefulShutdown(signal) {
     if (shuttingDown) return;
     shuttingDown = true;
-    logger.info(`Received ${signal} — flushing XP buffer and shutting down...`);
+    logger.info(`Received ${signal}, flushing XP buffer and shutting down`);
 
     try {
         const { flushXpBuffer } = require('./utils/xpCache');

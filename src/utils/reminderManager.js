@@ -9,9 +9,13 @@ const Reminder = require('../database/ReminderSchema');
 const logger = require('./logger');
 
 async function processDueReminders(client) {
+    // Only this shard's guilds, so multiple shards never fire the same reminder.
+    const guildIds = [...client.guilds.cache.keys()];
+    if (!guildIds.length) return;
+
     let due;
     try {
-        due = await Reminder.find({ remindAt: { $lte: new Date() } }).limit(50);
+        due = await Reminder.find({ guildId: { $in: guildIds }, remindAt: { $lte: new Date() } }).limit(50);
     } catch (err) {
         return logger.error('[REMIND] Query failed:', err);
     }

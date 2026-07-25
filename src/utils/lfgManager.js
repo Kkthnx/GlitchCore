@@ -431,9 +431,14 @@ async function handleCancel(interaction) {
 // Auto-cleanup stale OPEN LFG sessions (inactive for 1 hour)
 // ---------------------------------------------------------------------------
 async function cleanUpStaleLfgSessions(client) {
+    // Only this shard's guilds, so a shard never deletes another shard's data.
+    const guildIds = [...client.guilds.cache.keys()];
+    if (!guildIds.length) return;
+
     const thresholdDate = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
     try {
         const staleSessions = await LfgSession.find({
+            guildId: { $in: guildIds },
             status: 'OPEN',
             updatedAt: { $lt: thresholdDate }
         });

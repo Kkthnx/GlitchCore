@@ -112,9 +112,13 @@ async function endGiveaway(client, g) {
 }
 
 async function processEndedGiveaways(client) {
+    // Only this shard's guilds, so multiple shards never draw the same giveaway.
+    const guildIds = [...client.guilds.cache.keys()];
+    if (!guildIds.length) return;
+
     let due;
     try {
-        due = await Giveaway.find({ ended: false, endsAt: { $lte: new Date() } });
+        due = await Giveaway.find({ guildId: { $in: guildIds }, ended: false, endsAt: { $lte: new Date() } });
     } catch (err) {
         return logger.error('[GIVEAWAY] Failed to query due giveaways:', err);
     }
