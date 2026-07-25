@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 // Expanded Filter Definitions using word boundaries to prevent false positives (e.g., 'spice' triggering 'spic')
 const politicalRegex = /\b(trump|biden|obama|hillary|kamala|pelosi|mcconnell|democrat|republican|libtard|conservatard|maga|antifa|qanon|alt-right|proud boys|leftist|right-wing|fascist|marxist)\b/i;
 

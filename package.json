@@ -1,8 +1,10 @@
 {
   "name": "glitchcore",
   "version": "1.0.0",
-  "description": "",
+  "description": "GlitchCore — proprietary Discord bot for Glitch Haven.",
   "main": "index.js",
+  "private": true,
+  "author": "Kkthnx",
   "scripts": {
     "start": "node shard.js",
     "dev": "nodemon shard.js",
@@ -12,8 +14,7 @@
     "lint:fix": "eslint . --fix"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
     "@napi-rs/canvas": "^1.0.0",

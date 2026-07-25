@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 // Lightweight in-memory anti-raid / anti-spam detection. Pure detectors are
 // exported so they can be unit-tested without a live Discord message.
 

@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 // Human-friendly duration parsing/formatting for moderation timeouts.
 // Discord caps member timeouts at 28 days.
 const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000;

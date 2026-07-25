@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 const { SlashCommandBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { exportUserData, CONFIRM_ID } = require('../utils/privacyManager');
 const { brandedEmbed, COLORS } = require('../utils/brand');

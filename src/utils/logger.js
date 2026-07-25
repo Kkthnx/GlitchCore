@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 const { createLogger, format, transports } = require('winston');
 
 // Pull the shard id (set by discord.js ShardingManager) so distributed logs

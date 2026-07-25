@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 module.exports = [
     "Level up! Time to touch some grass... just kidding, queue up again.",
     "Ding! You leveled up. Your chair must be permanently molded to your shape by now.",

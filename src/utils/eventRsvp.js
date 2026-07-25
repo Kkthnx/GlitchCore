@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 // Pure RSVP + time-parsing logic for game-night events. No Discord objects, so
 // the roster mechanics (waitlist promotion, capacity) are unit-testable.
 const { parseDuration } = require('./duration');

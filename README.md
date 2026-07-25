@@ -104,6 +104,11 @@ npm run deploy
 
 Windows users can also simply run the `start_bot.bat` script to launch the bot.
 
-## License
+## License & Copyright
 
-ISC
+**Copyright © 2026 Kkthnx. All Rights Reserved.**
+
+This project is **proprietary and closed-source**. No permission is granted to
+use, copy, modify, distribute, host, or create derivative works from any part
+of this code without the express written permission of the author. Viewing this
+repository does not grant any license. See [LICENSE](./LICENSE) for full terms.

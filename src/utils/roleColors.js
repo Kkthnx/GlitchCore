@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 // Curated, recognizable colors for common roles so the bot can paint game /
 // platform / region / ping roles their "real" color instead of a random one.
 // Keys are normalized (lowercased, single-spaced); several aliases map to the

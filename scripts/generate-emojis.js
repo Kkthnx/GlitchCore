@@ -1,3 +1,10 @@
+/*
+ * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * Proprietary and confidential. Unauthorized copying, use, distribution, or
+ * modification of this file or any part of it, via any medium, is strictly
+ * prohibited. See the LICENSE file for full terms.
+ */
+
 // Generates branded custom-emoji PNGs (128x128) for Glitch Haven — upload them
 // under Server Settings → Emoji (base servers have 50 slots, no boost needed).
 // Two styles: clean "badge" (roles/regions/platforms) and "glitch" (chromatic
