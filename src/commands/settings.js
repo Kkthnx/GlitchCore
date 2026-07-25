@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const GuildConfig = require('../database/GuildConfigSchema');
-const { invalidateGuildConfig } = require('../utils/guildConfigCache');
+const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../utils/guildConfigCache');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -68,10 +67,7 @@ module.exports = {
         const subcommand = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
 
-        let config = await GuildConfig.findOne({ guildId });
-        if (!config) {
-            config = await GuildConfig.create({ guildId });
-        }
+        const config = await getOrCreateGuildConfig(guildId);
 
         if (subcommand === 'view') {
             const fields = [

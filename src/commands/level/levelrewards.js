@@ -1,17 +1,11 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const GuildConfig = require('../../database/GuildConfigSchema');
-const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
+const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { currentMilestone, roleNameFor } = require('../../utils/levelRoles');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 const appConfig = require('../../../config.json');
 
 const HARD_MAX = appConfig.xpSettings.maxLevel || 1000;
-
-async function loadConfig(guildId) {
-    let cfg = await GuildConfig.findOne({ guildId });
-    if (!cfg) cfg = await GuildConfig.create({ guildId });
-    return cfg;
-}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -50,7 +44,7 @@ module.exports = {
                 return interaction.reply({ content: 'I need the **Manage Roles** permission to create and assign milestone roles.', flags: MessageFlags.Ephemeral });
             }
 
-            const cfg = await loadConfig(guildId);
+            const cfg = await getOrCreateGuildConfig(guildId);
             cfg.levelRoleInterval = interval;
             cfg.levelRoleMax = max;
             cfg.levelRoleTemplate = template;
@@ -75,7 +69,7 @@ module.exports = {
         }
 
         if (sub === 'disable') {
-            const cfg = await loadConfig(guildId);
+            const cfg = await getOrCreateGuildConfig(guildId);
             cfg.levelRoleInterval = 0;
             await cfg.save();
             invalidateGuildConfig(guildId);

@@ -2,6 +2,7 @@ const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const User = require('../../database/UserSchema');
 const buildRankCard = require('../../utils/generateRankCard');
 const { xpRequiredForLevel } = require('../../utils/calculateXp');
+const { getUserRank } = require('../../utils/ranking');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -30,15 +31,7 @@ module.exports = {
             return interaction.editReply(`${targetUser.username} hasn't earned any XP yet. Tell them to start chatting!`);
         }
 
-        // Efficient rank calculation — count users strictly above this user server-side
-        // rather than loading every user document into memory
-        const rank = await User.countDocuments({
-            guildId: interaction.guild.id,
-            $or: [
-                { level: { $gt: userData.level } },
-                { level: userData.level, xp: { $gt: userData.xp } },
-            ],
-        }) + 1;
+        const rank = await getUserRank(interaction.guild.id, userData.level, userData.xp);
 
         // Calculate per-level XP progress (so the bar shows relative progress, not giant cumulative numbers)
         const currentLevelThreshold = xpRequiredForLevel(userData.level);

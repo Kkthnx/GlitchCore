@@ -23,7 +23,19 @@ function invalidateGuildConfig(guildId) {
     configCache.delete(cacheKey(guildId));
 }
 
+/**
+ * Returns a live (uncached) GuildConfig document for mutation, creating it if
+ * it doesn't exist. Use this when you're going to change + save the config;
+ * use getGuildConfig() for read-only, cached access.
+ */
+async function getOrCreateGuildConfig(guildId) {
+    let config = await GuildConfig.findOne({ guildId });
+    if (!config) config = await GuildConfig.create({ guildId });
+    return config;
+}
+
 module.exports = {
     getGuildConfig,
+    getOrCreateGuildConfig,
     invalidateGuildConfig,
 };

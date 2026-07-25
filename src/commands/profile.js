@@ -3,6 +3,7 @@ const User = require('../database/UserSchema');
 const GuildConfig = require('../database/GuildConfigSchema');
 const { xpRequiredForLevel } = require('../utils/calculateXp');
 const { brandedEmbed, COLORS, progressBar } = require('../utils/brand');
+const { getUserRank } = require('../utils/ranking');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -39,14 +40,7 @@ module.exports = {
             .map(reward => `<@&${reward.roleId}> (level ${reward.level})`)
             .join('\n') || 'None';
 
-        // Server rank — count members strictly ahead (same query shape as /rank)
-        const rank = await User.countDocuments({
-            guildId: interaction.guild.id,
-            $or: [
-                { level: { $gt: currentLevel } },
-                { level: currentLevel, xp: { $gt: userData.xp } },
-            ],
-        }) + 1;
+        const rank = await getUserRank(interaction.guild.id, currentLevel, userData.xp);
 
         const span = nextLevelThreshold - currentLevelThreshold;
         const bar = `${progressBar(span > 0 ? progress / span : 1)} **${percent}%**`;

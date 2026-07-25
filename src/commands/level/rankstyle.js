@@ -3,6 +3,7 @@ const User = require('../../database/UserSchema');
 const themes = require('../../utils/cardThemes');
 const { xpRequiredForLevel } = require('../../utils/calculateXp');
 const buildRankCard = require('../../utils/generateRankCard');
+const { getUserRank } = require('../../utils/ranking');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -46,13 +47,7 @@ module.exports = {
         const xpToNextLevel = nextLevelThreshold - currentLevelThreshold;
 
         // Fetch rank for the preview
-        const rank = await User.countDocuments({
-            guildId: interaction.guild.id,
-            $or: [
-                { level: { $gt: userData.level } },
-                { level: userData.level, xp: { $gt: userData.xp } },
-            ],
-        }) + 1;
+        const rank = await getUserRank(interaction.guild.id, userData.level, userData.xp);
 
         const imageBuffer = await buildRankCard(interaction.user, currentLevelXp, xpToNextLevel, userData.level, rank, themeId);
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'preview-card.png' });

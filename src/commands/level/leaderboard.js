@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const User = require('../../database/UserSchema');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
+const { getUserRank } = require('../../utils/ranking');
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -39,13 +40,7 @@ module.exports = {
         if (!inTop) {
             const me = await User.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
             if (me) {
-                const rank = await User.countDocuments({
-                    guildId: interaction.guild.id,
-                    $or: [
-                        { level: { $gt: me.level } },
-                        { level: me.level, xp: { $gt: me.xp } },
-                    ],
-                }) + 1;
+                const rank = await getUserRank(interaction.guild.id, me.level, me.xp);
                 embed.addFields({
                     name: 'Your Standing',
                     value: `**#${rank}** — Level **${me.level}** · ${me.xp.toLocaleString()} XP`,

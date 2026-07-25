@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
-const { getGuildConfig, invalidateGuildConfig } = require('./guildConfigCache');
+const { getGuildConfig } = require('./guildConfigCache');
 const { brandedEmbed, COLORS } = require('./brand');
 const logger = require('./logger');
 
@@ -107,4 +107,4 @@ async function handleSelfRoleSelect(interaction) {
     return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
-module.exports = { SELECT_ID, OPEN_ID, buildSelfRolesRow, buildPanelButton, handleOpenPicker, handleSelfRoleSelect, parseEmoji, invalidateGuildConfig };
+module.exports = { SELECT_ID, OPEN_ID, buildSelfRolesRow, buildPanelButton, handleOpenPicker, handleSelfRoleSelect, parseEmoji };

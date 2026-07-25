@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const GuildConfig = require('../../database/GuildConfigSchema');
-const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
+const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { buildSelfRolesRow, buildPanelButton } = require('../../utils/selfRoleManager');
 const { smartColor } = require('../../utils/roleColors');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
@@ -34,12 +34,6 @@ const PRESETS = {
         { name: 'Announcements', emoji: '📢' },
     ],
 };
-
-async function loadConfig(guildId) {
-    let cfg = await GuildConfig.findOne({ guildId });
-    if (!cfg) cfg = await GuildConfig.create({ guildId });
-    return cfg;
-}
 
 // Drop self-roles whose Discord role no longer exists (e.g. deleted in Server
 // Settings), persisting the cleanup. Returns how many were pruned.
@@ -192,7 +186,7 @@ module.exports = {
 
         if (sub === 'create') {
             const name = interaction.options.getString('name').trim();
-            const cfg = await loadConfig(guildId);
+            const cfg = await getOrCreateGuildConfig(guildId);
             if (cfg.selfRoles.length >= 25) {
                 return interaction.reply({ content: 'The self-role menu is limited to 25 roles.', flags: MessageFlags.Ephemeral });
             }
@@ -216,7 +210,7 @@ module.exports = {
         if (sub === 'preset') {
             const pack = interaction.options.getString('pack');
             const items = PRESETS[pack] || [];
-            const cfg = await loadConfig(guildId);
+            const cfg = await getOrCreateGuildConfig(guildId);
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             const results = [];
@@ -247,7 +241,7 @@ module.exports = {
                 return interaction.reply({ content: `My highest role must be **above** ${role} for me to assign it. Move my role up.`, flags: MessageFlags.Ephemeral });
             }
 
-            const cfg = await loadConfig(guildId);
+            const cfg = await getOrCreateGuildConfig(guildId);
             if (cfg.selfRoles.some(r => r.roleId === role.id)) {
                 return interaction.reply({ content: `${role} is already self-assignable.`, flags: MessageFlags.Ephemeral });
             }
@@ -271,7 +265,7 @@ module.exports = {
             const deleteRole = interaction.options.getBoolean('delete_role') ?? false;
             const roleName = role.name;
 
-            const cfg = await loadConfig(guildId);
+            const cfg = await getOrCreateGuildConfig(guildId);
             const before = cfg.selfRoles.length;
             cfg.selfRoles = cfg.selfRoles.filter(r => r.roleId !== role.id);
             const wasListed = cfg.selfRoles.length !== before;
