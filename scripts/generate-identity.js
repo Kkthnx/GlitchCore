@@ -85,20 +85,21 @@ function chromatic(ctx, text, x, y, a1, off) {
     ctx.fillText(text, x, y);
 }
 
-// A single text layer on a transparent canvas, filled solid or with the
-// green gradient used for the logo lettering.
-function textLayer(text, S, fill, useGradient) {
+// The default Glitch Haven green lettering gradient (top to bottom stops).
+const GREEN_STOPS = ['#a6ff33', '#39e022', '#12801a'];
+
+// A single text layer on a transparent canvas, filled solid or with a vertical
+// gradient built from an array of color stops.
+function textLayer(text, S, fill, stops) {
     const c = createCanvas(S, S);
     const x = c.getContext('2d');
     x.textAlign = 'center';
     x.textBaseline = 'middle';
     const size = fitFont(x, text, S * 0.82, Math.round(S * 0.66));
     x.font = `${size}px Rajdhani`;
-    if (useGradient) {
-        const g = x.createLinearGradient(0, S * 0.24, 0, S * 0.8);
-        g.addColorStop(0, '#a6ff33');
-        g.addColorStop(0.5, '#39e022');
-        g.addColorStop(1, '#12801a');
+    if (stops && stops.length) {
+        const g = x.createLinearGradient(0, S * 0.22, 0, S * 0.82);
+        stops.forEach((c2, i) => g.addColorStop(stops.length === 1 ? 0 : i / (stops.length - 1), c2));
         x.fillStyle = g;
     } else {
         x.fillStyle = fill;
@@ -107,9 +108,9 @@ function textLayer(text, S, fill, useGradient) {
     return c;
 }
 
-// Datamosh-style glitch icon: green gradient lettering, RGB channel split,
-// heavy horizontal slice tearing, and signal noise, close to the original GH.
-function drawGlitchIcon(text, S = 512) {
+// Datamosh-style glitch icon: gradient lettering, RGB channel split, heavy
+// horizontal slice tearing, and signal noise, close to the original GH.
+function drawGlitchIcon(text, S = 512, stops = GREEN_STOPS) {
     const canvas = createCanvas(S, S);
     const ctx = canvas.getContext('2d');
 
@@ -131,9 +132,9 @@ function drawGlitchIcon(text, S = 512) {
     }
 
     // Composite the lettering with an RGB channel split on an offscreen canvas.
-    const green = textLayer(text, S, null, true);
-    const cyan = textLayer(text, S, '#00ffff');
-    const magenta = textLayer(text, S, '#ff2b6b');
+    const green = textLayer(text, S, null, stops);
+    const cyan = textLayer(text, S, '#00ffff', null);
+    const magenta = textLayer(text, S, '#ff2b6b', null);
     const gt = createCanvas(S, S);
     const g = gt.getContext('2d');
     const off = Math.round(S * 0.015);
@@ -243,6 +244,22 @@ const GREEN2 = '#2fe07a';
 fs.writeFileSync(path.join(OUT, 'icon-gh.png'), drawGlitchIcon('GH'));
 fs.writeFileSync(path.join(OUT, 'icon-gc.png'), drawGlitchIcon('GC'));
 fs.writeFileSync(path.join(OUT, 'icon-terminal.png'), drawGlitchIcon('>_'));
+
+// Seasonal GH variants. Same glitch, swapped lettering palette so the identity
+// can change for Pride, holidays, and events.
+const SEASONS = {
+    pride: ['#ff2d2d', '#ff8c1a', '#ffe14d', '#39e022', '#3aa2ff', '#a24bff'],
+    trans: ['#5bcffa', '#f5a9b8', '#ffffff', '#f5a9b8', '#5bcffa'],
+    christmas: ['#ff4d4d', '#ffffff', '#2fbf2a'],
+    halloween: ['#ff8c1a', '#ff6a00', '#a24bff'],
+    newyear: ['#ffe07a', '#ffd23f', '#b98900'],
+    valentine: ['#ff9ecb', '#ff2d6b', '#b3124a'],
+    summer: ['#ffe14d', '#34d3b4', '#5cc8ff'],
+    winter: ['#d8f3ff', '#5cc8ff', '#3a6ff0'],
+};
+for (const [name, stops] of Object.entries(SEASONS)) {
+    fs.writeFileSync(path.join(OUT, `icon-gh-${name}.png`), drawGlitchIcon('GH', 512, stops));
+}
 
 // Server banner (960x540) and bot profile banner (960x384).
 fs.writeFileSync(path.join(OUT, 'server-banner.png'), drawBanner(
