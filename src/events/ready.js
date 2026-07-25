@@ -149,6 +149,10 @@ module.exports = {
         logger.info(`Logged in as ${client.user.tag}`);
         logger.info(`Serving ${client.guilds.cache.size} guild(s)`);
 
+        // Capture + log the commit this process booted on (primes /version).
+        const v = require('../utils/version').getVersionInfo();
+        logger.info(`Build: ${v.commit ? `commit ${v.commit} (${v.branch})` : `v${v.version}`}${v.subject ? ` — ${v.subject}` : ''}`);
+
         // Forward error logs to a Discord channel if ERROR_CHANNEL_ID is set.
         require('../utils/errorAlerts').attachErrorAlerts(client);
 
