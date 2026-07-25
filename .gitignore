@@ -8,3 +8,6 @@ yarn-error.log*
 .env.development
 .env.test
 .env.production
+
+# Generated emoji output
+generated-emojis/
