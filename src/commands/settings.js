@@ -30,6 +30,7 @@ module.exports = {
                             { name: 'voice_xp_enabled', value: 'voiceXpEnabled' },
                             { name: 'anti_spam_enabled', value: 'antiSpamEnabled' },
                             { name: 'lfg_channel_id', value: 'lfgChannelId' },
+                            { name: 'lfg_ping_role_id', value: 'lfgPingRoleId' },
                             { name: 'announcements_channel_id', value: 'announcementsChannelId' },
                             { name: 'levelup_log_channel_id', value: 'levelUpLogChannelId' },
                             { name: 'mod_log_channel_id', value: 'modLogChannelId' },

@@ -20,7 +20,7 @@ const MAP = {
 
     // Ping / utility roles
     'double xp': '#f0b429', 'events': '#34d3b4', 'streams': '#9146ff',
-    'announcements': '#ff5fd0', 'giveaways': '#f0b429',
+    'announcements': '#ff5fd0', 'giveaways': '#f0b429', 'lfg': '#2fe07a',
 
     // Games (brand-ish colors)
     'valorant': '#ff4655',

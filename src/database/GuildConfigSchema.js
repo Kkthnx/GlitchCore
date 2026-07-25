@@ -27,6 +27,7 @@ const guildConfigSchema = new mongoose.Schema({
     xpEnabled: { type: Boolean, default: true },
     voiceXpEnabled: { type: Boolean, default: true },
     lfgChannelId: { type: String, default: null },
+    lfgPingRoleId: { type: String, default: null },
     announcementsChannelId: { type: String, default: null },
     levelUpLogChannelId: { type: String, default: null },
     cardStyle: { type: String, default: 'default' },

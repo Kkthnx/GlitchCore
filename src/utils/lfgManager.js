@@ -11,6 +11,7 @@ const {
 } = require('discord.js');
 const LfgSession = require('../database/LfgSchema');
 const { fetchGameBanner } = require('./steamGridClient');
+const { getGuildConfig } = require('./guildConfigCache');
 const config = require('../../config.json');
 const logger = require('./logger');
 
@@ -202,8 +203,17 @@ async function handleModalSubmit(interaction) {
     const embed   = buildLfgEmbed(sessionData);
     const buttons = buildLfgButtons(false);
 
+    // Ping the opt-in LFG role so interested members get alerted.
+    const guildCfg = await getGuildConfig(interaction.guild.id) || {};
+    const pingRoleId = guildCfg.lfgPingRoleId;
+
     try {
-        const msg = await lfgChannel.send({ embeds: [embed], components: [buttons] });
+        const msg = await lfgChannel.send({
+            content: pingRoleId ? `<@&${pingRoleId}> a new LFG just dropped for **${game}**` : undefined,
+            embeds: [embed],
+            components: [buttons],
+            allowedMentions: { roles: pingRoleId ? [pingRoleId] : [] },
+        });
 
         await LfgSession.create({
             messageId: msg.id,

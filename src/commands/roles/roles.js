@@ -35,6 +35,7 @@ const PRESETS = {
         { name: 'Asia', emoji: '🗺️' },
     ],
     pings: [
+        { name: 'LFG', emoji: '🎮', description: 'Pinged when someone posts an LFG' },
         { name: 'Double XP', emoji: '🔥', description: 'Pinged for Double XP weekends' },
         { name: 'Events', emoji: '📅', description: 'Pinged for game nights' },
         { name: 'Streams', emoji: '📺', description: 'Pinged when members go live' },
