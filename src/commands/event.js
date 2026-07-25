@@ -10,6 +10,7 @@ const Event = require('../database/EventSchema');
 const GuildConfig = require('../database/GuildConfigSchema');
 const { buildEventEmbed, buildEventButtons } = require('../utils/eventManager');
 const { parseStartTime } = require('../utils/eventRsvp');
+const { fetchGameBanner } = require('../utils/steamGridClient');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const logger = require('../utils/logger');
 
@@ -83,12 +84,14 @@ module.exports = {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const pingRoleId = await resolveGamePingRole(interaction, game, interaction.options.getRole('ping_role'));
+        // Pull a widescreen banner for the game (same source as LFG). Null if unavailable.
+        const imgUrl = await fetchGameBanner(game);
 
         const evData = {
             guildId: interaction.guild.id,
             channelId: interaction.channel.id,
             hostId: interaction.user.id,
-            game, title, description, startsAt, capacity, pingRoleId,
+            game, title, description, startsAt, capacity, pingRoleId, imgUrl,
             going: [{ userId: interaction.user.id, username: interaction.user.username }], // host attends by default
             maybe: [], waitlist: [],
             status: 'SCHEDULED', startNotified: false,

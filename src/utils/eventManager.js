@@ -6,56 +6,88 @@
  */
 
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, PermissionFlagsBits,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, PermissionFlagsBits,
 } = require('discord.js');
 const Event = require('../database/EventSchema');
 const { applyRsvp } = require('./eventRsvp');
-const { brandedEmbed, COLORS } = require('./brand');
 const logger = require('./logger');
 
 const BTN = { going: 'event:going', maybe: 'event:maybe', decline: 'event:decline', cancel: 'event:cancel' };
 
-function rosterText(list) {
-    return list.length ? list.map(m => `<@${m.userId}>`).join(', ') : '—';
-}
+// Terminal / glitch palette (matches the LFG system's aesthetic).
+const NEON_GREEN = 0x39ff14;
+const NEON_AMBER = 0xffb300;
+const GREY = 0x555555;
+const ESC = '\x1b';
+const G = `${ESC}[1;32m`;  // green
+const R = `${ESC}[1;31m`;  // red
+const Y = `${ESC}[1;33m`;  // amber
+const D = `${ESC}[1;30m`;  // dark grey
+const RST = `${ESC}[0m`;
+
+// How long after start time an event is considered concluded and swept away.
+const CONCLUDE_GRACE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 function buildEventEmbed(ev) {
-    let color = COLORS.primary;
-    if (ev.status === 'STARTED') color = COLORS.success;
-    if (ev.status === 'CANCELLED') color = COLORS.neutral;
+    const started = ev.status === 'STARTED';
+    const cancelled = ev.status === 'CANCELLED';
+
+    let color = NEON_GREEN;
+    if (started) color = NEON_AMBER;
+    if (cancelled) color = GREY;
+
+    let statusText = `${G}[ SCHEDULED ]${RST}`;
+    if (started) statusText = `${Y}[ LIVE NOW ]${RST}`;
+    if (cancelled) statusText = `${D}[ CANCELLED ]${RST}`;
 
     const unix = Math.floor(new Date(ev.startsAt).getTime() / 1000);
-    const goingLabel = ev.capacity > 0 ? `✅ Going (${ev.going.length}/${ev.capacity})` : `✅ Going (${ev.going.length})`;
+    const cap = ev.capacity > 0 ? String(ev.capacity) : '∞';
 
-    const statusTag = ev.status === 'CANCELLED' ? ' — ❌ CANCELLED'
-        : ev.status === 'STARTED' ? ' — 🟢 STARTED' : '';
+    const header = [
+        '```ansi',
+        `${G}GAME  ${RST} : ${ev.game}`,
+        `${G}STATUS${RST} : ${statusText}`,
+        `${G}SLOTS ${RST} : ${ev.going.length} / ${cap}`,
+        '```',
+        `**> ${started ? 'STARTED' : 'STARTS'}:** <t:${unix}:F> (<t:${unix}:R>)`,
+        `**> HOST:** <@${ev.hostId}>` + (ev.pingRoleId ? ` · **> PING:** <@&${ev.pingRoleId}>` : ''),
+    ];
+    if (ev.description) header.push(`\n${ev.description}`);
 
-    const embed = brandedEmbed({ color, footer: 'Glitch Haven • Events' })
-        .setAuthor({ name: `🎮 ${ev.game}` })
-        .setTitle(`${ev.title}${statusTag}`)
-        .setDescription(
-            (ev.description ? `${ev.description}\n\n` : '') +
-            `🕒 **When:** <t:${unix}:F> (<t:${unix}:R>)\n` +
-            `👑 **Host:** <@${ev.hostId}>` +
-            (ev.pingRoleId ? `\n🔔 **Pinging:** <@&${ev.pingRoleId}>` : '')
-        )
-        .addFields(
-            { name: goingLabel, value: rosterText(ev.going), inline: false },
-            { name: `❔ Maybe (${ev.maybe.length})`, value: rosterText(ev.maybe), inline: false },
-        );
-
-    if (ev.capacity > 0 && ev.waitlist.length) {
-        embed.addFields({ name: `⏳ Waitlist (${ev.waitlist.length})`, value: rosterText(ev.waitlist), inline: false });
+    // Roster in a terminal slot layout.
+    const roster = ['\n**> ROSTER_DATA:**'];
+    if (ev.capacity > 0) {
+        for (let i = 0; i < ev.capacity; i++) {
+            const m = ev.going[i];
+            const slot = `\`[${String(i + 1).padStart(2, '0')}]\``;
+            roster.push(m ? `${slot} <@${m.userId}>${m.userId === ev.hostId ? ' **(Host)**' : ''}` : `${slot} \`[ ... OPEN ... ]\``);
+        }
+    } else if (ev.going.length) {
+        ev.going.forEach((m, i) => roster.push(`\`[${String(i + 1).padStart(2, '0')}]\` <@${m.userId}>${m.userId === ev.hostId ? ' **(Host)**' : ''}`));
+    } else {
+        roster.push('`[ ... no attendees yet ... ]`');
     }
+    if (ev.maybe.length) roster.push(`\n**> MAYBE:** ${ev.maybe.map(m => `<@${m.userId}>`).join(', ')}`);
+    if (ev.waitlist.length) roster.push(`**> WAITLIST:** ${ev.waitlist.map(m => `<@${m.userId}>`).join(', ')}`);
+
+    const embed = new EmbedBuilder()
+        .setColor(color)
+        .setAuthor({ name: `⚡ SYSTEM.EVENT_${ev.status}` })
+        .setTitle(`> ${ev.title}`)
+        .setDescription(header.join('\n') + '\n' + roster.join('\n'))
+        .setFooter({ text: 'GLITCH_HAVEN // EVENT_SYSTEM' })
+        .setTimestamp();
+
+    if (ev.imgUrl) embed.setImage(ev.imgUrl);
     return embed;
 }
 
 function buildEventButtons(disabled = false) {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(BTN.going).setLabel('Going').setEmoji('✅').setStyle(ButtonStyle.Success).setDisabled(disabled),
-        new ButtonBuilder().setCustomId(BTN.maybe).setLabel('Maybe').setEmoji('❔').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-        new ButtonBuilder().setCustomId(BTN.decline).setLabel('Can\'t make it').setEmoji('❌').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-        new ButtonBuilder().setCustomId(BTN.cancel).setLabel('Cancel event').setEmoji('🗑️').setStyle(ButtonStyle.Danger).setDisabled(disabled),
+        new ButtonBuilder().setCustomId(BTN.going).setLabel('JOIN').setEmoji('🟩').setStyle(ButtonStyle.Success).setDisabled(disabled),
+        new ButtonBuilder().setCustomId(BTN.maybe).setLabel('MAYBE').setEmoji('🟨').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+        new ButtonBuilder().setCustomId(BTN.decline).setLabel('DROP').setEmoji('🟥').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+        new ButtonBuilder().setCustomId(BTN.cancel).setLabel('ABORT').setEmoji('🗑️').setStyle(ButtonStyle.Danger).setDisabled(disabled),
     );
 }
 
@@ -112,15 +144,51 @@ async function handleEventCancel(interaction) {
 
     ev.status = 'CANCELLED';
     await ev.save();
-    await interaction.update({ embeds: [buildEventEmbed(ev)], components: [buildEventButtons(true)] });
 
-    const mentions = ev.going.map(m => `<@${m.userId}>`).join(' ');
-    if (mentions) {
-        await interaction.channel.send({
-            content: `❌ **${ev.title}** was cancelled by the host. ${mentions}`,
-            allowedMentions: { users: ev.going.map(m => m.userId) },
+    // Show a glitchy self-destruct state, notify the roster, then scrub it.
+    const embed = buildEventEmbed(ev);
+    embed.setDescription(`${embed.data.description}\n\`\`\`ansi\n${R}[ EVENT ABORTED — PURGING IN T-MINUS 8s ]${RST}\n\`\`\``);
+    await interaction.update({ embeds: [embed], components: [buildEventButtons(true)] });
+
+    const going = ev.going.map(m => m.userId);
+    if (going.length) {
+        interaction.channel.send({
+            content: `❌ **${ev.title}** was aborted by the host. ${going.map(id => `<@${id}>`).join(' ')}`,
+            allowedMentions: { users: going },
         }).catch(() => {});
     }
+
+    // Self-destruct: delete the message + record so the channel stays clean.
+    setTimeout(async () => {
+        await interaction.message.delete().catch(() => {});
+        await Event.deleteOne({ _id: ev._id }).catch(() => {});
+    }, 8000);
+}
+
+// ── Cleanup: sweep away concluded events (started + grace) and stray cancels ──
+async function cleanUpFinishedEvents(client) {
+    const now = Date.now();
+    let stale;
+    try {
+        stale = await Event.find({
+            $or: [
+                { status: 'STARTED', startsAt: { $lt: new Date(now - CONCLUDE_GRACE_MS) } },
+                { status: 'CANCELLED' },
+            ],
+        });
+    } catch (err) {
+        return logger.error('[EVENTS] Cleanup query failed:', err);
+    }
+
+    for (const ev of stale) {
+        const guild = client.guilds.cache.get(ev.guildId);
+        const channel = guild?.channels.cache.get(ev.channelId);
+        if (channel) {
+            await channel.messages.fetch(ev.messageId).then(m => m.delete()).catch(() => {});
+        }
+        await Event.deleteOne({ _id: ev._id }).catch(() => {});
+    }
+    if (stale.length) logger.info(`[EVENTS] Cleaned up ${stale.length} finished/cancelled event(s).`);
 }
 
 // ── Scheduler: ping rosters for events whose start time has arrived ───────────
@@ -159,8 +227,12 @@ async function processStartingEvents(client) {
 }
 
 function startEventScheduler(client) {
-    // Check once a minute — cheap indexed query, at-most-once start ping.
+    // Start-time pings: check once a minute (cheap indexed query, at-most-once).
     setInterval(() => processStartingEvents(client).catch(err => logger.error('[EVENTS] Scheduler tick failed:', err)), 60 * 1000);
+
+    // Cleanup: sweep concluded/cancelled events every 15 minutes (+ once on boot).
+    cleanUpFinishedEvents(client).catch(err => logger.error('[EVENTS] Initial cleanup failed:', err));
+    setInterval(() => cleanUpFinishedEvents(client).catch(err => logger.error('[EVENTS] Cleanup tick failed:', err)), 15 * 60 * 1000);
 }
 
 module.exports = {
@@ -170,5 +242,6 @@ module.exports = {
     handleEventRsvp,
     handleEventCancel,
     processStartingEvents,
+    cleanUpFinishedEvents,
     startEventScheduler,
 };

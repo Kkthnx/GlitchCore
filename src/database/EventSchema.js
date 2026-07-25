@@ -25,6 +25,7 @@ const eventSchema = new mongoose.Schema({
     description: { type: String, default: null },
     startsAt: { type: Date, required: true },
     capacity: { type: Number, default: 0 }, // 0 = unlimited
+    imgUrl: { type: String, default: null }, // SteamGridDB banner
 
     pingRoleId: { type: String, default: null },
 

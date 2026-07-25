@@ -44,12 +44,30 @@ async function announceLive(client, streamer, stream) {
     if (thumb.startsWith('http')) embed.setImage(thumb);
 
     const rolePing = cfg.streamerPingRoleId ? `<@&${cfg.streamerPingRoleId}> ` : '';
-    await channel.send({
+    const msg = await channel.send({
         content: `${rolePing}🔴 **${stream.user_name}** is live!`,
         embeds: [embed],
         allowedMentions: { roles: cfg.streamerPingRoleId ? [cfg.streamerPingRoleId] : [] },
     });
+
+    // Remember the message so we can clean it up when they go offline.
+    streamer.liveMessageId = msg.id;
+    streamer.liveChannelId = channel.id;
+    await streamer.save().catch(() => {});
     logger.info(`[TWITCH] Announced ${streamer.twitchLogin} live in guild ${streamer.guildId}.`);
+}
+
+// Deletes the live announcement when a streamer goes offline.
+async function cleanupAnnouncement(client, streamer) {
+    if (!streamer.liveMessageId || !streamer.liveChannelId) return;
+    const channel = client.channels.cache.get(streamer.liveChannelId);
+    if (channel) {
+        await channel.messages.fetch(streamer.liveMessageId)
+            .then(m => m.delete())
+            .catch(() => { /* already gone */ });
+    }
+    streamer.liveMessageId = null;
+    streamer.liveChannelId = null;
 }
 
 async function pollStreamers(client) {
@@ -82,8 +100,11 @@ async function pollStreamers(client) {
                 await announceLive(client, streamer, stream).catch(err => logger.error('[TWITCH] Announce failed:', err));
             }
         } else if (streamer.isLive) {
+            // Went offline — remove the announcement and reset state.
             streamer.isLive = false;
+            await cleanupAnnouncement(client, streamer);
             await streamer.save().catch(() => {});
+            logger.info(`[TWITCH] ${streamer.twitchLogin} went offline — cleaned up announcement.`);
         }
     }
 }

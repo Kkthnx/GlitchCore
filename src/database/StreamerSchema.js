@@ -17,6 +17,10 @@ const streamerSchema = new mongoose.Schema({
 
     isLive: { type: Boolean, default: false },
     lastStreamId: { type: String, default: null },
+
+    // The live-announcement message, so it can be cleaned up when they go offline.
+    liveMessageId: { type: String, default: null },
+    liveChannelId: { type: String, default: null },
 }, { timestamps: true });
 
 streamerSchema.index({ guildId: 1, twitchLogin: 1 }, { unique: true });
