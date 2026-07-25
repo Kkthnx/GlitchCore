@@ -1,7 +1,7 @@
 const { ActivityType } = require('discord.js');
 const config = require('../../config.json');
 const { brandedEmbed, COLORS } = require('../utils/brand');
-const { isDoubleXpActive } = require('../utils/isDoubleXp');
+const { isDoubleXpStartDay } = require('../utils/isDoubleXp');
 const BotState = require('../database/BotStateSchema');
 const botStatuses = require('../utils/botStatuses');
 const logger = require('../utils/logger');
@@ -77,7 +77,9 @@ async function announceDoubleXp(client, guildId) {
 // Checks if we already announced today — if not, announces.
 // ---------------------------------------------------------------------------
 async function checkAndAnnounceDoubleXp(client, guildId) {
-    if (!isDoubleXpActive()) return;
+    // Only announce on the first day of the weekend (Friday), not every double
+    // XP day — so it posts once per weekend. The XP bonus still applies Fri+Sat.
+    if (!isDoubleXpStartDay()) return;
 
     const state = await BotState.findOne({ guildId });
     const alreadyAnnouncedToday = state?.lastDoubleXpDate === getTodayString();

@@ -18,4 +18,15 @@ function getXpMultiplier() {
     return isDoubleXpActive() ? config.xpSettings.doubleXpMultiplier : 1;
 }
 
-module.exports = { isDoubleXpActive, getXpMultiplier };
+/**
+ * True only on the FIRST day of a double XP streak (e.g. Friday when the window
+ * is Fri+Sat). Used to gate the announcement so it fires once per weekend, not
+ * on every double XP day. Evaluated in the community timezone.
+ */
+function isDoubleXpStartDay(today = getLocalDay()) {
+    const days = config.xpSettings.doubleXpDays;
+    const yesterday = (today + 6) % 7; // day-of-week before today
+    return days.includes(today) && !days.includes(yesterday);
+}
+
+module.exports = { isDoubleXpActive, getXpMultiplier, isDoubleXpStartDay };
