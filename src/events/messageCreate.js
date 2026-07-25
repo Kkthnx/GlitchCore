@@ -3,6 +3,7 @@ const config = require('../../config.json');
 const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { checkMessage, getRandomClapback } = require('../utils/filterManager');
 const { recordAndCheckRate, resetRate, containsInvite, mentionCount } = require('../utils/antiSpam');
+const { clearAfk, getAfk } = require('../utils/afkManager');
 const { recordInfraction } = require('../utils/moderationManager');
 const { queueXp } = require('../utils/xpCache');
 const { getGuildConfig } = require('../utils/guildConfigCache');
@@ -103,6 +104,25 @@ module.exports = {
             } catch (err) {
                 logger.error('Anti-spam check failed:', err);
             }
+        }
+
+        // 2c. AFK — clear the author's AFK; note any AFK users they pinged.
+        try {
+            const back = clearAfk(message.guild.id, message.author.id);
+            if (back) {
+                message.reply({ content: '👋 Welcome back — I cleared your AFK.', allowedMentions: { repliedUser: false } })
+                    .then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
+            }
+            const pinged = message.mentions.users.filter(u => getAfk(message.guild.id, u.id));
+            if (pinged.size) {
+                const lines = pinged.map(u => {
+                    const a = getAfk(message.guild.id, u.id);
+                    return `💤 **${u.username}** is AFK: ${a.reason} (<t:${Math.floor(a.since / 1000)}:R>)`;
+                });
+                message.reply({ content: lines.join('\n'), allowedMentions: { repliedUser: false } }).catch(() => {});
+            }
+        } catch (err) {
+            logger.error('AFK handling failed:', err);
         }
 
         if (guildConfig.xpEnabled === false) return;

@@ -6,7 +6,11 @@ const userSchema = new mongoose.Schema({
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 0 },
     totalMessages: { type: Number, default: 0 },
-    cardStyle: { type: String, default: 'default' }
+    cardStyle: { type: String, default: 'default' },
+
+    // Daily streak claim (/daily)
+    dailyStreak: { type: Number, default: 0 },
+    lastDailyDate: { type: String, default: null }, // YYYY-MM-DD in community tz
 });
 
 // Create a compound index so database searches are lightning fast

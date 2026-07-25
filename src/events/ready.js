@@ -198,6 +198,10 @@ module.exports = {
         const { startStreamerScheduler } = require('../utils/streamerManager');
         startStreamerScheduler(client);
 
+        // 3e. Reminder scheduler — fires due /remind reminders (30s ticks)
+        const { startReminderScheduler } = require('../utils/reminderManager');
+        startReminderScheduler(client);
+
         if (client.guilds.cache.size === 0) {
             return logger.warn('No guilds found in cache.');
         }
