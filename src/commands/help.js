@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 
 // Admin-only commands are grouped separately so they don't clutter the
@@ -31,6 +31,6 @@ module.exports = {
             embed.addFields({ name: '🛠️ Server Admins', value: format(admin) });
         }
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
 
 module.exports = {
@@ -20,7 +20,7 @@ module.exports = {
         // If they're in the guild, enforce hierarchy/bannable. If not, allow ban by ID.
         if (member) {
             const block = blockReason(interaction, member, { needBannable: true });
-            if (block) return interaction.reply({ content: block, ephemeral: true });
+            if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
         }
 
         // DM first, while we can still resolve them.
@@ -32,7 +32,7 @@ module.exports = {
                 deleteMessageSeconds: deleteDays * 24 * 60 * 60,
             });
         } catch (err) {
-            return interaction.reply({ content: `Failed to ban that user: ${err.message}`, ephemeral: true });
+            return interaction.reply({ content: `Failed to ban that user: ${err.message}`, flags: MessageFlags.Ephemeral });
         }
 
         await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'ban', reason });

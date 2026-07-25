@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const User = require('../database/UserSchema');
 const GuildConfig = require('../database/GuildConfigSchema');
 const { xpRequiredForLevel } = require('../utils/calculateXp');
@@ -11,7 +11,7 @@ module.exports = {
         .addUserOption(option => option.setName('target').setDescription('View another user\'s profile').setRequired(false)),
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const targetUser = interaction.options.getUser('target') || interaction.user;
         if (targetUser.bot) return interaction.editReply('Bots do not have profiles.');

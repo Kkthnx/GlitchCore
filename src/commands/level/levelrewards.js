@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const GuildConfig = require('../../database/GuildConfigSchema');
 const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { currentMilestone, roleNameFor } = require('../../utils/levelRoles');
@@ -44,10 +44,10 @@ module.exports = {
             const stack = interaction.options.getBoolean('stack') ?? false;
 
             if (!/\{level\}/i.test(template)) {
-                return interaction.reply({ content: 'Your template must include `{level}` so each role gets a distinct name.', ephemeral: true });
+                return interaction.reply({ content: 'Your template must include `{level}` so each role gets a distinct name.', flags: MessageFlags.Ephemeral });
             }
             if (!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
-                return interaction.reply({ content: 'I need the **Manage Roles** permission to create and assign milestone roles.', ephemeral: true });
+                return interaction.reply({ content: 'I need the **Manage Roles** permission to create and assign milestone roles.', flags: MessageFlags.Ephemeral });
             }
 
             const cfg = await loadConfig(guildId);
@@ -71,7 +71,7 @@ module.exports = {
                     `Roles are created automatically the first time someone reaches each milestone. ` +
                     `Make sure my role sits **above** them so I can assign them.`
                 );
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         if (sub === 'disable') {
@@ -79,7 +79,7 @@ module.exports = {
             cfg.levelRoleInterval = 0;
             await cfg.save();
             invalidateGuildConfig(guildId);
-            return interaction.reply({ content: 'Automated milestone roles are now **disabled**. Existing roles were left untouched.', ephemeral: true });
+            return interaction.reply({ content: 'Automated milestone roles are now **disabled**. Existing roles were left untouched.', flags: MessageFlags.Ephemeral });
         }
 
         // preview
@@ -100,6 +100,6 @@ module.exports = {
                 `Example — a level 37 member holds **${example ? roleNameFor(tpl, example) : 'no milestone yet'}**.`
             );
         }
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
 };

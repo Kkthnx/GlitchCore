@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget, countInfractions } = require('../../utils/moderationManager');
 
 module.exports = {
@@ -16,11 +16,11 @@ module.exports = {
         const reason = interaction.options.getString('reason') || 'No reason provided';
 
         if (!member) {
-            return interaction.reply({ content: 'That user is not in this server.', ephemeral: true });
+            return interaction.reply({ content: 'That user is not in this server.', flags: MessageFlags.Ephemeral });
         }
         // Warnings take no Discord-side action, so the bot need not outrank the target.
         const block = blockReason(interaction, member, { requireBotAction: false });
-        if (block) return interaction.reply({ content: block, ephemeral: true });
+        if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
         await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'warn', reason });
         await notifyTarget(targetUser, interaction.guild.name, 'warn', reason);

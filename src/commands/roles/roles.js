@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const GuildConfig = require('../../database/GuildConfigSchema');
 const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { buildSelfRolesRow } = require('../../utils/selfRoleManager');
@@ -75,7 +75,7 @@ async function ensureSelfRole(guild, cfg, { name, emoji = null, color, descripti
 
 function requireManageRoles(interaction) {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-        interaction.reply({ content: 'You need the **Manage Roles** permission to do that.', ephemeral: true });
+        interaction.reply({ content: 'You need the **Manage Roles** permission to do that.', flags: MessageFlags.Ephemeral });
         return false;
     }
     return true;
@@ -138,12 +138,12 @@ module.exports = {
             const cfg = await GuildConfig.findOne({ guildId });
             const row = buildSelfRolesRow(cfg?.selfRoles || [], interaction.member.roles.cache.map(r => r.id));
             if (!row) {
-                return interaction.reply({ content: 'No self-assignable roles are set up yet.', ephemeral: true });
+                return interaction.reply({ content: 'No self-assignable roles are set up yet.', flags: MessageFlags.Ephemeral });
             }
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
                 .setTitle('🎮 Pick Your Roles')
                 .setDescription('Select the games you play and the pings you want. Deselect to remove.');
-            return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+            return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
         }
 
         // ── Everything below is admin-only ──────────────────────────────────
@@ -151,16 +151,16 @@ module.exports = {
 
         // Creating/editing roles needs the bot to hold Manage Roles.
         if ((sub === 'create' || sub === 'preset' || sub === 'recolor') && !interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
-            return interaction.reply({ content: 'I need the **Manage Roles** permission to create or edit roles.', ephemeral: true });
+            return interaction.reply({ content: 'I need the **Manage Roles** permission to create or edit roles.', flags: MessageFlags.Ephemeral });
         }
 
         if (sub === 'recolor') {
             const cfg = await GuildConfig.findOne({ guildId });
             const roles = cfg?.selfRoles || [];
             if (!roles.length) {
-                return interaction.reply({ content: 'No self-assign roles to recolor yet. Create some with `/roles create` or `/roles preset`.', ephemeral: true });
+                return interaction.reply({ content: 'No self-assign roles to recolor yet. Create some with `/roles create` or `/roles preset`.', flags: MessageFlags.Ephemeral });
             }
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             // Known games/platforms get their real color; the rest spread across
             // a shuffled palette so nothing repeats needlessly.
@@ -182,9 +182,9 @@ module.exports = {
             const name = interaction.options.getString('name').trim();
             const cfg = await loadConfig(guildId);
             if (cfg.selfRoles.length >= 25) {
-                return interaction.reply({ content: 'The self-role menu is limited to 25 roles.', ephemeral: true });
+                return interaction.reply({ content: 'The self-role menu is limited to 25 roles.', flags: MessageFlags.Ephemeral });
             }
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             try {
                 const { role, created, listed } = await ensureSelfRole(interaction.guild, cfg, {
                     name,
@@ -205,7 +205,7 @@ module.exports = {
             const pack = interaction.options.getString('pack');
             const items = PRESETS[pack] || [];
             const cfg = await loadConfig(guildId);
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             const results = [];
             for (const item of items) {
@@ -229,18 +229,18 @@ module.exports = {
         if (sub === 'add') {
             const role = interaction.options.getRole('role');
             if (role.managed || role.id === guildId) {
-                return interaction.reply({ content: 'That role is managed by an integration and cannot be self-assigned.', ephemeral: true });
+                return interaction.reply({ content: 'That role is managed by an integration and cannot be self-assigned.', flags: MessageFlags.Ephemeral });
             }
             if (interaction.guild.members.me.roles.highest.comparePositionTo(role) <= 0) {
-                return interaction.reply({ content: `My highest role must be **above** ${role} for me to assign it. Move my role up.`, ephemeral: true });
+                return interaction.reply({ content: `My highest role must be **above** ${role} for me to assign it. Move my role up.`, flags: MessageFlags.Ephemeral });
             }
 
             const cfg = await loadConfig(guildId);
             if (cfg.selfRoles.some(r => r.roleId === role.id)) {
-                return interaction.reply({ content: `${role} is already self-assignable.`, ephemeral: true });
+                return interaction.reply({ content: `${role} is already self-assignable.`, flags: MessageFlags.Ephemeral });
             }
             if (cfg.selfRoles.length >= 25) {
-                return interaction.reply({ content: 'The self-role menu is limited to 25 roles.', ephemeral: true });
+                return interaction.reply({ content: 'The self-role menu is limited to 25 roles.', flags: MessageFlags.Ephemeral });
             }
 
             cfg.selfRoles.push({
@@ -251,7 +251,7 @@ module.exports = {
             });
             await cfg.save();
             invalidateGuildConfig(guildId);
-            return interaction.reply({ content: `Added ${role} to the self-assign menu.`, ephemeral: true });
+            return interaction.reply({ content: `Added ${role} to the self-assign menu.`, flags: MessageFlags.Ephemeral });
         }
 
         if (sub === 'remove') {
@@ -270,23 +270,23 @@ module.exports = {
 
             if (deleteRole) {
                 if (role.id === guildId) {
-                    return interaction.reply({ content: 'I can\'t delete the @everyone role.', ephemeral: true });
+                    return interaction.reply({ content: 'I can\'t delete the @everyone role.', flags: MessageFlags.Ephemeral });
                 }
                 if (!role.deletable) {
-                    return interaction.reply({ content: `Removed from the menu, but I can't delete **${roleName}** — it's above my role or managed by an integration.`, ephemeral: true });
+                    return interaction.reply({ content: `Removed from the menu, but I can't delete **${roleName}** — it's above my role or managed by an integration.`, flags: MessageFlags.Ephemeral });
                 }
                 try {
                     await role.delete('Deleted via /roles remove');
-                    return interaction.reply({ content: `🗑️ Deleted the **${roleName}** role${wasListed ? ' and removed it from the menu' : ''}.`, ephemeral: true });
+                    return interaction.reply({ content: `🗑️ Deleted the **${roleName}** role${wasListed ? ' and removed it from the menu' : ''}.`, flags: MessageFlags.Ephemeral });
                 } catch (err) {
-                    return interaction.reply({ content: `Removed from the menu, but couldn't delete the role: ${err.message}`, ephemeral: true });
+                    return interaction.reply({ content: `Removed from the menu, but couldn't delete the role: ${err.message}`, flags: MessageFlags.Ephemeral });
                 }
             }
 
             if (!wasListed) {
-                return interaction.reply({ content: `${role} wasn't in the self-assign list.`, ephemeral: true });
+                return interaction.reply({ content: `${role} wasn't in the self-assign list.`, flags: MessageFlags.Ephemeral });
             }
-            return interaction.reply({ content: `Removed ${role} from the self-assign menu (the role itself still exists).`, ephemeral: true });
+            return interaction.reply({ content: `Removed ${role} from the self-assign menu (the role itself still exists).`, flags: MessageFlags.Ephemeral });
         }
 
         if (sub === 'list') {
@@ -297,14 +297,14 @@ module.exports = {
                 .setDescription(roles.length
                     ? roles.map(r => `${r.emoji ? r.emoji + ' ' : ''}<@&${r.roleId}> — ${r.label}${r.description ? ` *(${r.description})*` : ''}`).join('\n')
                     : 'None configured. Add some with `/roles add`.');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         if (sub === 'post') {
             const cfg = await GuildConfig.findOne({ guildId });
             const row = buildSelfRolesRow(cfg?.selfRoles || []);
             if (!row) {
-                return interaction.reply({ content: 'Add roles with `/roles add` before posting a panel.', ephemeral: true });
+                return interaction.reply({ content: 'Add roles with `/roles add` before posting a panel.', flags: MessageFlags.Ephemeral });
             }
             const channel = interaction.options.getChannel('channel') || interaction.channel;
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
@@ -313,7 +313,7 @@ module.exports = {
                     || 'Use the menu below to choose the games you play and the pings you want. Deselect to remove a role.');
 
             await channel.send({ embeds: [embed], components: [row] });
-            return interaction.reply({ content: `Posted the role panel in ${channel}.`, ephemeral: true });
+            return interaction.reply({ content: `Posted the role panel in ${channel}.`, flags: MessageFlags.Ephemeral });
         }
     },
 };

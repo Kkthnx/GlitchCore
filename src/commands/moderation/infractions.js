@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const Infraction = require('../../database/InfractionSchema');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 const { humanizeDuration } = require('../../utils/duration');
@@ -26,10 +26,10 @@ module.exports = {
 
         if (sub === 'clear') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-                return interaction.reply({ content: 'You need the **Manage Server** permission to clear infractions.', ephemeral: true });
+                return interaction.reply({ content: 'You need the **Manage Server** permission to clear infractions.', flags: MessageFlags.Ephemeral });
             }
             const { deletedCount } = await Infraction.deleteMany({ guildId: interaction.guild.id, userId: targetUser.id });
-            return interaction.reply({ content: `🧹 Cleared **${deletedCount}** infraction(s) for <@${targetUser.id}>.`, ephemeral: true });
+            return interaction.reply({ content: `🧹 Cleared **${deletedCount}** infraction(s) for <@${targetUser.id}>.`, flags: MessageFlags.Ephemeral });
         }
 
         // view
@@ -42,7 +42,7 @@ module.exports = {
 
         if (!records.length) {
             embed.setDescription('✅ This member has a clean record.');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         const counts = records.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {});
@@ -56,6 +56,6 @@ module.exports = {
 
         if (records.length === 15) embed.setFooter({ text: 'Glitch Haven • Moderation — showing latest 15' });
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
 const { parseDuration, clampTimeout, humanizeDuration } = require('../../utils/duration');
 
@@ -17,19 +17,19 @@ module.exports = {
         const member = interaction.options.getMember('target');
         const reason = interaction.options.getString('reason') || 'No reason provided';
 
-        if (!member) return interaction.reply({ content: 'That user is not in this server.', ephemeral: true });
+        if (!member) return interaction.reply({ content: 'That user is not in this server.', flags: MessageFlags.Ephemeral });
 
         const block = blockReason(interaction, member);
-        if (block) return interaction.reply({ content: block, ephemeral: true });
+        if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
         const parsed = parseDuration(interaction.options.getString('duration'));
-        if (!parsed) return interaction.reply({ content: 'Invalid duration. Try `10m`, `1h`, or `1d`.', ephemeral: true });
+        if (!parsed) return interaction.reply({ content: 'Invalid duration. Try `10m`, `1h`, or `1d`.', flags: MessageFlags.Ephemeral });
         const durationMs = clampTimeout(parsed);
 
         try {
             await member.timeout(durationMs, `${interaction.user.tag}: ${reason}`);
         } catch (err) {
-            return interaction.reply({ content: `Failed to time out that member: ${err.message}`, ephemeral: true });
+            return interaction.reply({ content: `Failed to time out that member: ${err.message}`, flags: MessageFlags.Ephemeral });
         }
 
         await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'timeout', reason, durationMs });

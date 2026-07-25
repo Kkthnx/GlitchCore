@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
 
 module.exports = {
@@ -15,10 +15,10 @@ module.exports = {
         const member = interaction.options.getMember('target');
         const reason = interaction.options.getString('reason') || 'No reason provided';
 
-        if (!member) return interaction.reply({ content: 'That user is not in this server.', ephemeral: true });
+        if (!member) return interaction.reply({ content: 'That user is not in this server.', flags: MessageFlags.Ephemeral });
 
         const block = blockReason(interaction, member);
-        if (block) return interaction.reply({ content: block, ephemeral: true });
+        if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
         // DM before removing them — once kicked we can't message via the guild.
         await notifyTarget(targetUser, interaction.guild.name, 'kick', reason);
@@ -26,7 +26,7 @@ module.exports = {
         try {
             await member.kick(`${interaction.user.tag}: ${reason}`);
         } catch (err) {
-            return interaction.reply({ content: `Failed to kick that member: ${err.message}`, ephemeral: true });
+            return interaction.reply({ content: `Failed to kick that member: ${err.message}`, flags: MessageFlags.Ephemeral });
         }
 
         await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'kick', reason });

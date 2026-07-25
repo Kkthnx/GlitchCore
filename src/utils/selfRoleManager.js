@@ -1,4 +1,4 @@
-const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
 const { getGuildConfig, invalidateGuildConfig } = require('./guildConfigCache');
 const { brandedEmbed, COLORS } = require('./brand');
 const logger = require('./logger');
@@ -48,7 +48,7 @@ async function handleSelfRoleSelect(interaction) {
     const cfg = await getGuildConfig(interaction.guild.id) || {};
     const managed = (cfg.selfRoles || []).map(r => r.roleId);
     if (managed.length === 0) {
-        return interaction.reply({ content: 'Self-roles are not set up on this server.', ephemeral: true });
+        return interaction.reply({ content: 'Self-roles are not set up on this server.', flags: MessageFlags.Ephemeral });
     }
 
     const selected = interaction.values.filter(id => managed.includes(id));
@@ -74,7 +74,7 @@ async function handleSelfRoleSelect(interaction) {
     const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
         .setDescription(summary.join('\n'));
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 module.exports = { SELECT_ID, buildSelfRolesRow, handleSelfRoleSelect, parseEmoji, invalidateGuildConfig };

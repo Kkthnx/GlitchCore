@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const GuildConfig = require('../database/GuildConfigSchema');
 const { invalidateGuildConfig } = require('../utils/guildConfigCache');
 const logger = require('../utils/logger');
@@ -89,7 +89,7 @@ module.exports = {
                 `voiceTickMinutes: ${config.voiceTickMinutes}`,
                 `levelRewardRoles: ${config.levelRewardRoles.map(r => `level ${r.level}: <@&${r.roleId}>`).join(', ') || 'none'}`,
             ];
-            return interaction.reply({ content: fields.join('\n'), ephemeral: true });
+            return interaction.reply({ content: fields.join('\n'), flags: MessageFlags.Ephemeral });
         }
 
         if (subcommand === 'set') {
@@ -99,12 +99,12 @@ module.exports = {
             const numericKeys = ['textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes', 'starboardThreshold'];
             if (numericKeys.includes(key)) {
                 if (isNaN(value)) {
-                    return interaction.reply({ content: 'That value must be a number.', ephemeral: true });
+                    return interaction.reply({ content: 'That value must be a number.', flags: MessageFlags.Ephemeral });
                 }
                 config[key] = Number(value);
             } else if (['xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled'].includes(key)) {
                 if (!['true', 'false'].includes(value.toLowerCase())) {
-                    return interaction.reply({ content: 'That value must be true or false.', ephemeral: true });
+                    return interaction.reply({ content: 'That value must be true or false.', flags: MessageFlags.Ephemeral });
                 }
                 config[key] = value.toLowerCase() === 'true';
             } else {
@@ -113,7 +113,7 @@ module.exports = {
 
             await config.save();
             invalidateGuildConfig(guildId);
-            return interaction.reply({ content: `Updated \`${key}\` to \`${value}\`.`, ephemeral: true });
+            return interaction.reply({ content: `Updated \`${key}\` to \`${value}\`.`, flags: MessageFlags.Ephemeral });
         }
 
         if (subcommand === 'reward') {
@@ -123,22 +123,22 @@ module.exports = {
 
             if (action === 'add') {
                 if (config.levelRewardRoles.some(r => r.level === level && r.roleId === role.id)) {
-                    return interaction.reply({ content: 'That reward already exists.', ephemeral: true });
+                    return interaction.reply({ content: 'That reward already exists.', flags: MessageFlags.Ephemeral });
                 }
                 config.levelRewardRoles.push({ level, roleId: role.id });
                 await config.save();
                 invalidateGuildConfig(guildId);
-                return interaction.reply({ content: `Added role <@&${role.id}> as a reward for level ${level}.`, ephemeral: true });
+                return interaction.reply({ content: `Added role <@&${role.id}> as a reward for level ${level}.`, flags: MessageFlags.Ephemeral });
             }
 
             if (action === 'remove') {
                 config.levelRewardRoles = config.levelRewardRoles.filter(r => !(r.level === level && r.roleId === role.id));
                 await config.save();
                 invalidateGuildConfig(guildId);
-                return interaction.reply({ content: `Removed role <@&${role.id}> from the level ${level} rewards.`, ephemeral: true });
+                return interaction.reply({ content: `Removed role <@&${role.id}> from the level ${level} rewards.`, flags: MessageFlags.Ephemeral });
             }
         }
 
-        return interaction.reply({ content: 'Invalid settings command.', ephemeral: true });
+        return interaction.reply({ content: 'Invalid settings command.', flags: MessageFlags.Ephemeral });
     },
 };
