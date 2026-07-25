@@ -2,7 +2,8 @@ const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('disco
 const GuildConfig = require('../../database/GuildConfigSchema');
 const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { buildSelfRolesRow } = require('../../utils/selfRoleManager');
-const { brandedEmbed, COLORS, PALETTE } = require('../../utils/brand');
+const { smartColor } = require('../../utils/roleColors');
+const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 // A spread of on-brand colors so auto-created roles aren't all the same hue.
 const COLOR_POOL = ['#5cc8ff', '#34d3b4', '#f0b429', '#b483ff', '#ff6b6b', '#2fe07a', '#ff5fd0', '#ff7a3c'];
@@ -12,24 +13,25 @@ function randomColor() {
 
 // Starter packs the bot can create in one command so admins never touch
 // Server Settings for the common universal roles. Each gets its own color.
+// Colors come from the curated map (utils/roleColors.js) via ensureSelfRole.
 const PRESETS = {
     platforms: [
-        { name: 'PC', emoji: '🖥️', color: '#5cc8ff' },
-        { name: 'Xbox', emoji: '🎮', color: '#2fe07a' },
-        { name: 'PlayStation', emoji: '🎮', color: '#3a6ff0' },
-        { name: 'Switch', emoji: '🎮', color: '#ff6b6b' },
+        { name: 'PC', emoji: '🖥️' },
+        { name: 'Xbox', emoji: '🎮' },
+        { name: 'PlayStation', emoji: '🎮' },
+        { name: 'Switch', emoji: '🎮' },
     ],
     regions: [
-        { name: 'NA', emoji: '🌎', color: '#5cc8ff' },
-        { name: 'EU', emoji: '🌍', color: '#34d3b4' },
-        { name: 'OCE', emoji: '🌏', color: '#b483ff' },
-        { name: 'Asia', emoji: '🗺️', color: '#f0b429' },
+        { name: 'NA', emoji: '🌎' },
+        { name: 'EU', emoji: '🌍' },
+        { name: 'OCE', emoji: '🌏' },
+        { name: 'Asia', emoji: '🗺️' },
     ],
     pings: [
-        { name: 'Double XP', emoji: '🔥', color: '#f0b429', description: 'Pinged for Double XP weekends' },
-        { name: 'Events', emoji: '📅', color: '#34d3b4', description: 'Pinged for game nights' },
-        { name: 'Streams', emoji: '📺', color: '#b483ff', description: 'Pinged when members go live' },
-        { name: 'Announcements', emoji: '📢', color: '#ff5fd0' },
+        { name: 'Double XP', emoji: '🔥', description: 'Pinged for Double XP weekends' },
+        { name: 'Events', emoji: '📅', description: 'Pinged for game nights' },
+        { name: 'Streams', emoji: '📺', description: 'Pinged when members go live' },
+        { name: 'Announcements', emoji: '📢' },
     ],
 };
 
@@ -51,7 +53,8 @@ async function ensureSelfRole(guild, cfg, { name, emoji = null, color, descripti
     if (!role) {
         role = await guild.roles.create({
             name,
-            color: color || randomColor(), // varied by default, not all one hue
+            // Explicit color wins; else the game/platform's real color; else varied.
+            color: color || smartColor(name) || randomColor(),
             mentionable: false,
             reason: 'Self-assignable role created via /roles',
         });
@@ -158,18 +161,20 @@ module.exports = {
             }
             await interaction.deferReply({ ephemeral: true });
 
-            // Shuffled color cycle so colors spread out instead of repeating.
+            // Known games/platforms get their real color; the rest spread across
+            // a shuffled palette so nothing repeats needlessly.
             const pool = [...COLOR_POOL].sort(() => Math.random() - 0.5);
             let recolored = 0, skipped = 0, i = 0;
             for (const sr of roles) {
                 const role = interaction.guild.roles.cache.get(sr.roleId);
                 if (!role) { skipped++; continue; }
+                const color = smartColor(role.name) || pool[i % pool.length];
                 try {
-                    await role.setColor(pool[i % pool.length], 'Recolor via /roles recolor');
+                    await role.setColor(color, 'Recolor via /roles recolor');
                     recolored++; i++;
                 } catch { skipped++; }
             }
-            return interaction.editReply(`🎨 Recolored **${recolored}** role(s)${skipped ? ` — skipped ${skipped} (my role must be **above** them).` : '.'}`);
+            return interaction.editReply(`🎨 Recolored **${recolored}** role(s) — known games/platforms got their signature color${skipped ? `, skipped ${skipped} (my role must be **above** them).` : '.'}`);
         }
 
         if (sub === 'create') {
