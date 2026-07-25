@@ -66,7 +66,7 @@ async function ensureSelfRole(guild, cfg, { name, emoji = null, color, descripti
         role = await guild.roles.create({
             name,
             // Explicit color wins; else the game/platform's real color; else varied.
-            color: color || smartColor(name) || randomColor(),
+            colors: { primaryColor: color || smartColor(name) || randomColor() },
             mentionable: false,
             reason: 'Self-assignable role created via /roles',
         });
@@ -184,7 +184,7 @@ module.exports = {
                 if (!role) { skipped++; continue; }
                 const color = smartColor(role.name) || pool[i % pool.length];
                 try {
-                    await role.setColor(color, 'Recolor via /roles recolor');
+                    await role.setColors({ primaryColor: color }, 'Recolor via /roles recolor');
                     recolored++; i++;
                 } catch { skipped++; }
             }

@@ -27,7 +27,7 @@ async function applyMilestoneRole(member, level, config) {
     if (!role) {
         role = await guild.roles.create({
             name,
-            color: PALETTE.accent,
+            colors: { primaryColor: PALETTE.accent },
             reason: `Milestone role for level ${milestone}`,
         }).catch(err => {
             logger.error(`[LEVEL_ROLE] Could not create milestone role "${name}": ${err.message}`);
