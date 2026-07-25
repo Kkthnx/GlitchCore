@@ -2,12 +2,66 @@ const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('disco
 const GuildConfig = require('../../database/GuildConfigSchema');
 const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { buildSelfRolesRow } = require('../../utils/selfRoleManager');
-const { brandedEmbed, COLORS } = require('../../utils/brand');
+const { brandedEmbed, COLORS, PALETTE } = require('../../utils/brand');
+
+// Starter packs the bot can create in one command so admins never touch
+// Server Settings for the common universal roles.
+const PRESETS = {
+    platforms: [
+        { name: 'PC', emoji: '🖥️' },
+        { name: 'Xbox', emoji: '🎮' },
+        { name: 'PlayStation', emoji: '🎮' },
+        { name: 'Switch', emoji: '🎮' },
+    ],
+    regions: [
+        { name: 'NA', emoji: '🌎' },
+        { name: 'EU', emoji: '🌍' },
+        { name: 'OCE', emoji: '🌏' },
+        { name: 'Asia', emoji: '🗺️' },
+    ],
+    pings: [
+        { name: 'Double XP', emoji: '🔥', description: 'Pinged for Double XP weekends' },
+        { name: 'Events', emoji: '📅', description: 'Pinged for game nights' },
+        { name: 'Streams', emoji: '📺', description: 'Pinged when members go live' },
+        { name: 'Announcements', emoji: '📢' },
+    ],
+};
 
 async function loadConfig(guildId) {
     let cfg = await GuildConfig.findOne({ guildId });
     if (!cfg) cfg = await GuildConfig.create({ guildId });
     return cfg;
+}
+
+// Find a role by name (case-insensitive) or create it, then register it as
+// self-assignable on the config (without saving — caller saves once).
+function isUnicodeEmoji(str) {
+    return Boolean(str) && !/^<a?:\w+:\d+>$/.test(str); // exclude custom <:name:id> emojis
+}
+
+async function ensureSelfRole(guild, cfg, { name, emoji = null, color, description = null, label = null }) {
+    let role = guild.roles.cache.find(r => r.name.toLowerCase() === name.toLowerCase());
+    let created = false;
+    if (!role) {
+        role = await guild.roles.create({
+            name,
+            color: color || PALETTE.accent,
+            mentionable: false,
+            reason: 'Self-assignable role created via /roles',
+        });
+        created = true;
+
+        // If the server is boosted enough for role icons, set the emoji AS the
+        // role icon — no image file needed.
+        if (emoji && isUnicodeEmoji(emoji) && guild.features.includes('ROLE_ICONS')) {
+            await role.setUnicodeEmoji(emoji).catch(() => {});
+        }
+    }
+    const listed = cfg.selfRoles.some(r => r.roleId === role.id);
+    if (!listed) {
+        cfg.selfRoles.push({ roleId: role.id, label: (label || name).slice(0, 80), emoji, description });
+    }
+    return { role, created, listed };
 }
 
 function requireManageRoles(interaction) {
@@ -32,6 +86,22 @@ module.exports = {
             .addStringOption(o => o.setName('label').setDescription('Menu label (defaults to role name)').setRequired(false))
             .addStringOption(o => o.setName('emoji').setDescription('Emoji shown in the menu').setRequired(false))
             .addStringOption(o => o.setName('description').setDescription('Short description shown in the menu').setRequired(false)))
+        .addSubcommand(sub => sub
+            .setName('create')
+            .setDescription('(Admin) Create a brand-new role AND add it to the menu in one step')
+            .addStringOption(o => o.setName('name').setDescription('Role name, e.g. Valorant').setRequired(true).setMaxLength(80))
+            .addStringOption(o => o.setName('emoji').setDescription('Emoji for the menu (and role icon if boosted)').setRequired(false))
+            .addStringOption(o => o.setName('color').setDescription('Hex color, e.g. #5cc8ff').setRequired(false))
+            .addStringOption(o => o.setName('description').setDescription('Short description shown in the menu').setRequired(false)))
+        .addSubcommand(sub => sub
+            .setName('preset')
+            .setDescription('(Admin) Auto-create a starter pack of roles + add them to the menu')
+            .addStringOption(o => o.setName('pack').setDescription('Which starter pack').setRequired(true)
+                .addChoices(
+                    { name: 'platforms (PC, Xbox, PlayStation, Switch)', value: 'platforms' },
+                    { name: 'regions (NA, EU, OCE, Asia)', value: 'regions' },
+                    { name: 'pings (Double XP, Events, Streams, Announcements)', value: 'pings' },
+                )))
         .addSubcommand(sub => sub
             .setName('remove')
             .setDescription('(Admin) Remove a role from the self-assign list')
@@ -65,6 +135,59 @@ module.exports = {
 
         // ── Everything below is admin-only ──────────────────────────────────
         if (!requireManageRoles(interaction)) return;
+
+        // Creating roles needs the bot to hold Manage Roles.
+        if ((sub === 'create' || sub === 'preset') && !interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            return interaction.reply({ content: 'I need the **Manage Roles** permission to create roles.', ephemeral: true });
+        }
+
+        if (sub === 'create') {
+            const name = interaction.options.getString('name').trim();
+            const cfg = await loadConfig(guildId);
+            if (cfg.selfRoles.length >= 25) {
+                return interaction.reply({ content: 'The self-role menu is limited to 25 roles.', ephemeral: true });
+            }
+            await interaction.deferReply({ ephemeral: true });
+            try {
+                const { role, created, listed } = await ensureSelfRole(interaction.guild, cfg, {
+                    name,
+                    emoji: interaction.options.getString('emoji') || null,
+                    color: interaction.options.getString('color') || undefined,
+                    description: interaction.options.getString('description') || null,
+                });
+                await cfg.save();
+                invalidateGuildConfig(guildId);
+                const note = listed ? 'was already in the menu' : (created ? 'created and added to the menu' : 'already existed — added to the menu');
+                return interaction.editReply(`✅ ${role} ${note}.`);
+            } catch (err) {
+                return interaction.editReply(`Couldn't create that role: ${err.message}`);
+            }
+        }
+
+        if (sub === 'preset') {
+            const pack = interaction.options.getString('pack');
+            const items = PRESETS[pack] || [];
+            const cfg = await loadConfig(guildId);
+            await interaction.deferReply({ ephemeral: true });
+
+            const results = [];
+            for (const item of items) {
+                if (cfg.selfRoles.length >= 25) break;
+                try {
+                    const { role, created } = await ensureSelfRole(interaction.guild, cfg, item);
+                    results.push(`${created ? '🆕' : '↩️'} ${role}`);
+                } catch (err) {
+                    results.push(`⚠️ ${item.name}: ${err.message}`);
+                }
+            }
+            await cfg.save();
+            invalidateGuildConfig(guildId);
+
+            const embed = brandedEmbed({ color: COLORS.success, footer: 'Glitch Haven • Roles' })
+                .setTitle(`✅ Starter pack: ${pack}`)
+                .setDescription(`${results.join('\n')}\n\nPost the picker with \`/roles post\` when you're ready.`);
+            return interaction.editReply({ embeds: [embed] });
+        }
 
         if (sub === 'add') {
             const role = interaction.options.getRole('role');
