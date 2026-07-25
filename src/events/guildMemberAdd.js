@@ -7,6 +7,7 @@
 
 const { AttachmentBuilder } = require('discord.js');
 const buildWelcomeImage = require('../utils/generateWelcomeImage');
+const { headlines, quips, pick } = require('../utils/welcomeSayings');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const config = require('../../config.json');
 const logger = require('../utils/logger');
@@ -43,16 +44,20 @@ module.exports = {
             const welcomeChannel = member.guild.channels.cache.get(config.channels.welcome);
             if (!welcomeChannel) return logger.warn('Welcome channel ID is invalid or missing.');
 
-            // Generate the image buffer from our canvas utility
-            const imageBuffer = await buildWelcomeImage(member.user);
+            const headline = pick(headlines);
+            const quip = pick(quips);
+            const count = member.guild.memberCount;
+
+            const imageBuffer = await buildWelcomeImage(member.user, { memberCount: count, quip });
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'welcome-image.png' });
 
-            const welcomeEmbed = brandedEmbed({ color: COLORS.success })
-                .setTitle('A new gamer has arrived!')
-                .setDescription(`Welcome to the server, ${member}! You are member **#${member.guild.memberCount}**.`)
+            const welcomeEmbed = brandedEmbed({ color: COLORS.success, footer: 'GLITCH_HAVEN // USER_CONNECTED' })
+                .setAuthor({ name: '⚡ SYSTEM.NEW_CONNECTION' })
+                .setTitle(`> ${headline}`)
+                .setDescription(`${member} just spawned in as member **#${count}**.\n\n_${quip}_\n\nGrab your roles with \`/roles\` and jump into the chat.`)
                 .setImage('attachment://welcome-image.png');
 
-            await welcomeChannel.send({ embeds: [welcomeEmbed], files: [attachment] });
+            await welcomeChannel.send({ content: `${member}`, embeds: [welcomeEmbed], files: [attachment], allowedMentions: { users: [member.id] } });
         } catch (err) {
             logger.error('Failed to send welcome message:', err);
         }
