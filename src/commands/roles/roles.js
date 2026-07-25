@@ -4,26 +4,32 @@ const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { buildSelfRolesRow } = require('../../utils/selfRoleManager');
 const { brandedEmbed, COLORS, PALETTE } = require('../../utils/brand');
 
+// A spread of on-brand colors so auto-created roles aren't all the same hue.
+const COLOR_POOL = ['#5cc8ff', '#34d3b4', '#f0b429', '#b483ff', '#ff6b6b', '#2fe07a', '#ff5fd0', '#ff7a3c'];
+function randomColor() {
+    return COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
+}
+
 // Starter packs the bot can create in one command so admins never touch
-// Server Settings for the common universal roles.
+// Server Settings for the common universal roles. Each gets its own color.
 const PRESETS = {
     platforms: [
-        { name: 'PC', emoji: '🖥️' },
-        { name: 'Xbox', emoji: '🎮' },
-        { name: 'PlayStation', emoji: '🎮' },
-        { name: 'Switch', emoji: '🎮' },
+        { name: 'PC', emoji: '🖥️', color: '#5cc8ff' },
+        { name: 'Xbox', emoji: '🎮', color: '#2fe07a' },
+        { name: 'PlayStation', emoji: '🎮', color: '#3a6ff0' },
+        { name: 'Switch', emoji: '🎮', color: '#ff6b6b' },
     ],
     regions: [
-        { name: 'NA', emoji: '🌎' },
-        { name: 'EU', emoji: '🌍' },
-        { name: 'OCE', emoji: '🌏' },
-        { name: 'Asia', emoji: '🗺️' },
+        { name: 'NA', emoji: '🌎', color: '#5cc8ff' },
+        { name: 'EU', emoji: '🌍', color: '#34d3b4' },
+        { name: 'OCE', emoji: '🌏', color: '#b483ff' },
+        { name: 'Asia', emoji: '🗺️', color: '#f0b429' },
     ],
     pings: [
-        { name: 'Double XP', emoji: '🔥', description: 'Pinged for Double XP weekends' },
-        { name: 'Events', emoji: '📅', description: 'Pinged for game nights' },
-        { name: 'Streams', emoji: '📺', description: 'Pinged when members go live' },
-        { name: 'Announcements', emoji: '📢' },
+        { name: 'Double XP', emoji: '🔥', color: '#f0b429', description: 'Pinged for Double XP weekends' },
+        { name: 'Events', emoji: '📅', color: '#34d3b4', description: 'Pinged for game nights' },
+        { name: 'Streams', emoji: '📺', color: '#b483ff', description: 'Pinged when members go live' },
+        { name: 'Announcements', emoji: '📢', color: '#ff5fd0' },
     ],
 };
 
@@ -45,7 +51,7 @@ async function ensureSelfRole(guild, cfg, { name, emoji = null, color, descripti
     if (!role) {
         role = await guild.roles.create({
             name,
-            color: color || PALETTE.accent,
+            color: color || randomColor(), // varied by default, not all one hue
             mentionable: false,
             reason: 'Self-assignable role created via /roles',
         });
@@ -103,6 +109,9 @@ module.exports = {
                     { name: 'pings (Double XP, Events, Streams, Announcements)', value: 'pings' },
                 )))
         .addSubcommand(sub => sub
+            .setName('recolor')
+            .setDescription('(Admin) Give every self-assign role a fresh spread of colors'))
+        .addSubcommand(sub => sub
             .setName('remove')
             .setDescription('(Admin) Remove a role from the self-assign list')
             .addRoleOption(o => o.setName('role').setDescription('Role to remove').setRequired(true)))
@@ -136,9 +145,31 @@ module.exports = {
         // ── Everything below is admin-only ──────────────────────────────────
         if (!requireManageRoles(interaction)) return;
 
-        // Creating roles needs the bot to hold Manage Roles.
-        if ((sub === 'create' || sub === 'preset') && !interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
-            return interaction.reply({ content: 'I need the **Manage Roles** permission to create roles.', ephemeral: true });
+        // Creating/editing roles needs the bot to hold Manage Roles.
+        if ((sub === 'create' || sub === 'preset' || sub === 'recolor') && !interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            return interaction.reply({ content: 'I need the **Manage Roles** permission to create or edit roles.', ephemeral: true });
+        }
+
+        if (sub === 'recolor') {
+            const cfg = await GuildConfig.findOne({ guildId });
+            const roles = cfg?.selfRoles || [];
+            if (!roles.length) {
+                return interaction.reply({ content: 'No self-assign roles to recolor yet. Create some with `/roles create` or `/roles preset`.', ephemeral: true });
+            }
+            await interaction.deferReply({ ephemeral: true });
+
+            // Shuffled color cycle so colors spread out instead of repeating.
+            const pool = [...COLOR_POOL].sort(() => Math.random() - 0.5);
+            let recolored = 0, skipped = 0, i = 0;
+            for (const sr of roles) {
+                const role = interaction.guild.roles.cache.get(sr.roleId);
+                if (!role) { skipped++; continue; }
+                try {
+                    await role.setColor(pool[i % pool.length], 'Recolor via /roles recolor');
+                    recolored++; i++;
+                } catch { skipped++; }
+            }
+            return interaction.editReply(`🎨 Recolored **${recolored}** role(s)${skipped ? ` — skipped ${skipped} (my role must be **above** them).` : '.'}`);
         }
 
         if (sub === 'create') {
