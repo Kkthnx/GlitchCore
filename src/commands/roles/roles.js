@@ -41,6 +41,17 @@ async function loadConfig(guildId) {
     return cfg;
 }
 
+// Drop self-roles whose Discord role no longer exists (e.g. deleted in Server
+// Settings), persisting the cleanup. Returns how many were pruned.
+async function pruneStale(guild, cfg) {
+    if (!cfg?.selfRoles?.length) return 0;
+    const before = cfg.selfRoles.length;
+    cfg.selfRoles = cfg.selfRoles.filter(r => guild.roles.cache.has(r.roleId));
+    const removed = before - cfg.selfRoles.length;
+    if (removed) { await cfg.save(); invalidateGuildConfig(guild.id); }
+    return removed;
+}
+
 // Find a role by name (case-insensitive) or create it, then register it as
 // self-assignable on the config (without saving — caller saves once).
 function isUnicodeEmoji(str) {
@@ -136,6 +147,7 @@ module.exports = {
         // ── Member: open personal picker ────────────────────────────────────
         if (sub === 'menu') {
             const cfg = await GuildConfig.findOne({ guildId });
+            if (cfg) await pruneStale(interaction.guild, cfg);
             const row = buildSelfRolesRow(cfg?.selfRoles || [], interaction.member.roles.cache.map(r => r.id));
             if (!row) {
                 return interaction.reply({ content: 'No self-assignable roles are set up yet.', flags: MessageFlags.Ephemeral });
@@ -291,17 +303,20 @@ module.exports = {
 
         if (sub === 'list') {
             const cfg = await GuildConfig.findOne({ guildId });
+            const pruned = cfg ? await pruneStale(interaction.guild, cfg) : 0;
             const roles = cfg?.selfRoles || [];
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
                 .setTitle('Self-Assignable Roles')
                 .setDescription(roles.length
                     ? roles.map(r => `${r.emoji ? r.emoji + ' ' : ''}<@&${r.roleId}> — ${r.label}${r.description ? ` *(${r.description})*` : ''}`).join('\n')
                     : 'None configured. Add some with `/roles add`.');
+            if (pruned) embed.setFooter({ text: `Glitch Haven • Roles — cleaned up ${pruned} deleted role(s)` });
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         if (sub === 'post') {
             const cfg = await GuildConfig.findOne({ guildId });
+            if (cfg) await pruneStale(interaction.guild, cfg);
             const row = buildSelfRolesRow(cfg?.selfRoles || []);
             if (!row) {
                 return interaction.reply({ content: 'Add roles with `/roles add` before posting a panel.', flags: MessageFlags.Ephemeral });
