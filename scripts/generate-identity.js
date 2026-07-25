@@ -85,29 +85,101 @@ function chromatic(ctx, text, x, y, a1, off) {
     ctx.fillText(text, x, y);
 }
 
-// Square icon, framed for the circular crop Discord applies.
-function drawIcon(text, a1, a2, S = 512) {
+// A single text layer on a transparent canvas, filled solid or with the
+// green gradient used for the logo lettering.
+function textLayer(text, S, fill, useGradient) {
+    const c = createCanvas(S, S);
+    const x = c.getContext('2d');
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    const size = fitFont(x, text, S * 0.82, Math.round(S * 0.66));
+    x.font = `${size}px Rajdhani`;
+    if (useGradient) {
+        const g = x.createLinearGradient(0, S * 0.24, 0, S * 0.8);
+        g.addColorStop(0, '#a6ff33');
+        g.addColorStop(0.5, '#39e022');
+        g.addColorStop(1, '#12801a');
+        x.fillStyle = g;
+    } else {
+        x.fillStyle = fill;
+    }
+    x.fillText(text, S / 2, S / 2 + size * 0.02);
+    return c;
+}
+
+// Datamosh-style glitch icon: green gradient lettering, RGB channel split,
+// heavy horizontal slice tearing, and signal noise, close to the original GH.
+function drawGlitchIcon(text, S = 512) {
     const canvas = createCanvas(S, S);
     const ctx = canvas.getContext('2d');
-    glitchBg(ctx, S, S, a1, a2);
 
-    ctx.fillStyle = rgba(a1, 0.14);
-    ctx.fillRect(0, S * 0.42, S, S * 0.05);
+    // Dark navy background with faint horizontal signal lines and static.
+    const bg = ctx.createLinearGradient(0, 0, 0, S);
+    bg.addColorStop(0, '#0a1020');
+    bg.addColorStop(1, '#04060c');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, S, S);
+    for (let y = 0; y < S; y += 3) {
+        if (Math.random() < 0.16) {
+            ctx.fillStyle = `rgba(120,170,210,${Math.random() * 0.06})`;
+            ctx.fillRect(0, y, S, 1);
+        }
+    }
+    for (let i = 0; i < S * 2; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.05})`;
+        ctx.fillRect(Math.random() * S, Math.random() * S, 1, 1);
+    }
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const size = fitFont(ctx, text, S * 0.78, Math.round(S * 0.62));
-    ctx.font = `${size}px Rajdhani`;
-    chromatic(ctx, text, S / 2, S / 2 + size * 0.03, a1, Math.round(S * 0.016));
+    // Composite the lettering with an RGB channel split on an offscreen canvas.
+    const green = textLayer(text, S, null, true);
+    const cyan = textLayer(text, S, '#00ffff');
+    const magenta = textLayer(text, S, '#ff2b6b');
+    const gt = createCanvas(S, S);
+    const g = gt.getContext('2d');
+    const off = Math.round(S * 0.015);
+    // Green is the opaque, dominant base. Cyan/magenta are only edge fringe.
+    g.drawImage(green, 0, 0);
+    g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = 0.38;
+    g.drawImage(cyan, -off, Math.round(off * 0.3));
+    g.drawImage(magenta, off, -Math.round(off * 0.3));
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    // Re-assert the green core so the letters stay saturated, not pastel.
+    g.globalAlpha = 0.5;
+    g.drawImage(green, 0, 0);
+    g.globalAlpha = 1;
 
-    scanlines(ctx, S, S);
+    // Base pass.
+    ctx.drawImage(gt, 0, 0);
 
-    // Circular neon ring so it frames well when cropped to a circle.
-    ctx.beginPath();
-    ctx.arc(S / 2, S / 2, S / 2 - 10, 0, Math.PI * 2);
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = rgba(a1, 0.6);
-    ctx.stroke();
+    // Horizontal slice displacement (the datamosh tearing).
+    for (let k = 0; k < 60; k++) {
+        const y = Math.floor(Math.random() * S);
+        const h = 1 + Math.floor(Math.random() * 12);
+        const dx = Math.round((Math.random() - 0.5) * S * 0.14);
+        ctx.drawImage(gt, 0, y, S, h, dx, y, S, h);
+    }
+
+    // A few brighter signal-tear bands.
+    for (let k = 0; k < 7; k++) {
+        const y = Math.floor(Math.random() * S);
+        const h = 1 + Math.floor(Math.random() * 4);
+        ctx.drawImage(gt, 0, y, S, h, Math.round((Math.random() - 0.5) * 60), y, S, h);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = `rgba(200,255,170,${0.15 + Math.random() * 0.2})`;
+        ctx.fillRect(0, y, S, h);
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Fine scanlines and a soft vignette.
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    for (let y = 0; y < S; y += 3) ctx.fillRect(0, y, S, 1);
+    const vig = ctx.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S * 0.72);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, S, S);
 
     return canvas.toBuffer('image/png');
 }
@@ -168,9 +240,9 @@ const GREEN = '#39ff14';
 const GREEN2 = '#2fe07a';
 
 // Icons (512x512). GH matches the existing brand, GC and >_ are bot options.
-fs.writeFileSync(path.join(OUT, 'icon-gh.png'), drawIcon('GH', GREEN, GREEN2));
-fs.writeFileSync(path.join(OUT, 'icon-gc.png'), drawIcon('GC', GREEN, '#5cc8ff'));
-fs.writeFileSync(path.join(OUT, 'icon-terminal.png'), drawIcon('>_', '#5cc8ff', '#b483ff'));
+fs.writeFileSync(path.join(OUT, 'icon-gh.png'), drawGlitchIcon('GH'));
+fs.writeFileSync(path.join(OUT, 'icon-gc.png'), drawGlitchIcon('GC'));
+fs.writeFileSync(path.join(OUT, 'icon-terminal.png'), drawGlitchIcon('>_'));
 
 // Server banner (960x540) and bot profile banner (960x384).
 fs.writeFileSync(path.join(OUT, 'server-banner.png'), drawBanner(
