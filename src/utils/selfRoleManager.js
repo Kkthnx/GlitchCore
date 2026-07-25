@@ -1,9 +1,10 @@
-const { ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
+const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { getGuildConfig, invalidateGuildConfig } = require('./guildConfigCache');
 const { brandedEmbed, COLORS } = require('./brand');
 const logger = require('./logger');
 
 const SELECT_ID = 'roles:self';
+const OPEN_ID = 'roles:open';
 
 /** Parse a stored emoji string into the shape discord.js components expect. */
 function parseEmoji(raw) {
@@ -18,10 +19,14 @@ function parseEmoji(raw) {
  * member's current roles are pre-selected (used for the ephemeral /roles menu).
  * @returns {ActionRowBuilder|null} null if there are no roles configured.
  */
-function buildSelfRolesRow(selfRoles, memberRoleIds = null) {
-    if (!selfRoles || selfRoles.length === 0) return null;
+function buildSelfRolesRow(selfRoles, memberRoleIds = null, guild = null) {
+    // Drop any roles whose Discord role no longer exists so deleted roles can
+    // never appear in the menu (even before the config is pruned).
+    let roles = selfRoles || [];
+    if (guild) roles = roles.filter(r => guild.roles.cache.has(r.roleId));
+    if (roles.length === 0) return null;
 
-    const options = selfRoles.slice(0, 25).map(r => {
+    const options = roles.slice(0, 25).map(r => {
         const opt = { label: r.label, value: r.roleId };
         if (r.description) opt.description = r.description.slice(0, 100);
         const emoji = parseEmoji(r.emoji);
@@ -40,13 +45,38 @@ function buildSelfRolesRow(selfRoles, memberRoleIds = null) {
     return new ActionRowBuilder().addComponents(menu);
 }
 
+/** A persistent panel: an embed + a button that opens a fresh, live picker. */
+function buildPanelButton() {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(OPEN_ID).setLabel('Pick Your Roles').setEmoji('🎮').setStyle(ButtonStyle.Primary),
+    );
+}
+
+/**
+ * Opens the personal picker as an ephemeral, freshly-built menu (from the
+ * button on a posted panel). Because it's rebuilt on every click, deleted roles
+ * never appear and the member's current roles are pre-selected.
+ */
+async function handleOpenPicker(interaction) {
+    const cfg = await getGuildConfig(interaction.guild.id) || {};
+    const row = buildSelfRolesRow(cfg.selfRoles || [], interaction.member.roles.cache.map(r => r.id), interaction.guild);
+    if (!row) {
+        return interaction.reply({ content: 'No self-assignable roles are set up yet.', flags: MessageFlags.Ephemeral });
+    }
+    const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
+        .setTitle('🎮 Pick Your Roles')
+        .setDescription('Select the games you play and the pings you want. Deselect to remove.');
+    return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
+}
+
 /**
  * Handles a member's self-role select submission: adds newly selected managed
  * roles and removes managed roles they deselected. Replies ephemerally.
  */
 async function handleSelfRoleSelect(interaction) {
     const cfg = await getGuildConfig(interaction.guild.id) || {};
-    const managed = (cfg.selfRoles || []).map(r => r.roleId);
+    // Only act on managed roles that still exist in the guild.
+    const managed = (cfg.selfRoles || []).map(r => r.roleId).filter(id => interaction.guild.roles.cache.has(id));
     if (managed.length === 0) {
         return interaction.reply({ content: 'Self-roles are not set up on this server.', flags: MessageFlags.Ephemeral });
     }
@@ -77,4 +107,4 @@ async function handleSelfRoleSelect(interaction) {
     return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
-module.exports = { SELECT_ID, buildSelfRolesRow, handleSelfRoleSelect, parseEmoji, invalidateGuildConfig };
+module.exports = { SELECT_ID, OPEN_ID, buildSelfRolesRow, buildPanelButton, handleOpenPicker, handleSelfRoleSelect, parseEmoji, invalidateGuildConfig };

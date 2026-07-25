@@ -1,5 +1,5 @@
 const { handleModalSubmit, handleInject, handleAbort, handleExecute, handleCancel } = require('../utils/lfgManager');
-const { SELECT_ID, handleSelfRoleSelect } = require('../utils/selfRoleManager');
+const { SELECT_ID, OPEN_ID, handleSelfRoleSelect, handleOpenPicker } = require('../utils/selfRoleManager');
 const { BTN: EVENT_BTN, handleEventRsvp, handleEventCancel } = require('../utils/eventManager');
 const { CONFIRM_ID: FORGET_CONFIRM_ID, handleForgetConfirm } = require('../utils/privacyManager');
 const { ENTER_ID: GIVEAWAY_ENTER_ID, handleGiveawayEntry } = require('../utils/giveawayManager');
@@ -79,6 +79,7 @@ module.exports = {
                 else if (interaction.customId === EVENT_BTN.decline) await handleEventRsvp(interaction, 'decline');
                 else if (interaction.customId === EVENT_BTN.cancel)  await handleEventCancel(interaction);
                 else if (interaction.customId === FORGET_CONFIRM_ID) await handleForgetConfirm(interaction);
+                else if (interaction.customId === OPEN_ID)           await handleOpenPicker(interaction);
                 else if (interaction.customId === GIVEAWAY_ENTER_ID)  await handleGiveawayEntry(interaction);
                 else if (interaction.customId.startsWith('suggest:')) await handleSuggestionButton(interaction);
             } catch (error) {

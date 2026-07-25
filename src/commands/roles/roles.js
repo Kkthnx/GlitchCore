@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const GuildConfig = require('../../database/GuildConfigSchema');
 const { invalidateGuildConfig } = require('../../utils/guildConfigCache');
-const { buildSelfRolesRow } = require('../../utils/selfRoleManager');
+const { buildSelfRolesRow, buildPanelButton } = require('../../utils/selfRoleManager');
 const { smartColor } = require('../../utils/roleColors');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 
@@ -148,7 +148,7 @@ module.exports = {
         if (sub === 'menu') {
             const cfg = await GuildConfig.findOne({ guildId });
             if (cfg) await pruneStale(interaction.guild, cfg);
-            const row = buildSelfRolesRow(cfg?.selfRoles || [], interaction.member.roles.cache.map(r => r.id));
+            const row = buildSelfRolesRow(cfg?.selfRoles || [], interaction.member.roles.cache.map(r => r.id), interaction.guild);
             if (!row) {
                 return interaction.reply({ content: 'No self-assignable roles are set up yet.', flags: MessageFlags.Ephemeral });
             }
@@ -317,17 +317,20 @@ module.exports = {
         if (sub === 'post') {
             const cfg = await GuildConfig.findOne({ guildId });
             if (cfg) await pruneStale(interaction.guild, cfg);
-            const row = buildSelfRolesRow(cfg?.selfRoles || []);
-            if (!row) {
+            // Validate there's at least one live role to offer.
+            const hasRoles = buildSelfRolesRow(cfg?.selfRoles || [], null, interaction.guild);
+            if (!hasRoles) {
                 return interaction.reply({ content: 'Add roles with `/roles add` before posting a panel.', flags: MessageFlags.Ephemeral });
             }
             const channel = interaction.options.getChannel('channel') || interaction.channel;
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
                 .setTitle(interaction.options.getString('title') || '🎮 Pick Your Roles')
                 .setDescription(interaction.options.getString('description')
-                    || 'Use the menu below to choose the games you play and the pings you want. Deselect to remove a role.');
+                    || 'Click the button below to open your personal role picker. Your menu is always up to date.');
 
-            await channel.send({ embeds: [embed], components: [row] });
+            // Post a button (not a static select) so the picker is rebuilt live
+            // on every click — deleted roles never linger on the panel.
+            await channel.send({ embeds: [embed], components: [buildPanelButton()] });
             return interaction.reply({ content: `Posted the role panel in ${channel}.`, flags: MessageFlags.Ephemeral });
         }
     },
