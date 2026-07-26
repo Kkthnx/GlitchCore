@@ -171,10 +171,18 @@ module.exports = {
         }
 
         // Warm the member cache so name-based statuses have people to call out
-        // right away instead of waiting for members to chat.
-        for (const guild of client.guilds.cache.values()) {
-            guild.members.fetch().catch(() => { /* missing intent or too large, skip */ });
-        }
+        // right away instead of waiting for members to chat. Skip very large
+        // guilds so a full fetch can't stall startup, and refresh on a slow
+        // timer so the pool stays current as members join or leave.
+        const MEMBER_FETCH_LIMIT = 2000;
+        const warmMemberCache = () => {
+            for (const guild of client.guilds.cache.values()) {
+                if (guild.memberCount > MEMBER_FETCH_LIMIT) continue;
+                guild.members.fetch().catch(() => { /* missing intent, skip */ });
+            }
+        };
+        warmMemberCache();
+        setInterval(warmMemberCache, 6 * 60 * 60 * 1000);
 
         // Set initial random status and rotate every 10 minutes
         const updateStatus = () => {
