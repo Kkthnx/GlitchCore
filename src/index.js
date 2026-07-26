@@ -91,6 +91,7 @@ function connectMongo() {
     mongoose.connect(process.env.MONGO_URI, {
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
+        heartbeatFrequencyMS: 10000, // probe the primary every 10s so drops surface fast
         retryWrites: true,
     })
         .then(() => {
