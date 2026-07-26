@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -48,7 +48,7 @@ const guildConfigSchema = new mongoose.Schema({
     modLogChannelId: { type: String, default: null },
     antiSpamEnabled: { type: Boolean, default: config.moderation?.antiSpam?.enabled ?? true },
 
-    // Starboard — repost highly-reacted messages to a highlights channel.
+    // Starboard, repost highly-reacted messages to a highlights channel.
     starboardChannelId: { type: String, default: null },
     starboardThreshold: { type: Number, default: 3 },
     starboardEmoji: { type: String, default: '⭐' },

@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -46,7 +46,7 @@ module.exports = {
             try {
                 const msg = await interaction.channel.send({ embeds: [buildGiveawayEmbed(data)], components: [buildGiveawayButton(false, 0)] });
                 await Giveaway.create({ messageId: msg.id, ...data });
-                return interaction.editReply({ content: `🎉 Giveaway started for **${prize}** — ends in ${humanizeDuration(clampTimeout(ms))}. [→ jump](${msg.url})` });
+                return interaction.editReply({ content: `🎉 Giveaway started for **${prize}**, ends in ${humanizeDuration(clampTimeout(ms))}. [jump](${msg.url})` });
             } catch (err) {
                 logger.error('Failed to start giveaway:', err);
                 return interaction.editReply({ content: 'Failed to post the giveaway. Do I have permission to send messages here?' });
@@ -66,7 +66,7 @@ module.exports = {
 
         const link = `https://discord.com/channels/${g.guildId}/${g.channelId}/${g.messageId}`;
         return interaction.reply({
-            content: `🔁 Rerolled **${g.prize}** — new winner${winners.length === 1 ? '' : 's'}: ${winners.map(id => `<@${id}>`).join(', ')} [→ giveaway](${link})`,
+            content: `🔁 Rerolled **${g.prize}**, new winner${winners.length === 1 ? '' : 's'}: ${winners.map(id => `<@${id}>`).join(', ')} [giveaway](${link})`,
             allowedMentions: { users: winners },
         });
     },

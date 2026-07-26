@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -29,11 +29,11 @@ function buildGiveawayEmbed(g) {
     const unix = Math.floor(new Date(g.endsAt).getTime() / 1000);
     if (g.ended) {
         const winners = g.winners.length ? g.winners.map(id => `<@${id}>`).join(', ') : 'No valid entries 😢';
-        return brandedEmbed({ color: COLORS.neutral, footer: 'Glitch Haven • Giveaway ended' })
+        return brandedEmbed({ color: COLORS.neutral, footer: 'Glitch Haven, Giveaway ended' })
             .setTitle(`🎉 ${g.prize}`)
-            .setDescription(`**Winner${g.winners.length === 1 ? '' : 's'}:** ${winners}\n\nEnded <t:${unix}:R> · ${g.entries.length} entr${g.entries.length === 1 ? 'y' : 'ies'}`);
+            .setDescription(`**Winner${g.winners.length === 1 ? '' : 's'}:** ${winners}\n\nEnded <t:${unix}:R>, ${g.entries.length} entr${g.entries.length === 1 ? 'y' : 'ies'}`);
     }
-    return brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven • Giveaway' })
+    return brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven, Giveaway' })
         .setTitle(`🎉 ${g.prize}`)
         .setDescription(
             `Click **Enter** below to join!\n\n` +
@@ -68,7 +68,7 @@ async function handleGiveawayEntry(interaction) {
 
     if (joined) {
         await interaction.update({ embeds: [buildGiveawayEmbed(joined)], components: [buildGiveawayButton(false, joined.entries.length)] });
-        return interaction.followUp({ content: '🎉 You\'re entered — good luck!', flags: MessageFlags.Ephemeral });
+        return interaction.followUp({ content: '🎉 You\'re entered, good luck!', flags: MessageFlags.Ephemeral });
     }
 
     // Not joined: either it ended, or they're already in (so this toggles them out).
@@ -102,13 +102,13 @@ async function endGiveaway(client, g) {
     const link = `https://discord.com/channels/${g.guildId}/${g.channelId}/${g.messageId}`;
     if (g.winners.length) {
         channel.send({
-            content: `🎉 Congratulations ${g.winners.map(id => `<@${id}>`).join(', ')} — you won **${g.prize}**! [→ giveaway](${link})`,
+            content: `🎉 Congratulations ${g.winners.map(id => `<@${id}>`).join(', ')}, you won **${g.prize}**! [giveaway](${link})`,
             allowedMentions: { users: g.winners },
         }).catch(() => {});
     } else {
         channel.send(`The giveaway for **${g.prize}** ended with no valid entries.`).catch(() => {});
     }
-    logger.info(`[GIVEAWAY] Ended "${g.prize}" — ${g.winners.length} winner(s) from ${g.entries.length} entries.`);
+    logger.info(`[GIVEAWAY] Ended "${g.prize}", ${g.winners.length} winner(s) from ${g.entries.length} entries.`);
 }
 
 async function processEndedGiveaways(client) {

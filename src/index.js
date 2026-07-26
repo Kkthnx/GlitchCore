@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -13,7 +13,7 @@ const path = require('path');
 const logger = require('./utils/logger');
 
 // ---------------------------------------------------------------------------
-// Global error handlers — prevents the bot from dying on unhandled rejections
+// Global error handlers, prevents the bot from dying on unhandled rejections
 // ---------------------------------------------------------------------------
 process.on('unhandledRejection', (reason, promise) => {
     logger.error('Unhandled Promise Rejection:', { reason, promise });
@@ -139,7 +139,7 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// 4. Command Loader — recursively load all command files
+// 4. Command Loader, recursively load all command files
 const commandsPath = path.join(__dirname, 'commands');
 
 function loadCommandFiles(dir) {
@@ -169,7 +169,7 @@ client.login(process.env.TOKEN)
     .catch((err) => logger.error('Failed to login:', err));
 
 // ---------------------------------------------------------------------------
-// 6. Graceful shutdown — persist queued XP before exiting so a restart or
+// 6. Graceful shutdown, persist queued XP before exiting so a restart or
 // redeploy never drops the XP buffered in memory since the last flush.
 // ---------------------------------------------------------------------------
 // Exposed so the ShardingManager can flush this shard's XP on host shutdown,

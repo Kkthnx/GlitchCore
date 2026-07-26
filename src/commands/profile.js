@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -52,7 +52,7 @@ module.exports = {
         const span = nextLevelThreshold - currentLevelThreshold;
         const bar = `${progressBar(span > 0 ? progress / span : 1)} **${percent}%**`;
 
-        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Profile' })
+        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Profile' })
             .setAuthor({
                 name: `${targetUser.username}'s Profile`,
                 iconURL: targetUser.displayAvatarURL({ dynamic: true }),

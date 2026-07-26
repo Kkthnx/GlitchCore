@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -51,7 +51,7 @@ module.exports = {
             const events = await Event.find({ guildId: interaction.guild.id, status: 'SCHEDULED', startsAt: { $gte: new Date() } })
                 .sort({ startsAt: 1 }).limit(10);
 
-            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Events' })
+            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Events' })
                 .setTitle('📅 Upcoming Events');
 
             if (!events.length) {
@@ -60,7 +60,7 @@ module.exports = {
                 embed.setDescription(events.map(ev => {
                     const unix = Math.floor(new Date(ev.startsAt).getTime() / 1000);
                     const link = `https://discord.com/channels/${ev.guildId}/${ev.channelId}/${ev.messageId}`;
-                    return `**[${ev.title}](${link})** — ${ev.game}\n🕒 <t:${unix}:F> · ✅ ${ev.going.length} going`;
+                    return `**[${ev.title}](${link})**, ${ev.game}\n🕒 <t:${unix}:F>, ✅ ${ev.going.length} going`;
                 }).join('\n\n'));
             }
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
@@ -78,7 +78,7 @@ module.exports = {
             return interaction.reply({ content: 'I couldn\'t read that time. Use a delay like `2h` / `1d`, or an absolute `2026-07-25 20:00` (Eastern).', flags: MessageFlags.Ephemeral });
         }
         if (startsAt.getTime() <= Date.now()) {
-            return interaction.reply({ content: 'That start time is in the past — pick a future time.', flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: 'That start time is in the past, pick a future time.', flags: MessageFlags.Ephemeral });
         }
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -105,7 +105,7 @@ module.exports = {
                 allowedMentions: { roles: pingRoleId ? [pingRoleId] : [] },
             });
             await Event.create({ messageId: msg.id, ...evData });
-            return interaction.editReply({ content: `📅 Event created! **[→ Jump to it](${msg.url})**` });
+            return interaction.editReply({ content: `📅 Event created! **[Jump to it](${msg.url})**` });
         } catch (err) {
             logger.error('Failed to create event:', err);
             return interaction.editReply({ content: 'Failed to post the event. Do I have permission to send messages here?' });

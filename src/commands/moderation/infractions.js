@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -44,8 +44,8 @@ module.exports = {
             .sort({ createdAt: -1 })
             .limit(15);
 
-        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven • Moderation' })
-            .setAuthor({ name: `Infractions — ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) });
+        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
+            .setAuthor({ name: `Infractions, ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) });
 
         if (!records.length) {
             embed.setDescription('✅ This member has a clean record.');
@@ -53,15 +53,15 @@ module.exports = {
         }
 
         const counts = records.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {});
-        const summary = Object.entries(counts).map(([t, n]) => `${TYPE_ICON[t] || ''} ${n} ${t}`).join(' · ');
+        const summary = Object.entries(counts).map(([t, n]) => `${TYPE_ICON[t] || ''} ${n} ${t}`).join(', ');
 
         embed.setDescription(`**Summary:** ${summary}\n\n` + records.map(r => {
             const when = `<t:${Math.floor(new Date(r.createdAt).getTime() / 1000)}:R>`;
             const dur = r.durationMs ? ` (${humanizeDuration(r.durationMs)})` : '';
-            return `${TYPE_ICON[r.type] || ''} **${r.type}**${dur} — ${r.reason}\n└ by <@${r.moderatorId}> ${when}`;
+            return `${TYPE_ICON[r.type] || ''} **${r.type}**${dur}, ${r.reason}\n└ by <@${r.moderatorId}> ${when}`;
         }).join('\n'));
 
-        if (records.length === 15) embed.setFooter({ text: 'Glitch Haven • Moderation — showing latest 15' });
+        if (records.length === 15) embed.setFooter({ text: 'Glitch Haven, Moderation, showing latest 15' });
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },

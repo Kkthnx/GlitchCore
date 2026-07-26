@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -27,7 +27,7 @@ module.exports = {
         const block = blockReason(interaction, member);
         if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
-        // DM before removing them — once kicked we can't message via the guild.
+        // DM before removing them, once kicked we can't message via the guild.
         await notifyTarget(targetUser, interaction.guild.name, 'kick', reason);
 
         try {
@@ -37,6 +37,6 @@ module.exports = {
         }
 
         await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'kick', reason });
-        return interaction.reply({ content: `👢 Kicked <@${targetUser.id}> — ${reason}` });
+        return interaction.reply({ content: `👢 Kicked <@${targetUser.id}>, ${reason}` });
     },
 };

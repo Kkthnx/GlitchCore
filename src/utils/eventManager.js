@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -50,7 +50,7 @@ function buildEventEmbed(ev) {
         `${G}SLOTS ${RST} : ${ev.going.length} / ${cap}`,
         '```',
         `**> ${started ? 'STARTED' : 'STARTS'}:** <t:${unix}:F> (<t:${unix}:R>)`,
-        `**> HOST:** <@${ev.hostId}>` + (ev.pingRoleId ? ` · **> PING:** <@&${ev.pingRoleId}>` : ''),
+        `**> HOST:** <@${ev.hostId}>` + (ev.pingRoleId ? `, **> PING:** <@&${ev.pingRoleId}>` : ''),
     ];
     if (ev.description) header.push(`\n${ev.description}`);
 
@@ -110,9 +110,9 @@ async function handleEventRsvp(interaction, choice) {
     await interaction.update({ embeds: [buildEventEmbed(ev)], components: [buildEventButtons(false)] });
 
     const messages = {
-        going: '✅ You\'re in — see you there!',
+        going: '✅ You\'re in, see you there!',
         maybe: '❔ Marked as *maybe*.',
-        waitlisted: '⏳ The event is full — you\'re on the **waitlist** and will be promoted automatically if a spot opens.',
+        waitlisted: '⏳ The event is full, you\'re on the **waitlist** and will be promoted automatically if a spot opens.',
         maybe_removed: 'You\'ve been removed from the event.',
         removed: 'You\'ve been removed from the event.',
     };
@@ -122,7 +122,7 @@ async function handleEventRsvp(interaction, choice) {
     for (const userId of result.promoted) {
         if (userId === interaction.user.id) continue;
         interaction.guild.members.fetch(userId)
-            .then(m => m.send(`⏳➡️✅ A spot opened up — you're now **going** to **${ev.title}** in ${interaction.guild.name}!`))
+            .then(m => m.send(`⏳➡️✅ A spot opened up, you're now **going** to **${ev.title}** in ${interaction.guild.name}!`))
             .catch(() => {});
     }
 }
@@ -147,7 +147,7 @@ async function handleEventCancel(interaction) {
 
     // Show a glitchy self-destruct state, notify the roster, then scrub it.
     const embed = buildEventEmbed(ev);
-    embed.setDescription(`${embed.data.description}\n\`\`\`ansi\n${R}[ EVENT ABORTED — PURGING IN T-MINUS 8s ]${RST}\n\`\`\``);
+    embed.setDescription(`${embed.data.description}\n\`\`\`ansi\n${R}[ EVENT ABORTED, PURGING IN T-MINUS 8s ]${RST}\n\`\`\``);
     await interaction.update({ embeds: [embed], components: [buildEventButtons(true)] });
 
     const going = ev.going.map(m => m.userId);
@@ -225,7 +225,7 @@ async function processStartingEvents(client) {
         const roster = ev.going.map(m => `<@${m.userId}>`).join(' ');
         const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
         channel.send({
-            content: `🎮 **It's game time — ${ev.title}!** ${rolePing}\n${roster || '*No one RSVP\'d, but the lobby is open.*'}`,
+            content: `🎮 **It's game time, ${ev.title}!** ${rolePing}\n${roster || '*No one RSVP\'d, but the lobby is open.*'}`,
             allowedMentions: { users: ev.going.map(m => m.userId), roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
         }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
 

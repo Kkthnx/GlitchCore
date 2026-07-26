@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -61,9 +61,9 @@ module.exports = {
 
             const count = Math.floor(max / interval);
             const samples = [interval, interval * 2, max].filter((v, i, a) => a.indexOf(v) === i)
-                .map(m => `• Level ${m} → **${roleNameFor(template, m)}**`).join('\n');
+                .map(m => ` Level ${m} **${roleNameFor(template, m)}**`).join('\n');
 
-            const embed = brandedEmbed({ color: COLORS.success, footer: 'Glitch Haven • Level Rewards' })
+            const embed = brandedEmbed({ color: COLORS.success, footer: 'Glitch Haven, Level Rewards' })
                 .setTitle('✅ Milestone roles configured')
                 .setDescription(
                     `Members now earn a role every **${interval}** levels, up to level **${max}** (**${count}** milestones).\n` +
@@ -85,7 +85,7 @@ module.exports = {
 
         // preview
         const cfg = await GuildConfig.findOne({ guildId });
-        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Level Rewards' })
+        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Level Rewards' })
             .setTitle('Milestone Level-Roles');
 
         if (!cfg?.levelRoleInterval) {
@@ -98,7 +98,7 @@ module.exports = {
                 `**Up to:** level ${mx}\n` +
                 `**Template:** \`${tpl}\`\n` +
                 `**Mode:** ${st ? 'stacking (keep all)' : 'rank (highest only)'}\n\n` +
-                `Example — a level 37 member holds **${example ? roleNameFor(tpl, example) : 'no milestone yet'}**.`
+                `Example, a level 37 member holds **${example ? roleNameFor(tpl, example) : 'no milestone yet'}**.`
             );
         }
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

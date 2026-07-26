@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -55,7 +55,7 @@ async function pruneStale(guild, cfg) {
 }
 
 // Find a role by name (case-insensitive) or create it, then register it as
-// self-assignable on the config (without saving — caller saves once).
+// self-assignable on the config (without saving, caller saves once).
 function isUnicodeEmoji(str) {
     return Boolean(str) && !/^<a?:\w+:\d+>$/.test(str); // exclude custom <:name:id> emojis
 }
@@ -74,7 +74,7 @@ async function ensureSelfRole(guild, cfg, { name, emoji = null, color, descripti
         created = true;
 
         // If the server is boosted enough for role icons, set the emoji AS the
-        // role icon — no image file needed.
+        // role icon, no image file needed.
         if (emoji && isUnicodeEmoji(emoji) && guild.features.includes('ROLE_ICONS')) {
             await role.setUnicodeEmoji(emoji).catch(() => {});
         }
@@ -154,7 +154,7 @@ module.exports = {
             if (!row) {
                 return interaction.reply({ content: 'No self-assignable roles are set up yet.', flags: MessageFlags.Ephemeral });
             }
-            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
+            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Roles' })
                 .setTitle('🎮 Pick Your Roles')
                 .setDescription('Select the games you play and the pings you want. Deselect to remove.');
             return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
@@ -189,7 +189,7 @@ module.exports = {
                     recolored++; i++;
                 } catch { skipped++; }
             }
-            return interaction.editReply(`🎨 Recolored **${recolored}** role(s) — known games/platforms got their signature color${skipped ? `, skipped ${skipped} (my role must be **above** them).` : '.'}`);
+            return interaction.editReply(`🎨 Recolored **${recolored}** role(s), known games/platforms got their signature color${skipped ? `, skipped ${skipped} (my role must be **above** them).` : '.'}`);
         }
 
         if (sub === 'create') {
@@ -208,7 +208,7 @@ module.exports = {
                 });
                 await cfg.save();
                 invalidateGuildConfig(guildId);
-                const note = listed ? 'was already in the menu' : (created ? 'created and added to the menu' : 'already existed — added to the menu');
+                const note = listed ? 'was already in the menu' : (created ? 'created and added to the menu' : 'already existed, added to the menu');
                 return interaction.editReply(`✅ ${role} ${note}.`);
             } catch (err) {
                 return interaction.editReply(`Couldn't create that role: ${err.message}`);
@@ -234,7 +234,7 @@ module.exports = {
             await cfg.save();
             invalidateGuildConfig(guildId);
 
-            const embed = brandedEmbed({ color: COLORS.success, footer: 'Glitch Haven • Roles' })
+            const embed = brandedEmbed({ color: COLORS.success, footer: 'Glitch Haven, Roles' })
                 .setTitle(`✅ Starter pack: ${pack}`)
                 .setDescription(`${results.join('\n')}\n\nPost the picker with \`/roles post\` when you're ready.`);
             return interaction.editReply({ embeds: [embed] });
@@ -287,7 +287,7 @@ module.exports = {
                     return interaction.reply({ content: 'I can\'t delete the @everyone role.', flags: MessageFlags.Ephemeral });
                 }
                 if (!role.deletable) {
-                    return interaction.reply({ content: `Removed from the menu, but I can't delete **${roleName}** — it's above my role or managed by an integration.`, flags: MessageFlags.Ephemeral });
+                    return interaction.reply({ content: `Removed from the menu, but I can't delete **${roleName}**, it's above my role or managed by an integration.`, flags: MessageFlags.Ephemeral });
                 }
                 try {
                     await role.delete('Deleted via /roles remove');
@@ -307,12 +307,12 @@ module.exports = {
             const cfg = await GuildConfig.findOne({ guildId });
             const pruned = cfg ? await pruneStale(interaction.guild, cfg) : 0;
             const roles = cfg?.selfRoles || [];
-            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
+            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Roles' })
                 .setTitle('Self-Assignable Roles')
                 .setDescription(roles.length
-                    ? roles.map(r => `${r.emoji ? r.emoji + ' ' : ''}<@&${r.roleId}> — ${r.label}${r.description ? ` *(${r.description})*` : ''}`).join('\n')
+                    ? roles.map(r => `${r.emoji ? r.emoji + ' ' : ''}<@&${r.roleId}>, ${r.label}${r.description ? ` *(${r.description})*` : ''}`).join('\n')
                     : 'None configured. Add some with `/roles add`.');
-            if (pruned) embed.setFooter({ text: `Glitch Haven • Roles — cleaned up ${pruned} deleted role(s)` });
+            if (pruned) embed.setFooter({ text: `Glitch Haven, Roles, cleaned up ${pruned} deleted role(s)` });
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
@@ -325,13 +325,13 @@ module.exports = {
                 return interaction.reply({ content: 'Add roles with `/roles add` before posting a panel.', flags: MessageFlags.Ephemeral });
             }
             const channel = interaction.options.getChannel('channel') || interaction.channel;
-            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
+            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Roles' })
                 .setTitle(interaction.options.getString('title') || '🎮 Pick Your Roles')
                 .setDescription(interaction.options.getString('description')
                     || 'Click the button below to open your personal role picker. Your menu is always up to date.');
 
             // Post a button (not a static select) so the picker is rebuilt live
-            // on every click — deleted roles never linger on the panel.
+            // on every click, deleted roles never linger on the panel.
             await channel.send({ embeds: [embed], components: [buildPanelButton()] });
             return interaction.reply({ content: `Posted the role panel in ${channel}.`, flags: MessageFlags.Ephemeral });
         }

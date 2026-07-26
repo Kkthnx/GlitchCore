@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -66,14 +66,14 @@ const CONFIRM_ID = 'forgetme:confirm';
 
 async function handleForgetConfirm(interaction) {
     const result = await deleteUserData(interaction.guild.id, interaction.user.id);
-    const embed = brandedEmbed({ color: COLORS.success, footer: 'Glitch Haven • Privacy' })
+    const embed = brandedEmbed({ color: COLORS.success, footer: 'Glitch Haven, Privacy' })
         .setTitle('✅ Your data was erased')
         .setDescription(
-            `• Profile/XP: **${result.profileDeleted ? 'deleted' : 'nothing stored'}**\n` +
-            `• Removed from **${result.eventsUpdated}** event roster(s) and **${result.lfgUpdated}** LFG roster(s)\n` +
+            ` Profile/XP: **${result.profileDeleted ? 'deleted' : 'nothing stored'}**\n` +
+            ` Removed from **${result.eventsUpdated}** event roster(s) and **${result.lfgUpdated}** LFG roster(s)\n` +
             (result.infractionsKept
-                ? `• **${result.infractionsKept}** moderation record(s) were retained as server records.`
-                : '• No moderation records were on file.')
+                ? ` **${result.infractionsKept}** moderation record(s) were retained as server records.`
+                : ' No moderation records were on file.')
         );
     // Disable the button on the original ephemeral message.
     await interaction.update({ embeds: [embed], components: [] });

@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -25,7 +25,7 @@ module.exports = {
             return interaction.reply({ content: 'Invalid time. Try `10m`, `2h`, or `1d`.', flags: MessageFlags.Ephemeral });
         }
         if (ms > MAX_MS) {
-            return interaction.reply({ content: 'That\'s too far out — max is 1 year.', flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: 'That\'s too far out, max is 1 year.', flags: MessageFlags.Ephemeral });
         }
 
         const remindAt = new Date(Date.now() + ms);
@@ -38,7 +38,7 @@ module.exports = {
         });
 
         return interaction.reply({
-            content: `⏰ Got it — I'll remind you in **${humanizeDuration(ms)}** (<t:${Math.floor(remindAt.getTime() / 1000)}:R>).`,
+            content: `⏰ Got it, I'll remind you in **${humanizeDuration(ms)}** (<t:${Math.floor(remindAt.getTime() / 1000)}:R>).`,
             flags: MessageFlags.Ephemeral,
         });
     },

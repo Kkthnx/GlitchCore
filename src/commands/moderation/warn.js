@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -33,6 +33,6 @@ module.exports = {
         await notifyTarget(targetUser, interaction.guild.name, 'warn', reason);
 
         const total = await countInfractions(interaction.guild.id, targetUser.id);
-        return interaction.reply({ content: `⚠️ Warned <@${targetUser.id}> — ${reason}\nThey now have **${total}** infraction(s) on record.` });
+        return interaction.reply({ content: `⚠️ Warned <@${targetUser.id}>, ${reason}\nThey now have **${total}** infraction(s) on record.` });
     },
 };

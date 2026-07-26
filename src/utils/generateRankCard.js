@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -60,7 +60,7 @@ function truncate(ctx, text, maxWidth) {
     return t + '…';
 }
 
-// ── backgrounds (all drawn in-code — no external image) ──────────────────────
+// ── backgrounds (all drawn in-code, no external image) ──────────────────────
 function drawBackground(ctx, bg) {
     const colors = bg.colors || ['#111', '#222'];
     const base = () => { ctx.fillStyle = linearOf(ctx, colors, 0, 0, W, H); ctx.fillRect(0, 0, W, H); };
@@ -137,7 +137,7 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     vg.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 
-    // Ghost level numeral — subtle texture behind the hero number.
+    // Ghost level numeral, subtle texture behind the hero number.
     ctx.save();
     ctx.globalAlpha = 0.06;
     ctx.fillStyle = theme.accent;
@@ -221,7 +221,7 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     roundRect(ctx, bx, by, bw, bh, brad);
     ctx.fillStyle = theme.track; ctx.fill();
 
-    // Fill — clip to the FULL track so even a tiny % renders as a clean
+    // Fill, clip to the FULL track so even a tiny % renders as a clean
     // rounded sliver instead of a lone circle.
     if (pct > 0) {
         ctx.save();

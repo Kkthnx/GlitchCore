@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -28,7 +28,7 @@ const R   = `${ESC}[1;31m`; // bold red
 const RST = `${ESC}[0m`;    // reset
 
 // ---------------------------------------------------------------------------
-// Embed builder — reconstructs the terminal embed from a session document
+// Embed builder, reconstructs the terminal embed from a session document
 // ---------------------------------------------------------------------------
 function buildLfgEmbed(session) {
     const isLocked   = session.status === 'LOCKED';
@@ -63,7 +63,7 @@ function buildLfgEmbed(session) {
 
     const header = headerLines.join('\n');
 
-    // Roster lines — mentions work outside code blocks
+    // Roster lines, mentions work outside code blocks
     const rosterLines = ['\n**> ROSTER_DATA:**'];
     for (let i = 0; i < session.totalSlots; i++) {
         const member = session.roster[i];
@@ -131,7 +131,7 @@ function buildLfgButtons(disabled = false) {
 }
 
 // ---------------------------------------------------------------------------
-// Show the creation modal — called by the /lfg slash command
+// Show the creation modal, called by the /lfg slash command
 // ---------------------------------------------------------------------------
 async function showLfgModal(interaction) {
     const modal = new ModalBuilder()
@@ -172,7 +172,7 @@ async function showLfgModal(interaction) {
 }
 
 // ---------------------------------------------------------------------------
-// Modal submit — validates, posts embed, saves to DB
+// Modal submit, validates, posts embed, saves to DB
 // ---------------------------------------------------------------------------
 async function handleModalSubmit(interaction) {
     const game       = interaction.fields.getTextInputValue('lfg_game').trim();
@@ -223,7 +223,7 @@ async function handleModalSubmit(interaction) {
         });
 
         await interaction.editReply({
-            content: `\`SESSION_ACTIVE\` — LFG is live! **[→ Jump to it](${msg.url})**`,
+            content: `\`SESSION_ACTIVE\`, LFG is live! **[Jump to it](${msg.url})**`,
         });
     } catch (err) {
         logger.error('Failed to create LFG session:', err);
@@ -234,14 +234,14 @@ async function handleModalSubmit(interaction) {
 }
 
 // ---------------------------------------------------------------------------
-// INJECT — add user to roster
+// INJECT, add user to roster
 // ---------------------------------------------------------------------------
 async function handleInject(interaction) {
     const userId = interaction.user.id;
 
     const member = { userId, username: interaction.user.username };
 
-    // 1. Atomic roster add — enforces OPEN, not already in roster/waitlist, and
+    // 1. Atomic roster add, enforces OPEN, not already in roster/waitlist, and
     // a free slot in a single operation (closes the overfill race).
     const joined = await LfgSession.findOneAndUpdate(
         {
@@ -259,7 +259,7 @@ async function handleInject(interaction) {
         return interaction.update({ embeds: [buildLfgEmbed(joined)], components: [buildLfgButtons(false)] });
     }
 
-    // 2. Roster full — atomically join the waitlist instead.
+    // 2. Roster full, atomically join the waitlist instead.
     const waitlisted = await LfgSession.findOneAndUpdate(
         {
             messageId: interaction.message.id,
@@ -274,10 +274,10 @@ async function handleInject(interaction) {
 
     if (waitlisted) {
         await interaction.update({ embeds: [buildLfgEmbed(waitlisted)], components: [buildLfgButtons(false)] });
-        return interaction.followUp({ content: '`QUEUED` : Roster is full — you\'re on the **waitlist** and will be pulled in automatically if a slot opens.', flags: MessageFlags.Ephemeral });
+        return interaction.followUp({ content: '`QUEUED` : Roster is full, you\'re on the **waitlist** and will be pulled in automatically if a slot opens.', flags: MessageFlags.Ephemeral });
     }
 
-    // 3. Nothing matched — re-read to give a precise reason.
+    // 3. Nothing matched, re-read to give a precise reason.
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
     if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
     if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Session is **LOCKED**.', flags: MessageFlags.Ephemeral });
@@ -289,7 +289,7 @@ async function handleInject(interaction) {
 }
 
 // ---------------------------------------------------------------------------
-// ABORT — remove user from roster
+// ABORT, remove user from roster
 // ---------------------------------------------------------------------------
 async function handleAbort(interaction) {
     const userId = interaction.user.id;
@@ -312,7 +312,7 @@ async function handleAbort(interaction) {
     );
 
     if (updated) {
-        // A roster slot freed up — atomically promote the first waitlister.
+        // A roster slot freed up, atomically promote the first waitlister.
         const next = updated.waitlist[0];
         if (next) {
             const promoted = await LfgSession.findOneAndUpdate(
@@ -328,14 +328,14 @@ async function handleAbort(interaction) {
             if (promoted) {
                 updated = promoted;
                 interaction.client.users.fetch(next.userId)
-                    .then(u => u.send(`⏳➡️✅ A slot opened in the **${promoted.game}** LFG — you've been pulled off the waitlist! ${interaction.message.url}`))
+                    .then(u => u.send(`⏳➡️✅ A slot opened in the **${promoted.game}** LFG, you've been pulled off the waitlist! ${interaction.message.url}`))
                     .catch(() => {});
             }
         }
         return interaction.update({ embeds: [buildLfgEmbed(updated)], components: [buildLfgButtons(false)] });
     }
 
-    // Not in the roster — try removing them from the waitlist instead.
+    // Not in the roster, try removing them from the waitlist instead.
     const leftWaitlist = await LfgSession.findOneAndUpdate(
         { messageId: interaction.message.id, status: { $ne: 'LOCKED' }, 'waitlist.userId': userId },
         { $pull: { waitlist: { userId } } },
@@ -350,7 +350,7 @@ async function handleAbort(interaction) {
 }
 
 // ---------------------------------------------------------------------------
-// EXECUTE — host locks the session, pings the full roster
+// EXECUTE, host locks the session, pings the full roster
 // ---------------------------------------------------------------------------
 async function handleExecute(interaction) {
     const session = await LfgSession.findOne({ messageId: interaction.message.id });
@@ -373,16 +373,16 @@ async function handleExecute(interaction) {
     const mentions = session.roster.map(m => `<@${m.userId}>`).join(' ');
     await interaction.channel.send({
         content: [
-            `🔒 **SESSION LOCKED** — ${mentions}`,
+            `🔒 **SESSION LOCKED**, ${mentions}`,
             `\`\`\`ansi`,
-            `${R}> GROUP_FORMED — RALLY UP. GLITCH_HAVEN AWAITS.${RST}`,
+            `${R}> GROUP_FORMED, RALLY UP. GLITCH_HAVEN AWAITS.${RST}`,
             `\`\`\``,
             ].join('\n'),
     });
 }
 
 // ---------------------------------------------------------------------------
-// CANCEL — host deletes the session
+// CANCEL, host deletes the session
 // ---------------------------------------------------------------------------
 async function handleCancel(interaction) {
     try {

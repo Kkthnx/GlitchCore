@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -49,11 +49,11 @@ async function announceDoubleXp(client, guildId) {
             : '';
 
         const guild = client.guilds.cache.get(guildId);
-        const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven • Runs every Friday & Saturday' })
+        const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven, Runs every Friday & Saturday' })
             .setAuthor({ name: 'Double XP Weekend' })
             .setTitle('🔥 Double XP is LIVE!')
             .setDescription(
-                `It's **${dayName}** — every message and minute in voice counts **double** all weekend long.` +
+                `It's **${dayName}**, every message and minute in voice counts **double** all weekend long.` +
                 optInLine
             )
             .addFields(
@@ -81,18 +81,18 @@ async function announceDoubleXp(client, guildId) {
 }
 
 // ---------------------------------------------------------------------------
-// Checks if we already announced today — if not, announces.
+// Checks if we already announced today, if not, announces.
 // ---------------------------------------------------------------------------
 async function checkAndAnnounceDoubleXp(client, guildId) {
     // Only announce on the first day of the weekend (Friday), not every double
-    // XP day — so it posts once per weekend. The XP bonus still applies Fri+Sat.
+    // XP day, so it posts once per weekend. The XP bonus still applies Fri+Sat.
     if (!isDoubleXpStartDay()) return;
 
     const state = await BotState.findOne({ guildId });
     const alreadyAnnouncedToday = state?.lastDoubleXpDate === getTodayString();
 
     if (alreadyAnnouncedToday) {
-        logger.info('Double XP already announced today — skipping.');
+        logger.info('Double XP already announced today, skipping.');
         return;
     }
 
@@ -158,7 +158,7 @@ module.exports = {
 
         // Capture + log the commit this process booted on (primes /version).
         const v = require('../utils/version').getVersionInfo();
-        logger.info(`Build: ${v.commit ? `commit ${v.commit} (${v.branch})` : `v${v.version}`}${v.subject ? ` — ${v.subject}` : ''}`);
+        logger.info(`Build: ${v.commit ? `commit ${v.commit} (${v.branch})` : `v${v.version}`}${v.subject ? `, ${v.subject}` : ''}`);
 
         // Forward error logs to a Discord channel if ERROR_CHANNEL_ID is set.
         require('../utils/errorAlerts').attachErrorAlerts(client);
@@ -197,11 +197,11 @@ module.exports = {
             cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
         }, 30 * 60 * 1000);
 
-        // 3b. Game-night event scheduler — pings rosters at start time (1-min ticks)
+        // 3b. Game-night event scheduler, pings rosters at start time (1-min ticks)
         const { startEventScheduler } = require('../utils/eventManager');
         startEventScheduler(client);
 
-        // 3c. Giveaway scheduler — draws winners when giveaways end (30s ticks)
+        // 3c. Giveaway scheduler, draws winners when giveaways end (30s ticks)
         const { startGiveawayScheduler } = require('../utils/giveawayManager');
         startGiveawayScheduler(client);
 
@@ -209,7 +209,7 @@ module.exports = {
         const { startStreamerScheduler } = require('../utils/streamerManager');
         startStreamerScheduler(client);
 
-        // 3e. Reminder scheduler — fires due /remind reminders (30s ticks)
+        // 3e. Reminder scheduler, fires due /remind reminders (30s ticks)
         const { startReminderScheduler } = require('../utils/reminderManager');
         startReminderScheduler(client);
 

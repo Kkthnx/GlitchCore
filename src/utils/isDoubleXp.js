@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -11,7 +11,7 @@ const { getLocalDay } = require('./time');
 /**
  * Returns true if today is a double XP day (Friday or Saturday by default).
  * The day of week is evaluated in the community timezone (config.timezone),
- * NOT the host's local time — so a UTC server can't flip the flag early.
+ * NOT the host's local time, so a UTC server can't flip the flag early.
  *   0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
  */
 function isDoubleXpActive() {

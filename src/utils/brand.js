@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -9,7 +9,7 @@ const { EmbedBuilder } = require('discord.js');
 const config = require('../../config.json');
 
 // ---------------------------------------------------------------------------
-// Glitch Haven brand kit — mirrors the design tokens from the kkthnx-site
+// Glitch Haven brand kit, mirrors the design tokens from the kkthnx-site
 // (src/styles/global.css). Discord embeds only get one accent stripe, so the
 // site's CSS custom properties are distilled into a small semantic palette.
 // Keeping this in one place means every embed reads as the same product.

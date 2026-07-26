@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -113,11 +113,11 @@ module.exports = {
             }
         }
 
-        // 2c. AFK — clear the author's AFK; note any AFK users they pinged.
+        // 2c. AFK, clear the author's AFK; note any AFK users they pinged.
         try {
             const back = clearAfk(message.guild.id, message.author.id);
             if (back) {
-                message.reply({ content: '👋 Welcome back — I cleared your AFK.', allowedMentions: { repliedUser: false } })
+                message.reply({ content: '👋 Welcome back, I cleared your AFK.', allowedMentions: { repliedUser: false } })
                     .then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
             }
             const pinged = message.mentions.users.filter(u => getAfk(message.guild.id, u.id));

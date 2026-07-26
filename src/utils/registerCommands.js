@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -10,13 +10,13 @@ const logger = require('./logger');
 
 /**
  * Registers all loaded slash commands to the configured guild. Called on
- * startup (see events/ready.js) so commands are always in sync with the code —
+ * startup (see events/ready.js) so commands are always in sync with the code ,
  * no need to remember `npm run deploy`. Guild commands update instantly.
  */
 async function registerGuildCommands(client) {
     const guildId = process.env.GUILD_ID;
     if (!guildId) {
-        logger.warn('[DEPLOY] GUILD_ID not set — skipping auto command registration.');
+        logger.warn('[DEPLOY] GUILD_ID not set, skipping auto command registration.');
         return;
     }
 

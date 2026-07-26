@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -43,6 +43,6 @@ module.exports = {
         }
 
         await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'ban', reason });
-        return interaction.reply({ content: `🔨 Banned <@${targetUser.id}> — ${reason}` });
+        return interaction.reply({ content: `🔨 Banned <@${targetUser.id}>, ${reason}` });
     },
 };

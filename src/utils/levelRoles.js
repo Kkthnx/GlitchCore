@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -9,7 +9,7 @@
 // Discord objects so the milestone math can be unit-tested directly.
 
 /**
- * The milestone a member should currently hold at a given level — the highest
+ * The milestone a member should currently hold at a given level, the highest
  * multiple of `interval` that is <= min(level, max). Returns 0 when the member
  * hasn't reached the first milestone or the feature is disabled.
  */

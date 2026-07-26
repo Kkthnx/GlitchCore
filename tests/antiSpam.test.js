@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -24,7 +24,7 @@ describe('recordAndCheckRate', () => {
         recordAndCheckRate('v', now, 3, 5000);
         recordAndCheckRate('v', now + 1000, 3, 5000);
         recordAndCheckRate('v', now + 2000, 3, 5000);
-        // 10s later the earlier ones have aged out — should not trip.
+        // 10s later the earlier ones have aged out, should not trip.
         expect(recordAndCheckRate('v', now + 12000, 3, 5000)).toBe(false);
     });
 });

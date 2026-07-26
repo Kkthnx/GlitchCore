@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -18,7 +18,7 @@ const ACTION_VERB = { warn: 'warned', timeout: 'timed out', kick: 'kicked', ban:
  * action must be blocked, or null if it's allowed.
  */
 function blockReason(interaction, targetMember, { needBannable = false, requireBotAction = true } = {}) {
-    if (!targetMember) return null; // e.g. banning a user not in the guild — caller decides
+    if (!targetMember) return null; // e.g. banning a user not in the guild, caller decides
     if (targetMember.id === interaction.user.id) return "You can't moderate yourself.";
     if (targetMember.id === interaction.client.user.id) return "I can't moderate myself.";
     if (targetMember.id === interaction.guild.ownerId) return "You can't moderate the server owner.";
@@ -55,7 +55,7 @@ async function recordInfraction({ guild, targetUser, moderator, type, reason, du
         const cfg = await getGuildConfig(guild.id) || {};
         const channel = cfg.modLogChannelId && guild.channels.cache.get(cfg.modLogChannelId);
         if (channel) {
-            const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven • Moderation' })
+            const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
                 .setTitle(`Member ${ACTION_VERB[type] || type}`)
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                 .addFields(
@@ -76,13 +76,13 @@ async function recordInfraction({ guild, targetUser, moderator, type, reason, du
 /** Best-effort DM to the target so they know what happened and why. */
 async function notifyTarget(targetUser, guildName, type, reason, durationMs) {
     try {
-        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven • Moderation' })
+        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
             .setTitle(`You were ${ACTION_VERB[type] || type} in ${guildName}`)
             .addFields({ name: 'Reason', value: reason || 'No reason provided' });
         if (durationMs) embed.addFields({ name: 'Duration', value: humanizeDuration(durationMs), inline: true });
         await targetUser.send({ embeds: [embed] });
     } catch {
-        // User has DMs closed — not an error.
+        // User has DMs closed, not an error.
     }
 }
 

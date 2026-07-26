@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -19,7 +19,7 @@ module.exports = {
         const channel = interaction.options.getChannel('channel') || interaction.channel;
         try {
             await channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: false }, { reason: `Locked by ${interaction.user.tag}` });
-            return interaction.reply({ content: `🔒 Locked ${channel} — members can no longer send messages.`, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: `🔒 Locked ${channel}, members can no longer send messages.`, flags: MessageFlags.Ephemeral });
         } catch (err) {
             return interaction.reply({ content: `Failed to lock: ${err.message}`, flags: MessageFlags.Ephemeral });
         }

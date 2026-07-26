@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -44,7 +44,7 @@ function buildSelfRolesRow(selfRoles, memberRoleIds = null, guild = null) {
 
     const menu = new StringSelectMenuBuilder()
         .setCustomId(SELECT_ID)
-        .setPlaceholder('Select the roles you want — deselect to remove')
+        .setPlaceholder('Select the roles you want, deselect to remove')
         .setMinValues(0)
         .setMaxValues(options.length)
         .addOptions(options);
@@ -70,7 +70,7 @@ async function handleOpenPicker(interaction) {
     if (!row) {
         return interaction.reply({ content: 'No self-assignable roles are set up yet.', flags: MessageFlags.Ephemeral });
     }
-    const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
+    const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Roles' })
         .setTitle('🎮 Pick Your Roles')
         .setDescription('Select the games you play and the pings you want. Deselect to remove.');
     return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
@@ -103,12 +103,12 @@ async function handleSelfRoleSelect(interaction) {
     }
 
     const summary = [];
-    if (toAdd.length) summary.push(`**Added:** ${toAdd.filter(id => !failed.includes(id)).map(id => `<@&${id}>`).join(', ') || '—'}`);
-    if (toRemove.length) summary.push(`**Removed:** ${toRemove.filter(id => !failed.includes(id)).map(id => `<@&${id}>`).join(', ') || '—'}`);
-    if (!summary.length) summary.push('No changes — your roles are already up to date.');
+    if (toAdd.length) summary.push(`**Added:** ${toAdd.filter(id => !failed.includes(id)).map(id => `<@&${id}>`).join(', ') || 'none'}`);
+    if (toRemove.length) summary.push(`**Removed:** ${toRemove.filter(id => !failed.includes(id)).map(id => `<@&${id}>`).join(', ') || 'none'}`);
+    if (!summary.length) summary.push('No changes, your roles are already up to date.');
     if (failed.length) summary.push(`\n⚠️ Couldn't update ${failed.length} role(s). My role may be below them in the list.`);
 
-    const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • Roles' })
+    const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Roles' })
         .setDescription(summary.join('\n'));
 
     return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

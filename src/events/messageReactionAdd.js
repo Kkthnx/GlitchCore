@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -46,7 +46,7 @@ module.exports = {
         const starChannel = message.guild.channels.cache.get(channelId);
         if (!starChannel) return;
 
-        const header = `${emoji} **${count}** · <#${message.channel.id}>`;
+        const header = `${emoji} **${count}**, <#${message.channel.id}>`;
         const existing = await Starboard.findOne({ originMessageId: message.id });
 
         try {
@@ -62,7 +62,7 @@ module.exports = {
                 .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
                 .setDescription(message.content?.slice(0, 2048) || '*[no text]*')
                 .addFields({ name: '​', value: `[Jump to message](${message.url})` })
-                .setFooter({ text: 'Glitch Haven • Starboard' })
+                .setFooter({ text: 'Glitch Haven, Starboard' })
                 .setTimestamp(message.createdTimestamp);
 
             const image = message.attachments.find(a => a.contentType?.startsWith('image/'));

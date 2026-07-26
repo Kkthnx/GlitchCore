@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -39,7 +39,7 @@ async function announceLive(client, streamer, stream) {
             { name: 'Watch', value: `[twitch.tv/${streamer.twitchLogin}](${url})`, inline: true },
             { name: 'Viewers', value: `${stream.viewer_count ?? 0}`, inline: true },
         )
-        .setFooter({ text: 'Glitch Haven • Twitch' })
+        .setFooter({ text: 'Glitch Haven, Twitch' })
         .setTimestamp();
     if (thumb.startsWith('http')) embed.setImage(thumb);
 
@@ -73,7 +73,7 @@ async function cleanupAnnouncement(client, streamer) {
 async function pollStreamers(client) {
     if (!isConfigured()) return;
 
-    // Only this shard's guilds — avoids cross-shard channel misses and duplicate posts.
+    // Only this shard's guilds, avoids cross-shard channel misses and duplicate posts.
     const guildIds = [...client.guilds.cache.keys()];
     if (!guildIds.length) return;
 
@@ -100,18 +100,18 @@ async function pollStreamers(client) {
                 await announceLive(client, streamer, stream).catch(err => logger.error('[TWITCH] Announce failed:', err));
             }
         } else if (streamer.isLive) {
-            // Went offline — remove the announcement and reset state.
+            // Went offline, remove the announcement and reset state.
             streamer.isLive = false;
             await cleanupAnnouncement(client, streamer);
             await streamer.save().catch(() => {});
-            logger.info(`[TWITCH] ${streamer.twitchLogin} went offline — cleaned up announcement.`);
+            logger.info(`[TWITCH] ${streamer.twitchLogin} went offline, cleaned up announcement.`);
         }
     }
 }
 
 function startStreamerScheduler(client) {
     if (!isConfigured()) {
-        logger.info('[TWITCH] Twitch credentials not set — streamer notifications disabled.');
+        logger.info('[TWITCH] Twitch credentials not set, streamer notifications disabled.');
         return;
     }
     setTimeout(() => pollStreamers(client).catch(err => logger.error('[TWITCH] Initial poll failed:', err)), 15_000);

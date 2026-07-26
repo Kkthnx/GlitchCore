@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -26,7 +26,7 @@ module.exports = {
             ? interaction.guild.channels.cache.get(cfg.suggestionChannelId)
             : interaction.channel;
         if (!channel) {
-            return interaction.reply({ content: 'The configured suggestion channel no longer exists — ask an admin to set `suggestion_channel_id`.', flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: 'The configured suggestion channel no longer exists, ask an admin to set `suggestion_channel_id`.', flags: MessageFlags.Ephemeral });
         }
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -43,7 +43,7 @@ module.exports = {
             const embed = buildSuggestionEmbed(data, interaction.user.tag, interaction.user.displayAvatarURL());
             const msg = await channel.send({ embeds: [embed], components: [buildSuggestionButtons()] });
             await Suggestion.create({ messageId: msg.id, ...data });
-            return interaction.editReply({ content: `✅ Suggestion posted in ${channel}. [→ jump](${msg.url})` });
+            return interaction.editReply({ content: `✅ Suggestion posted in ${channel}. [jump](${msg.url})` });
         } catch (err) {
             logger.error('Failed to post suggestion:', err);
             return interaction.editReply({ content: 'Failed to post your suggestion. Do I have permission to send messages there?' });

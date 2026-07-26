@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -26,11 +26,11 @@ module.exports = {
         const admin = commands.filter(c => ADMIN_COMMANDS.has(c.data.name));
 
         const format = list => list
-            .map(c => `\`/${c.data.name}\` — ${c.data.description}`)
+            .map(c => `\`/${c.data.name}\`, ${c.data.description}`)
             .join('\n') || '*None available.*';
 
-        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven • GlitchCore' })
-            .setTitle('GlitchCore — Command Guide')
+        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, GlitchCore' })
+            .setTitle('GlitchCore, Command Guide')
             .setDescription('Earn XP by chatting and hanging in voice, climb the leaderboard, squad up with LFG, and join game-night events.')
             .addFields({ name: '🎮 Members', value: format(member) });
 

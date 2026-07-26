@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -47,7 +47,7 @@ module.exports = {
             try {
                 user = await getUser(login);
             } catch {
-                return interaction.editReply('Couldn\'t reach Twitch right now — try again in a moment.');
+                return interaction.editReply('Couldn\'t reach Twitch right now, try again in a moment.');
             }
             if (!user) return interaction.editReply(`No Twitch user found for **${login}**.`);
 
@@ -65,7 +65,7 @@ module.exports = {
             const cfg = await getGuildConfig(guildId) || {};
             const hint = cfg.streamerChannelId
                 ? ''
-                : '\n\n⚠️ No announcement channel set yet — run `/settings set key:streamer_channel_id value:<channel-id>` so go-live posts have somewhere to go.';
+                : '\n\n⚠️ No announcement channel set yet, run `/settings set key:streamer_channel_id value:<channel-id>` so go-live posts have somewhere to go.';
             return interaction.editReply(`✅ Now tracking **${user.display_name}** (twitch.tv/${user.login}).${hint}`);
         }
 
@@ -78,10 +78,10 @@ module.exports = {
 
         // list
         const streamers = await Streamer.find({ guildId }).sort({ twitchLogin: 1 });
-        const embed = brandedEmbed({ color: COLORS.accent, footer: 'Glitch Haven • Twitch' })
+        const embed = brandedEmbed({ color: COLORS.accent, footer: 'Glitch Haven, Twitch' })
             .setTitle('📺 Tracked Streamers')
             .setDescription(streamers.length
-                ? streamers.map(s => `${s.isLive ? '🔴' : '⚫'} [${s.twitchDisplayName}](https://twitch.tv/${s.twitchLogin})${s.discordUserId ? ` — <@${s.discordUserId}>` : ''}`).join('\n')
+                ? streamers.map(s => `${s.isLive ? '🔴' : '⚫'} [${s.twitchDisplayName}](https://twitch.tv/${s.twitchLogin})${s.discordUserId ? `, <@${s.discordUserId}>` : ''}`).join('\n')
                 : 'None yet. Add one with `/streamers add`.');
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },

@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -38,12 +38,12 @@ function buildSuggestionEmbed(s, authorTag, authorIcon) {
     const ratio = total ? up / total : 0;
     const st = STATUS[s.status] || STATUS.pending;
 
-    return brandedEmbed({ color: st.color, footer: 'Glitch Haven • Suggestions' })
+    return brandedEmbed({ color: st.color, footer: 'Glitch Haven, Suggestions' })
         .setAuthor({ name: authorTag || 'Suggestion', iconURL: authorIcon || undefined })
         .setDescription(s.text)
         .addFields(
             { name: 'Status', value: st.label, inline: true },
-            { name: 'Votes', value: `👍 ${up} · 👎 ${down}`, inline: true },
+            { name: 'Votes', value: `👍 ${up}, 👎 ${down}`, inline: true },
             { name: 'Approval', value: `${progressBar(ratio)} ${Math.round(ratio * 100)}%`, inline: false },
         );
 }
@@ -62,7 +62,7 @@ async function handleSuggestionButton(interaction) {
     const s = await Suggestion.findOne({ messageId: interaction.message.id });
     if (!s) return interaction.reply({ content: 'This suggestion no longer exists.', flags: MessageFlags.Ephemeral });
 
-    // Approve / deny — managers only.
+    // Approve / deny, managers only.
     if (action === 'approve' || action === 'deny') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
             return interaction.reply({ content: 'Only managers can approve or deny suggestions.', flags: MessageFlags.Ephemeral });
@@ -70,7 +70,7 @@ async function handleSuggestionButton(interaction) {
         s.status = action === 'approve' ? 'approved' : 'denied';
         await s.save();
     } else {
-        // Up / down vote — toggle.
+        // Up / down vote, toggle.
         const { up, down } = applyVote(s.upvotes, s.downvotes, interaction.user.id, action);
         s.upvotes = up;
         s.downvotes = down;

@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -30,8 +30,8 @@ module.exports = {
             });
         }
 
-        // delete — require an explicit confirmation click.
-        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven • Privacy' })
+        // delete, require an explicit confirmation click.
+        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Privacy' })
             .setTitle('⚠️ Erase your data?')
             .setDescription(
                 'This permanently deletes your **profile, XP and level**, and removes you from all event and LFG rosters in this server.\n\n' +

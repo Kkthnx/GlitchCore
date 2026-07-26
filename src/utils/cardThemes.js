@@ -1,12 +1,12 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
  */
 
 // Rank card themes. Each drives the fully-programmatic renderer in
-// generateRankCard.js — no background image needed. Keys are kept stable
+// generateRankCard.js, no background image needed. Keys are kept stable
 // (default/neon/hacker/gold/rgb existed before) so saved user choices survive.
 //
 // Schema:

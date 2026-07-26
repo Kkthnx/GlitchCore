@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -42,6 +42,6 @@ module.exports = {
         await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'timeout', reason, durationMs });
         await notifyTarget(targetUser, interaction.guild.name, 'timeout', reason, durationMs);
 
-        return interaction.reply({ content: `🔇 Timed out <@${targetUser.id}> for **${humanizeDuration(durationMs)}** — ${reason}` });
+        return interaction.reply({ content: `🔇 Timed out <@${targetUser.id}> for **${humanizeDuration(durationMs)}**, ${reason}` });
     },
 };

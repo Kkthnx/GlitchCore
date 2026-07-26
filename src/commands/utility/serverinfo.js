@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -27,7 +27,7 @@ module.exports = {
                 { name: 'Owner', value: `<@${g.ownerId}>`, inline: true },
                 { name: 'Members', value: `${g.memberCount.toLocaleString()}`, inline: true },
                 { name: 'Created', value: `<t:${Math.floor(g.createdTimestamp / 1000)}:R>`, inline: true },
-                { name: 'Channels', value: `💬 ${text} · 🔊 ${voice}`, inline: true },
+                { name: 'Channels', value: `💬 ${text}, 🔊 ${voice}`, inline: true },
                 { name: 'Roles', value: `${g.roles.cache.size}`, inline: true },
                 { name: 'Boosts', value: `${g.premiumSubscriptionCount || 0} (Tier ${g.premiumTier})`, inline: true },
             );

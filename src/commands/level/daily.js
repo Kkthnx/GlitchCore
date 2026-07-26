@@ -1,5 +1,5 @@
 /*
- * GlitchCore — Copyright (c) 2026 Kkthnx. All Rights Reserved.
+ * GlitchCore. Copyright (c) 2026 Kkthnx. All Rights Reserved.
  * Proprietary and confidential. Unauthorized copying, use, distribution, or
  * modification of this file or any part of it, via any medium, is strictly
  * prohibited. See the LICENSE file for full terms.
@@ -46,13 +46,13 @@ module.exports = {
         queueXp(userId, guildId, reward, interaction.channel.id, { isMessage: false });
 
         const next = Math.floor((Date.now() + msUntilNextLocalMidnight()) / 1000);
-        const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven • Daily' })
+        const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven, Daily' })
             .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
             .setTitle('🎁 Daily claimed!')
             .setDescription(
                 `**+${reward} XP**\n` +
                 `🔥 Streak: **${streak}** day${streak === 1 ? '' : 's'}` +
-                (streak >= STREAK_CAP ? ' (max bonus!)' : ` — +${PER_STREAK_XP} XP tomorrow`) +
+                (streak >= STREAK_CAP ? ' (max bonus!)' : `, +${PER_STREAK_XP} XP tomorrow`) +
                 `\n\nCome back <t:${next}:R> to keep your streak alive.`
             );
         return interaction.reply({ embeds: [embed] });
