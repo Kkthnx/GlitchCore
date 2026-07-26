@@ -29,9 +29,14 @@ module.exports = {
 
         // 2. Private Message the User
         try {
-            const dmEmbed = brandedEmbed({ color: COLORS.primary })
-                .setTitle('Welcome to Glitch Haven!')
-                .setDescription(`Hey ${member.user.username}, thanks for joining! Head over to the chat channels to level up, or use our LFG channels to squad up.`);
+            const dmEmbed = brandedEmbed({ color: COLORS.success, footer: 'GLITCH_HAVEN // WELCOME' })
+                .setAuthor({ name: '⚡ SYSTEM.NEW_CONNECTION' })
+                .setTitle('> WELCOME TO GLITCH HAVEN')
+                .setDescription(
+                    `Hey ${member.user.username}, glad you made it.\n\n` +
+                    `_"${pick(quips)}"_\n\n` +
+                    `Grab your roles with \`/roles\`, chat to level up, and use \`/lfg\` to squad up. Type \`/help\` any time.`
+                );
 
             await member.send({ embeds: [dmEmbed] });
         } catch (err) {
