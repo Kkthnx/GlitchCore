@@ -47,6 +47,24 @@ module.exports = {
         'We saved you a seat and a spare controller.',
         'Do not feed the mods after midnight.',
     ],
+    // Sly one-liners for when someone leaves.
+    farewells: [
+        'Rage quit confirmed.',
+        'One less player in the lobby.',
+        'They disconnected from the mainframe.',
+        'Ejected into the void.',
+        'Ran out of lives.',
+        'The prophecy did not include a sequel.',
+        'Ghosted the whole server, bold move.',
+        'Logged off for the last time.',
+        'Went to touch grass and never returned.',
+        'Their signal faded into static.',
+        'Uninstalled from Glitch Haven.',
+        'Left the party without saying gg.',
+        'Respawn point not found.',
+        'Went AFK permanently.',
+        'The glitch reclaimed one of its own.',
+    ],
     pick(list) {
         return list[Math.floor(Math.random() * list.length)];
     },
