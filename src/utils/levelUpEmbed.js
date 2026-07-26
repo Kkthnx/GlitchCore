@@ -5,12 +5,19 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
+const { EmbedBuilder } = require('discord.js');
 const levelUpSayings = require('./levelUpSayings');
 const { isDoubleXpActive } = require('./isDoubleXp');
 const { getGuildConfig } = require('../utils/guildConfigCache');
-const { brandedEmbed, COLORS } = require('./brand');
+const { PALETTE } = require('./brand');
 const config = require('../../config.json');
 const logger = require('./logger');
+
+// Terminal / glitch ANSI helpers (match the LFG and event systems).
+const ESC = '\x1b';
+const G = `${ESC}[1;32m`;
+const Y = `${ESC}[1;33m`;
+const RST = `${ESC}[0m`;
 
 /**
  * Generates and sends a stylized level up embed.
@@ -35,7 +42,7 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
         const guild = client.guilds.cache.get(guildId);
         let member = null;
         let discordUser = null;
-        let color = COLORS.success; // Default: Glitch Haven success teal
+        let color = PALETTE.gen; // Default: Glitch Haven teal
 
         if (guild) {
             // Check cache first (free), only fall back to a REST fetch if not cached
@@ -54,20 +61,31 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
             discordUser = await client.users.fetch(userId).catch(() => null);
         }
 
+        const name = discordUser ? (discordUser.globalName || discordUser.username) : 'PLAYER';
+        const avatar = discordUser ? discordUser.displayAvatarURL({ dynamic: true }) : null;
         const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
 
-        const embed = brandedEmbed({ color, footer: 'Glitch Haven • Leveling' })
-            .setAuthor({
-                name: `Level Up! - ${discordUser ? discordUser.username : 'User'}`,
-                iconURL: discordUser ? discordUser.displayAvatarURL({ dynamic: true }) : null
-            })
+        const readout = [
+            '```ansi',
+            `${G}USER  ${RST} : ${name}`,
+            `${G}LEVEL ${RST} : ${Y}${newLevel}${RST}`,
+            `${G}STATUS${RST} : ${G}[ RANK INCREASED ]${RST}`,
+            '```',
+        ].join('\n');
+
+        const embed = new EmbedBuilder()
+            .setColor(color)
+            .setAuthor({ name: '⚡ SYSTEM.LEVEL_UP', iconURL: avatar })
+            .setTitle(`> ${name.toUpperCase()} LEVELED UP`)
             .setDescription(
-                `🎉 **Congratulations <@${userId}>!**\n\n` +
-                `You have advanced to **Level ${newLevel}**!\n\n` +
-                `*"${randomSaying}"*` +
-                (isDoubleXpActive() ? '\n\n🔥 **Double XP Weekend** — you\'re earning 2× XP today!' : '')
+                `${readout}\n` +
+                `<@${userId}> just advanced to **Level ${newLevel}**.\n\n` +
+                `_"${randomSaying}"_` +
+                (isDoubleXpActive() ? `\n\n🔥 **Double XP Weekend** active, you are earning 2x XP right now.` : '')
             )
-            .setThumbnail(discordUser ? discordUser.displayAvatarURL({ dynamic: true, size: 256 }) : null);
+            .setThumbnail(discordUser ? discordUser.displayAvatarURL({ dynamic: true, size: 256 }) : null)
+            .setFooter({ text: 'GLITCH_HAVEN // LEVELING' })
+            .setTimestamp();
 
         // Send with ping outside the embed so they actually get notified
         await channel.send({ content: `<@${userId}>`, embeds: [embed] });
