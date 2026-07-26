@@ -11,6 +11,7 @@ const { brandedEmbed, COLORS } = require('../utils/brand');
 const { isDoubleXpStartDay } = require('../utils/isDoubleXp');
 const BotState = require('../database/BotStateSchema');
 const botStatuses = require('../utils/botStatuses');
+const { randomWatchingStatus } = require('../utils/watchingStatuses');
 const logger = require('../utils/logger');
 
 // Import the background synchronization handlers
@@ -169,9 +170,17 @@ module.exports = {
             await require('../utils/registerCommands').registerGuildCommands(client);
         }
 
+        // Warm the member cache so name-based statuses have people to call out
+        // right away instead of waiting for members to chat.
+        for (const guild of client.guilds.cache.values()) {
+            guild.members.fetch().catch(() => { /* missing intent or too large, skip */ });
+        }
+
         // Set initial random status and rotate every 10 minutes
         const updateStatus = () => {
-            const status = botStatuses[Math.floor(Math.random() * botStatuses.length)];
+            // Roughly 40% of the time, call out a random member by name.
+            const status = (Math.random() < 0.4 && randomWatchingStatus(client))
+                || botStatuses[Math.floor(Math.random() * botStatuses.length)];
             client.user.setPresence({
                 activities: [{ name: 'Custom Status', type: ActivityType.Custom, state: status }],
                 status: 'online',
