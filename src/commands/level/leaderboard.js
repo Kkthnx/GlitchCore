@@ -10,17 +10,23 @@ const User = require('../../database/UserSchema');
 const { PALETTE } = require('../../utils/brand');
 const { getUserRank } = require('../../utils/ranking');
 
-const MEDALS = ['🥇', '🥈', '🥉'];
 const ESC = '\x1b';
-const G = `${ESC}[1;32m`;
-const Y = `${ESC}[1;33m`;
+const G = `${ESC}[1;32m`;  // green
+const Y = `${ESC}[1;33m`;  // amber
+const C = `${ESC}[1;36m`;  // cyan
+const W = `${ESC}[1;37m`;  // white
 const RST = `${ESC}[0m`;
 
-function rankTag(i) {
-    return MEDALS[i] || `\`#${String(i + 1).padStart(2, '0')}\``;
+const NAME_W = 16;
+
+function col(text, width) {
+    const s = String(text);
+    return s.length > width ? s.slice(0, width) : s.padEnd(width);
 }
-function playerLine(tag, userId, level, xp) {
-    return `${tag} <@${userId}> \`LV ${level}\` \`${xp.toLocaleString()} XP\``;
+
+// One monospace row: rank, name, level, xp, colored per column.
+function row(rank, name, level, xp) {
+    return `${G}${col(rank, 4)}${RST}${W}${col(name, NAME_W)}${RST}  ${Y}LV ${String(level).padStart(3)}${RST}  ${C}${xp.toLocaleString().padStart(9)}${RST}`;
 }
 
 module.exports = {
@@ -41,21 +47,31 @@ module.exports = {
             return interaction.editReply('`ERROR_204` : No rankings yet. Be the first to start chatting.');
         }
 
-        const header = [
+        // Resolve display names in one bulk fetch so every name is readable.
+        const names = new Map();
+        try {
+            const members = await interaction.guild.members.fetch({ user: topUsers.map(u => u.userId) });
+            members.forEach(m => names.set(m.id, m.displayName));
+        } catch { /* some may have left, handled by the fallback below */ }
+        const nameOf = id => names.get(id) || 'Unknown';
+
+        const headerRow = `${col('RNK', 4)}${col('PLAYER', NAME_W)}  ${col('LVL', 6)}  ${'XP'.padStart(9)}`;
+        const rows = topUsers.map((u, i) => row(`#${String(i + 1).padStart(2, '0')}`, nameOf(u.userId), u.level, u.xp));
+
+        const block = [
             '```ansi',
-            `${G}> DECRYPTING RANKINGS...${RST}`,
-            `${G}PLAYERS${RST} : ${Y}${totalRanked.toLocaleString()}${RST}`,
+            `${G}> DECRYPTING RANKINGS...  PLAYERS: ${totalRanked}${RST}`,
+            `${G}${headerRow}${RST}`,
+            ...rows,
             '```',
         ].join('\n');
-
-        const lines = topUsers.map((u, i) => playerLine(rankTag(i), u.userId, u.level, u.xp));
 
         const embed = new EmbedBuilder()
             .setColor(PALETTE.tech)
             .setAuthor({ name: '⚡ SYSTEM.LEADERBOARD' })
             .setTitle('> GLITCH HAVEN // TOP PLAYERS')
             .setThumbnail(interaction.guild.iconURL({ dynamic: true }) || null)
-            .setDescription(`${header}\n${lines.join('\n')}`)
+            .setDescription(block)
             .setFooter({ text: 'GLITCH_HAVEN // LEADERBOARD' })
             .setTimestamp();
 
@@ -65,10 +81,8 @@ module.exports = {
             const me = await User.findOne({ userId: interaction.user.id, guildId });
             if (me) {
                 const rank = await getUserRank(guildId, me.level, me.xp);
-                embed.addFields({
-                    name: '> YOUR_STANDING',
-                    value: playerLine(`\`#${rank}\``, me.userId, me.level, me.xp),
-                });
+                const line = row(`#${rank}`, interaction.member.displayName, me.level, me.xp);
+                embed.addFields({ name: '> YOUR_STANDING', value: `\`\`\`ansi\n${line}\n\`\`\`` });
             }
         }
 
