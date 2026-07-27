@@ -35,6 +35,11 @@ const eventSchema = new mongoose.Schema({
 
     status: { type: String, enum: ['SCHEDULED', 'STARTED', 'CANCELLED'], default: 'SCHEDULED' },
     startNotified: { type: Boolean, default: false },
+
+    // 'weekly' re-posts a fresh copy 7 days out when this one starts; 'none'
+    // is a one-off. spawnedNext guards against cloning the same event twice.
+    recurrence: { type: String, enum: ['none', 'weekly'], default: 'none' },
+    spawnedNext: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // Scheduler query: find SCHEDULED events whose start time has passed.

@@ -39,7 +39,8 @@ module.exports = {
             .addStringOption(o => o.setName('when').setDescription('Start time: a delay like 2h / 1d, or "2026-07-25 20:00" (ET)').setRequired(true))
             .addIntegerOption(o => o.setName('capacity').setDescription('Max going before waitlist (0 = unlimited)').setMinValue(0).setMaxValue(100).setRequired(false))
             .addStringOption(o => o.setName('description').setDescription('Extra details').setRequired(false).setMaxLength(500))
-            .addRoleOption(o => o.setName('ping_role').setDescription('Role to ping (defaults to the matching game self-role)').setRequired(false)))
+            .addRoleOption(o => o.setName('ping_role').setDescription('Role to ping (defaults to the matching game self-role)').setRequired(false))
+            .addBooleanOption(o => o.setName('repeat_weekly').setDescription('Re-post this event every week at the same time').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('list')
             .setDescription('Show upcoming events in this server')),
@@ -72,6 +73,7 @@ module.exports = {
         const when = interaction.options.getString('when');
         const capacity = interaction.options.getInteger('capacity') ?? 0;
         const description = interaction.options.getString('description');
+        const recurrence = interaction.options.getBoolean('repeat_weekly') ? 'weekly' : 'none';
 
         const startsAt = parseStartTime(when);
         if (!startsAt) {
@@ -95,6 +97,7 @@ module.exports = {
             going: [{ userId: interaction.user.id, username: interaction.user.username }], // host attends by default
             maybe: [], waitlist: [],
             status: 'SCHEDULED', startNotified: false,
+            recurrence, spawnedNext: false,
         };
 
         try {
@@ -105,7 +108,8 @@ module.exports = {
                 allowedMentions: { roles: pingRoleId ? [pingRoleId] : [] },
             });
             await Event.create({ messageId: msg.id, ...evData });
-            return interaction.editReply({ content: `📅 Event created! **[Jump to it](${msg.url})**` });
+            const repeatNote = recurrence === 'weekly' ? ' It will repeat every week at this time.' : '';
+            return interaction.editReply({ content: `📅 Event created! **[Jump to it](${msg.url})**${repeatNote}` });
         } catch (err) {
             logger.error('Failed to create event:', err);
             return interaction.editReply({ content: 'Failed to post the event. Do I have permission to send messages here?' });

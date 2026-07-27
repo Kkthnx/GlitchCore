@@ -10,6 +10,7 @@ const {
 } = require('discord.js');
 const Event = require('../database/EventSchema');
 const { applyRsvp } = require('./eventRsvp');
+const { addWeeksKeepingLocalTime } = require('./time');
 const logger = require('./logger');
 
 const BTN = { going: 'event:going', maybe: 'event:maybe', decline: 'event:decline', cancel: 'event:cancel' };
@@ -52,6 +53,7 @@ function buildEventEmbed(ev) {
         `**> ${started ? 'STARTED' : 'STARTS'}:** <t:${unix}:F> (<t:${unix}:R>)`,
         `**> HOST:** <@${ev.hostId}>` + (ev.pingRoleId ? `, **> PING:** <@&${ev.pingRoleId}>` : ''),
     ];
+    if (ev.recurrence === 'weekly') header.push('**> REPEATS:** 🔁 Weekly');
     if (ev.description) header.push(`\n${ev.description}`);
 
     // Roster in a terminal slot layout.
@@ -195,6 +197,45 @@ async function cleanUpFinishedEvents(client) {
     if (stale.length) logger.info(`[EVENTS] Cleaned up ${stale.length} finished/cancelled event(s).`);
 }
 
+// ── Recurrence: post next week's copy of a weekly event ──────────────────────
+async function spawnNextOccurrence(client, ev) {
+    const guild = client.guilds.cache.get(ev.guildId);
+    const channel = guild?.channels.cache.get(ev.channelId);
+    if (!channel) return;
+
+    const nextStartsAt = addWeeksKeepingLocalTime(ev.startsAt, 1);
+    const evData = {
+        guildId: ev.guildId,
+        channelId: ev.channelId,
+        hostId: ev.hostId,
+        game: ev.game,
+        title: ev.title,
+        description: ev.description,
+        startsAt: nextStartsAt,
+        capacity: ev.capacity,
+        imgUrl: ev.imgUrl,
+        pingRoleId: ev.pingRoleId,
+        // Fresh roster each week, host attends by default.
+        going: [{ userId: ev.hostId, username: 'Host' }],
+        maybe: [], waitlist: [],
+        status: 'SCHEDULED', startNotified: false,
+        recurrence: 'weekly', spawnedNext: false,
+    };
+
+    try {
+        const msg = await channel.send({
+            content: ev.pingRoleId ? `<@&${ev.pingRoleId}>` : undefined,
+            embeds: [buildEventEmbed(evData)],
+            components: [buildEventButtons(false)],
+            allowedMentions: { roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
+        });
+        await Event.create({ messageId: msg.id, ...evData });
+        logger.info(`[EVENTS] Spawned next weekly "${ev.title}" for ${nextStartsAt.toISOString()}.`);
+    } catch (err) {
+        logger.error(`[EVENTS] Failed to spawn next occurrence of "${ev.title}":`, err);
+    }
+}
+
 // ── Scheduler: ping rosters for events whose start time has arrived ───────────
 async function processStartingEvents(client) {
     const guildIds = [...client.guilds.cache.keys()];
@@ -209,25 +250,42 @@ async function processStartingEvents(client) {
     }
 
     for (const ev of due) {
+        const weekly = ev.recurrence === 'weekly';
         ev.startNotified = true;
         ev.status = 'STARTED';
-        await ev.save().catch(() => {});
+
+        // Post next week's copy once so a weekly event is always up in the
+        // channel. spawnedNext prevents a double clone.
+        if (weekly && !ev.spawnedNext) {
+            ev.spawnedNext = true;
+            await spawnNextOccurrence(client, ev);
+        }
 
         const guild = client.guilds.cache.get(ev.guildId);
         const channel = guild?.channels.cache.get(ev.channelId);
-        if (!channel) continue;
+        if (!channel) { await ev.save().catch(() => {}); continue; }
 
-        // Refresh the original message to the STARTED state, buttons disabled.
-        channel.messages.fetch(ev.messageId)
-            .then(msg => msg.edit({ embeds: [buildEventEmbed(ev)], components: [buildEventButtons(true)] }))
-            .catch(() => {});
-
+        // Ping the roster that it's game time.
         const roster = ev.going.map(m => `<@${m.userId}>`).join(' ');
         const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
         channel.send({
             content: `🎮 **It's game time, ${ev.title}!** ${rolePing}\n${roster || '*No one RSVP\'d, but the lobby is open.*'}`,
             allowedMentions: { users: ev.going.map(m => m.userId), roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
         }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
+
+        if (weekly) {
+            // Weekly events replace themselves: delete the old card and record
+            // now so the channel only ever shows next week's event, not a pile
+            // of finished ones. The game-time ping above stays as the marker.
+            await channel.messages.fetch(ev.messageId).then(m => m.delete()).catch(() => {});
+            await Event.deleteOne({ _id: ev._id }).catch(() => {});
+        } else {
+            // One-off: mark STARTED and let the 2h cleanup sweep it later.
+            await ev.save().catch(() => {});
+            channel.messages.fetch(ev.messageId)
+                .then(msg => msg.edit({ embeds: [buildEventEmbed(ev)], components: [buildEventButtons(true)] }))
+                .catch(() => {});
+        }
 
         logger.info(`[EVENTS] Started event "${ev.title}" (${ev.going.length} going).`);
     }

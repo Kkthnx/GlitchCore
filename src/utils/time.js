@@ -114,6 +114,37 @@ function zonedWallTimeToDate(input) {
     return new Date(utcGuess - offset);
 }
 
+/**
+ * Wall-clock string "YYYY-MM-DD HH:mm" for an instant, in the community
+ * timezone. Round-trips with zonedWallTimeToDate.
+ */
+function zonedWallTimeString(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TIMEZONE,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(date).reduce((acc, p) => {
+        acc[p.type] = p.value;
+        return acc;
+    }, {});
+    const hour = String(parseInt(parts.hour, 10) % 24).padStart(2, '0');
+    return `${parts.year}-${parts.month}-${parts.day} ${hour}:${parts.minute}`;
+}
+
+/**
+ * The same local wall-clock time, `weeks` weeks later. Anchors to the local
+ * hour (so a weekly 7pm event stays 7pm across DST changes), not a fixed
+ * number of milliseconds.
+ * @returns {Date}
+ */
+function addWeeksKeepingLocalTime(date, weeks = 1) {
+    const [datePart, timePart] = zonedWallTimeString(date).split(' ');
+    const d = new Date(`${datePart}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + weeks * 7);
+    const newDate = d.toISOString().slice(0, 10);
+    return zonedWallTimeToDate(`${newDate} ${timePart}`);
+}
+
 module.exports = {
     TIMEZONE,
     getLocalDateString,
@@ -122,4 +153,6 @@ module.exports = {
     msUntilNextLocalMidnight,
     tzOffsetMs,
     zonedWallTimeToDate,
+    zonedWallTimeString,
+    addWeeksKeepingLocalTime,
 };
