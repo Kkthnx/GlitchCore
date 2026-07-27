@@ -7,6 +7,7 @@
 
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { brandedEmbed, COLORS } = require('../utils/brand');
+const config = require('../../config.json');
 const logger = require('../utils/logger');
 
 function clip(text, max = 1000) {
@@ -23,8 +24,9 @@ module.exports = {
             if (message.author?.bot) return;
 
             const cfg = await getGuildConfig(message.guild.id);
-            if (!cfg?.modLogChannelId) return;
-            const channel = message.guild.channels.cache.get(cfg.modLogChannelId);
+            const modLogId = cfg?.modLogChannelId || config.channels.modLog;
+            if (!modLogId) return;
+            const channel = message.guild.channels.cache.get(modLogId);
             if (!channel) return;
 
             const who = message.author ? `${message.author.tag} (${message.author.id})` : 'Unknown (uncached)';
