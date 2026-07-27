@@ -29,7 +29,40 @@ const RST = `${ESC}[0m`;
 // How long after start time an event is considered concluded and swept away.
 const CONCLUDE_GRACE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+// A clean, sign-up-free reminder card used for recurring events. No roster,
+// slots, or buttons, just a good-looking heads-up that repeats each week.
+function buildReminderEmbed(ev) {
+    const started = ev.status === 'STARTED';
+    const unix = Math.floor(new Date(ev.startsAt).getTime() / 1000);
+    const statusText = started ? `${Y}[ LIVE NOW ]${RST}` : `${G}[ UPCOMING ]${RST}`;
+
+    const body = [
+        '```ansi',
+        `${G}GAME  ${RST} : ${ev.game}`,
+        `${G}STATUS${RST} : ${statusText}`,
+        `${G}REPEAT${RST} : 🔁 Every week`,
+        '```',
+        `**> ${started ? 'STARTED' : 'STARTS'}:** <t:${unix}:F> (<t:${unix}:R>)`,
+    ];
+    if (ev.pingRoleId) body.push(`**> WHO:** <@&${ev.pingRoleId}>`);
+    if (ev.description) body.push(`\n${ev.description}`);
+
+    const embed = new EmbedBuilder()
+        .setColor(started ? NEON_AMBER : NEON_GREEN)
+        .setAuthor({ name: '⚡ SYSTEM.EVENT_REMINDER' })
+        .setTitle(`> ${ev.title}`)
+        .setDescription(body.join('\n'))
+        .setFooter({ text: 'GLITCH_HAVEN // EVENT_SYSTEM' })
+        .setTimestamp();
+
+    if (ev.imgUrl) embed.setImage(ev.imgUrl);
+    return embed;
+}
+
 function buildEventEmbed(ev) {
+    // Recurring events are simple reminders, not RSVP events.
+    if (ev.recurrence === 'weekly') return buildReminderEmbed(ev);
+
     const started = ev.status === 'STARTED';
     const cancelled = ev.status === 'CANCELLED';
 
@@ -53,7 +86,6 @@ function buildEventEmbed(ev) {
         `**> ${started ? 'STARTED' : 'STARTS'}:** <t:${unix}:F> (<t:${unix}:R>)`,
         `**> HOST:** <@${ev.hostId}>` + (ev.pingRoleId ? `, **> PING:** <@&${ev.pingRoleId}>` : ''),
     ];
-    if (ev.recurrence === 'weekly') header.push('**> REPEATS:** 🔁 Weekly');
     if (ev.description) header.push(`\n${ev.description}`);
 
     // Roster in a terminal slot layout.
@@ -215,19 +247,16 @@ async function spawnNextOccurrence(client, ev) {
         capacity: ev.capacity,
         imgUrl: ev.imgUrl,
         pingRoleId: ev.pingRoleId,
-        // Fresh roster each week, host attends by default.
-        going: [{ userId: ev.hostId, username: 'Host' }],
-        maybe: [], waitlist: [],
+        // Reminder-style, no sign-ups, so no roster is tracked.
+        going: [], maybe: [], waitlist: [],
         status: 'SCHEDULED', startNotified: false,
         recurrence: 'weekly', spawnedNext: false,
     };
 
     try {
         const msg = await channel.send({
-            content: ev.pingRoleId ? `<@&${ev.pingRoleId}>` : undefined,
             embeds: [buildEventEmbed(evData)],
-            components: [buildEventButtons(false)],
-            allowedMentions: { roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
+            allowedMentions: { parse: [] },
         });
         await Event.create({ messageId: msg.id, ...evData });
         logger.info(`[EVENTS] Spawned next weekly "${ev.title}" for ${nextStartsAt.toISOString()}.`);
@@ -265,21 +294,28 @@ async function processStartingEvents(client) {
         const channel = guild?.channels.cache.get(ev.channelId);
         if (!channel) { await ev.save().catch(() => {}); continue; }
 
-        // Ping the roster that it's game time.
-        const roster = ev.going.map(m => `<@${m.userId}>`).join(' ');
-        const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
-        channel.send({
-            content: `🎮 **It's game time, ${ev.title}!** ${rolePing}\n${roster || '*No one RSVP\'d, but the lobby is open.*'}`,
-            allowedMentions: { users: ev.going.map(m => m.userId), roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
-        }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
-
         if (weekly) {
-            // Weekly events replace themselves: delete the old card and record
-            // now so the channel only ever shows next week's event, not a pile
-            // of finished ones. The game-time ping above stays as the marker.
+            // Simple "starting now" heads-up, no roster since there are no
+            // sign-ups. Ping the role if one is set.
+            const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
+            channel.send({
+                content: `🎮 **${ev.title}** is starting now! ${rolePing}`.trim(),
+                allowedMentions: { roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
+            }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
+
+            // Replace itself: delete the old card so the channel only shows the
+            // upcoming one, not a pile of finished reminders.
             await channel.messages.fetch(ev.messageId).then(m => m.delete()).catch(() => {});
             await Event.deleteOne({ _id: ev._id }).catch(() => {});
         } else {
+            // Ping the RSVP roster that it's game time.
+            const roster = ev.going.map(m => `<@${m.userId}>`).join(' ');
+            const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
+            channel.send({
+                content: `🎮 **It's game time, ${ev.title}!** ${rolePing}\n${roster || '*No one RSVP\'d, but the lobby is open.*'}`,
+                allowedMentions: { users: ev.going.map(m => m.userId), roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
+            }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
+
             // One-off: mark STARTED and let the 2h cleanup sweep it later.
             await ev.save().catch(() => {});
             channel.messages.fetch(ev.messageId)

@@ -94,18 +94,20 @@ module.exports = {
             channelId: interaction.channel.id,
             hostId: interaction.user.id,
             game, title, description, startsAt, capacity, pingRoleId, imgUrl,
-            going: [{ userId: interaction.user.id, username: interaction.user.username }], // host attends by default
+            // Weekly events are sign-up-free reminders, so no host on the roster.
+            going: recurrence === 'weekly' ? [] : [{ userId: interaction.user.id, username: interaction.user.username }],
             maybe: [], waitlist: [],
             status: 'SCHEDULED', startNotified: false,
             recurrence, spawnedNext: false,
         };
 
+        const weekly = recurrence === 'weekly';
         try {
             const msg = await interaction.channel.send({
-                content: pingRoleId ? `<@&${pingRoleId}>` : undefined,
+                content: pingRoleId && !weekly ? `<@&${pingRoleId}>` : undefined,
                 embeds: [buildEventEmbed(evData)],
-                components: [buildEventButtons(false)],
-                allowedMentions: { roles: pingRoleId ? [pingRoleId] : [] },
+                components: weekly ? [] : [buildEventButtons(false)],
+                allowedMentions: weekly ? { parse: [] } : { roles: pingRoleId ? [pingRoleId] : [] },
             });
             await Event.create({ messageId: msg.id, ...evData });
             const repeatNote = recurrence === 'weekly' ? ' It will repeat every week at this time.' : '';
