@@ -8,6 +8,18 @@
 const User = require('../database/UserSchema');
 const LfgSession = require('../database/LfgSchema');
 const BotState = require('../database/BotStateSchema');
+const GuildConfig = require('../database/GuildConfigSchema');
+const Infraction = require('../database/InfractionSchema');
+const Reminder = require('../database/ReminderSchema');
+const Giveaway = require('../database/GiveawaySchema');
+const EventModel = require('../database/EventSchema');
+const Streamer = require('../database/StreamerSchema');
+const Suggestion = require('../database/SuggestionSchema');
+const Starboard = require('../database/StarboardSchema');
+const TempBan = require('../database/TempBanSchema');
+const Tag = require('../database/TagSchema');
+const ReactionRole = require('../database/ReactionRoleSchema');
+const Birthday = require('../database/BirthdaySchema');
 const logger = require('../utils/logger');
 
 // ---------------------------------------------------------------------------
@@ -25,17 +37,18 @@ module.exports = {
             return;
         }
 
-        try {
-            const [users, sessions, state] = await Promise.all([
-                User.deleteMany({ guildId: guild.id }),
-                LfgSession.deleteMany({ guildId: guild.id }),
-                BotState.deleteMany({ guildId: guild.id }),
-            ]);
+        const filter = { guildId: guild.id };
+        const models = {
+            users: User, lfgSessions: LfgSession, state: BotState, config: GuildConfig,
+            infractions: Infraction, reminders: Reminder, giveaways: Giveaway, events: EventModel,
+            streamers: Streamer, suggestions: Suggestion, starboard: Starboard, tempBans: TempBan,
+            tags: Tag, reactionRoles: ReactionRole, birthdays: Birthday,
+        };
 
-            logger.info(
-                `[GUILD_DELETE] Purged data for guild ${guild.id}: ` +
-                `${users.deletedCount} users, ${sessions.deletedCount} LFG sessions, ${state.deletedCount} state docs.`
-            );
+        try {
+            const results = await Promise.all(Object.values(models).map(m => m.deleteMany(filter)));
+            const total = results.reduce((sum, r) => sum + (r.deletedCount || 0), 0);
+            logger.info(`[GUILD_DELETE] Purged ${total} documents across ${results.length} collections for guild ${guild.id}.`);
         } catch (err) {
             logger.error(`[GUILD_DELETE] Failed to purge data for guild ${guild.id}:`, err);
         }

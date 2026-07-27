@@ -6,11 +6,15 @@
  */
 
 const { syncStarboard } = require('../utils/starboardManager');
+const { handleReactionRole } = require('../utils/reactionRoleManager');
 
 module.exports = {
     name: 'messageReactionRemove',
     async execute(reaction, user) {
         if (user.bot) return;
-        await syncStarboard(reaction);
+        await Promise.all([
+            syncStarboard(reaction),
+            handleReactionRole(reaction, user, false),
+        ]);
     },
 };

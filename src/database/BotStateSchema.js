@@ -15,6 +15,10 @@ const botStateSchema = new mongoose.Schema({
     // Stores the calendar date string (YYYY-MM-DD) of the last double XP announcement.
     // We compare this to today's date on startup to avoid re-announcing on restart.
     lastDoubleXpDate: { type: String, default: null },
+
+    // Calendar date string (YYYY-MM-DD) of the last birthday shoutout, so a
+    // restart on the same local day can't post the birthday list twice.
+    lastBirthdayDate: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('BotState', botStateSchema);

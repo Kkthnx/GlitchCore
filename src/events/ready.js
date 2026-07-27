@@ -230,6 +230,14 @@ module.exports = {
         const { startReminderScheduler } = require('../utils/reminderManager');
         startReminderScheduler(client);
 
+        // 3f. Temp-ban scheduler, lifts expired timed bans (60s ticks)
+        const { startTempBanScheduler } = require('../utils/tempBanManager');
+        startTempBanScheduler(client);
+
+        // 3g. Birthday scheduler, shouts out birthdays at local midnight
+        const { startBirthdayScheduler } = require('../utils/birthdayManager');
+        startBirthdayScheduler(client);
+
         if (client.guilds.cache.size === 0) {
             return logger.warn('No guilds found in cache.');
         }
