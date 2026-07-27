@@ -8,7 +8,7 @@
 const { syncStarboard } = require('../utils/starboardManager');
 
 module.exports = {
-    name: 'messageReactionAdd',
+    name: 'messageReactionRemove',
     async execute(reaction, user) {
         if (user.bot) return;
         await syncStarboard(reaction);
