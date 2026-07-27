@@ -11,6 +11,7 @@ const GuildConfig = require('../database/GuildConfigSchema');
 const { buildEventEmbed, buildEventButtons } = require('../utils/eventManager');
 const { parseStartTime } = require('../utils/eventRsvp');
 const { fetchGameBanner } = require('../utils/steamGridClient');
+const { BANNER_CHOICES, bannerFileForKey, bannerBlurbForKey, bannerAttachment } = require('../utils/eventBanners');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const logger = require('../utils/logger');
 
@@ -40,7 +41,8 @@ module.exports = {
             .addIntegerOption(o => o.setName('capacity').setDescription('Max going before waitlist (0 = unlimited)').setMinValue(0).setMaxValue(100).setRequired(false))
             .addStringOption(o => o.setName('description').setDescription('Extra details').setRequired(false).setMaxLength(500))
             .addRoleOption(o => o.setName('ping_role').setDescription('Role to ping (defaults to the matching game self-role)').setRequired(false))
-            .addBooleanOption(o => o.setName('repeat_weekly').setDescription('Re-post this event every week at the same time').setRequired(false)))
+            .addBooleanOption(o => o.setName('repeat_weekly').setDescription('Re-post this event every week at the same time').setRequired(false))
+            .addStringOption(o => o.setName('banner').setDescription('Use a bundled Glitch Haven banner').setRequired(false).addChoices(...BANNER_CHOICES)))
         .addSubcommand(sub => sub
             .setName('list')
             .setDescription('Show upcoming events in this server')),
@@ -72,8 +74,13 @@ module.exports = {
         const title = interaction.options.getString('title').trim();
         const when = interaction.options.getString('when');
         const capacity = interaction.options.getInteger('capacity') ?? 0;
-        const description = interaction.options.getString('description');
         const recurrence = interaction.options.getBoolean('repeat_weekly') ? 'weekly' : 'none';
+
+        // Bundled banner (optional). When chosen it supplies a clean default
+        // description too, unless the host wrote their own.
+        const bannerKey = interaction.options.getString('banner');
+        const bannerFile = bannerFileForKey(bannerKey);
+        const description = interaction.options.getString('description') || bannerBlurbForKey(bannerKey);
 
         const startsAt = parseStartTime(when);
         if (!startsAt) {
@@ -86,14 +93,14 @@ module.exports = {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const pingRoleId = await resolveGamePingRole(interaction, game, interaction.options.getRole('ping_role'));
-        // Pull a widescreen banner for the game (same source as LFG). Null if unavailable.
-        const imgUrl = await fetchGameBanner(game);
+        // A bundled banner wins; otherwise pull a widescreen game banner. Null if unavailable.
+        const imgUrl = bannerFile ? null : await fetchGameBanner(game);
 
         const evData = {
             guildId: interaction.guild.id,
             channelId: interaction.channel.id,
             hostId: interaction.user.id,
-            game, title, description, startsAt, capacity, pingRoleId, imgUrl,
+            game, title, description, startsAt, capacity, pingRoleId, imgUrl, bannerFile,
             // Weekly events are sign-up-free reminders, so no host on the roster.
             going: recurrence === 'weekly' ? [] : [{ userId: interaction.user.id, username: interaction.user.username }],
             maybe: [], waitlist: [],
@@ -102,11 +109,13 @@ module.exports = {
         };
 
         const weekly = recurrence === 'weekly';
+        const banner = bannerAttachment(bannerFile);
         try {
             const msg = await interaction.channel.send({
                 content: pingRoleId && !weekly ? `<@&${pingRoleId}>` : undefined,
                 embeds: [buildEventEmbed(evData)],
                 components: weekly ? [] : [buildEventButtons(false)],
+                files: banner ? [banner] : [],
                 allowedMentions: weekly ? { parse: [] } : { roles: pingRoleId ? [pingRoleId] : [] },
             });
             await Event.create({ messageId: msg.id, ...evData });

@@ -11,6 +11,7 @@ const {
 const Event = require('../database/EventSchema');
 const { applyRsvp } = require('./eventRsvp');
 const { addWeeksKeepingLocalTime } = require('./time');
+const { bannerAttachment } = require('./eventBanners');
 const logger = require('./logger');
 
 const BTN = { going: 'event:going', maybe: 'event:maybe', decline: 'event:decline', cancel: 'event:cancel' };
@@ -55,7 +56,9 @@ function buildReminderEmbed(ev) {
         .setFooter({ text: 'GLITCH_HAVEN // EVENT_SYSTEM' })
         .setTimestamp();
 
-    if (ev.imgUrl) embed.setImage(ev.imgUrl);
+    // A bundled banner file is attached at send time, so reference it by name.
+    if (ev.bannerFile) embed.setImage(`attachment://${ev.bannerFile}`);
+    else if (ev.imgUrl) embed.setImage(ev.imgUrl);
     return embed;
 }
 
@@ -247,6 +250,7 @@ async function spawnNextOccurrence(client, ev) {
         capacity: ev.capacity,
         imgUrl: ev.imgUrl,
         pingRoleId: ev.pingRoleId,
+        bannerFile: ev.bannerFile,
         // Reminder-style, no sign-ups, so no roster is tracked.
         going: [], maybe: [], waitlist: [],
         status: 'SCHEDULED', startNotified: false,
@@ -254,8 +258,10 @@ async function spawnNextOccurrence(client, ev) {
     };
 
     try {
+        const banner = bannerAttachment(evData.bannerFile);
         const msg = await channel.send({
             embeds: [buildEventEmbed(evData)],
+            files: banner ? [banner] : [],
             allowedMentions: { parse: [] },
         });
         await Event.create({ messageId: msg.id, ...evData });
