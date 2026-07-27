@@ -9,6 +9,7 @@ const Infraction = require('../database/InfractionSchema');
 const { brandedEmbed, COLORS } = require('./brand');
 const { getGuildConfig } = require('./guildConfigCache');
 const { humanizeDuration } = require('./duration');
+const channels = require('./channels');
 const logger = require('./logger');
 
 const ACTION_VERB = { warn: 'warned', timeout: 'timed out', kick: 'kicked', ban: 'banned' };
@@ -53,7 +54,10 @@ async function recordInfraction({ guild, targetUser, moderator, type, reason, du
 
     try {
         const cfg = await getGuildConfig(guild.id) || {};
-        const channel = cfg.modLogChannelId && guild.channels.cache.get(cfg.modLogChannelId);
+        // Per-guild override wins; fall back to the env-configured mod-log so
+        // moderation and audit events land in the same place.
+        const modLogId = cfg.modLogChannelId || channels.modLog;
+        const channel = modLogId && guild.channels.cache.get(modLogId);
         if (channel) {
             const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
                 .setTitle(`Member ${ACTION_VERB[type] || type}`)
