@@ -7,6 +7,7 @@
 
 const { ActivityType } = require('discord.js');
 const config = require('../../config.json');
+const channels = require('../utils/channels');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const { isDoubleXpStartDay } = require('../utils/isDoubleXp');
 const BotState = require('../database/BotStateSchema');
@@ -36,7 +37,7 @@ function getTodayString() {
 async function announceDoubleXp(client, guildId) {
     try {
         const guildConfig = await getGuildConfig(guildId) || {};
-        const channelId = guildConfig.announcementsChannelId || config.channels.announcements;
+        const channelId = guildConfig.announcementsChannelId || channels.announcements;
         const channel = client.channels.cache.get(channelId);
         if (!channel) return logger.warn(`Announcements channel not found for guild ${guildId}. Check guild settings or config.json.`);
 

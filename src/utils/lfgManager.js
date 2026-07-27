@@ -12,7 +12,7 @@ const {
 const LfgSession = require('../database/LfgSchema');
 const { fetchGameBanner } = require('./steamGridClient');
 const { getGuildConfig } = require('./guildConfigCache');
-const config = require('../../config.json');
+const channels = require('./channels');
 const logger = require('./logger');
 
 // ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ async function handleModalSubmit(interaction) {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const lfgChannel = interaction.guild.channels.cache.get(config.channels.lfg);
+    const lfgChannel = interaction.guild.channels.cache.get(channels.lfg);
     if (!lfgChannel) {
         return interaction.editReply({ content: '`ERROR_404` : LFG channel not configured. Contact an admin.' });
     }

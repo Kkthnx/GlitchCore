@@ -10,7 +10,7 @@ const levelUpSayings = require('./levelUpSayings');
 const { isDoubleXpActive } = require('./isDoubleXp');
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { PALETTE } = require('./brand');
-const config = require('../../config.json');
+const channels = require('./channels');
 const logger = require('./logger');
 
 // Terminal / glitch ANSI helpers (match the LFG and event systems).
@@ -27,7 +27,7 @@ const RST = `${ESC}[0m`;
  * @param {Client} client - The Discord.js client
  */
 async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
-    let channelId = config.channels.levelUpLog;
+    let channelId = channels.levelUpLog;
     try {
         const guildSettings = await getGuildConfig(guildId) || {};
         channelId = guildSettings.levelUpLogChannelId || channelId;

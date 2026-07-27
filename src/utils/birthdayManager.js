@@ -7,7 +7,7 @@
 
 const Birthday = require('../database/BirthdaySchema');
 const BotState = require('../database/BotStateSchema');
-const config = require('../../config.json');
+const channels = require('./channels');
 const { brandedEmbed, COLORS } = require('./brand');
 const { getLocalDateString, msUntilNextLocalMidnight } = require('./time');
 const logger = require('./logger');
@@ -39,7 +39,7 @@ async function announceForGuild(client, guild) {
 
     if (!birthdays.length) return;
 
-    const channelId = config.channels.birthday || config.channels.announcements;
+    const channelId = channels.birthday || channels.announcements;
     const channel = channelId && guild.channels.cache.get(channelId);
     if (!channel) return;
 

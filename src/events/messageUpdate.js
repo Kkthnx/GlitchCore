@@ -7,7 +7,7 @@
 
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { brandedEmbed, COLORS } = require('../utils/brand');
-const config = require('../../config.json');
+const channels = require('../utils/channels');
 const logger = require('../utils/logger');
 
 function clip(text, max = 950) {
@@ -29,7 +29,7 @@ module.exports = {
             if (oldMessage.content === newMessage.content) return;
 
             const cfg = await getGuildConfig(newMessage.guild.id);
-            const modLogId = cfg?.modLogChannelId || config.channels.modLog;
+            const modLogId = cfg?.modLogChannelId || channels.modLog;
             if (!modLogId) return;
             const channel = newMessage.guild.channels.cache.get(modLogId);
             if (!channel) return;

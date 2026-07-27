@@ -7,7 +7,7 @@
 
 const { farewells, pick } = require('../utils/welcomeSayings');
 const { brandedEmbed, COLORS } = require('../utils/brand');
-const config = require('../../config.json');
+const channels = require('../utils/channels');
 const logger = require('../utils/logger');
 
 // Posts a sly farewell when a member leaves. Uses the leave channel if set,
@@ -16,7 +16,7 @@ module.exports = {
     name: 'guildMemberRemove',
     async execute(member) {
         try {
-            const channelId = config.channels.leave || config.channels.welcome;
+            const channelId = channels.leave || channels.welcome;
             const channel = member.guild.channels.cache.get(channelId);
             if (!channel) return;
 

@@ -10,6 +10,7 @@ const buildWelcomeImage = require('../utils/generateWelcomeImage');
 const { headlines, quips, pick } = require('../utils/welcomeSayings');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const config = require('../../config.json');
+const channels = require('../utils/channels');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -46,7 +47,7 @@ module.exports = {
 
         // 3. Generate and Send Welcome Banner
         try {
-            const welcomeChannel = member.guild.channels.cache.get(config.channels.welcome);
+            const welcomeChannel = member.guild.channels.cache.get(channels.welcome);
             if (!welcomeChannel) return logger.warn('Welcome channel ID is invalid or missing.');
 
             const headline = pick(headlines);

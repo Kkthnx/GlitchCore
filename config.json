@@ -36,12 +36,12 @@
         }
     },
     "channels": {
-        "welcome": "1440433072288829533",
+        "welcome": "",
         "leave": "",
-        "announcements": "1354282113452736623",
-        "lfg": "1437896355560423544",
-        "levelUpLog": "1440433023467131012",
-        "modLog": "1440433573466345664",
+        "announcements": "",
+        "lfg": "",
+        "levelUpLog": "",
+        "modLog": "",
         "birthday": ""
     },
     "roles": {
