@@ -8,7 +8,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
 const { parseDuration, humanizeDuration } = require('../../utils/duration');
-const { scheduleTempBan } = require('../../utils/tempBanManager');
+const { scheduleTempBan, clearTempBan } = require('../../utils/tempBanManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -64,6 +64,9 @@ module.exports = {
             return interaction.reply({ content: `🔨 Temp-banned <@${targetUser.id}> for ${humanizeDuration(durationMs)}, ${reason}` });
         }
 
+        // A permanent ban must cancel any earlier temp-ban so the scheduler
+        // doesn't quietly unban them when the old timer expires.
+        await clearTempBan(interaction.guild.id, targetUser.id);
         return interaction.reply({ content: `🔨 Banned <@${targetUser.id}>, ${reason}` });
     },
 };

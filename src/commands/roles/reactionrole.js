@@ -7,7 +7,7 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const ReactionRole = require('../../database/ReactionRoleSchema');
-const { buildMenuEmbed, parseEmojiInput } = require('../../utils/reactionRoleManager');
+const { buildMenuEmbed, parseEmojiInput, trackMenu } = require('../../utils/reactionRoleManager');
 
 const MAX_PAIRS = 20;
 
@@ -47,6 +47,7 @@ module.exports = {
             const posted = await interaction.channel.send({ embeds: [buildMenuEmbed(doc)] });
             doc.messageId = posted.id;
             await doc.save();
+            trackMenu(posted.id);
 
             return interaction.reply({ content: `Menu created. Add roles with \`/reactionrole add message_id:${posted.id}\`.`, flags: MessageFlags.Ephemeral });
         }

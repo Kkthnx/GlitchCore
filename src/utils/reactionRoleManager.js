@@ -10,6 +10,31 @@ const ReactionRole = require('../database/ReactionRoleSchema');
 const { PALETTE } = require('./brand');
 const logger = require('./logger');
 
+// In-memory set of message IDs that are reaction-role menus. Reactions fire a
+// lot, so this lets the handler skip a DB lookup for the vast majority of
+// reactions that aren't on a menu. Loaded once on startup, kept in sync as
+// menus are created.
+const menuMessageIds = new Set();
+
+async function loadMenuCache() {
+    try {
+        const docs = await ReactionRole.find({}, { messageId: 1 });
+        menuMessageIds.clear();
+        for (const d of docs) menuMessageIds.add(d.messageId);
+        logger.info(`[REACTIONROLE] Cached ${menuMessageIds.size} menu message(s).`);
+    } catch (err) {
+        logger.error('[REACTIONROLE] Failed to load menu cache:', err);
+    }
+}
+
+function trackMenu(messageId) {
+    menuMessageIds.add(messageId);
+}
+
+function untrackMenu(messageId) {
+    menuMessageIds.delete(messageId);
+}
+
 // The stable identity of an emoji: the custom-emoji id if present, else the
 // unicode character. Used both to store pairs and to match live reactions.
 function emojiKeyFromReaction(emoji) {
@@ -41,8 +66,12 @@ function buildMenuEmbed(doc) {
 // Adds or removes the mapped role when a member reacts on a menu message.
 async function handleReactionRole(reaction, user, add) {
     try {
-        if (reaction.partial) { try { await reaction.fetch(); } catch { return; } }
         const message = reaction.message;
+        // Fast path: skip anything that isn't a known menu without touching
+        // the DB. Partial messages still carry their id, so this is safe.
+        if (!menuMessageIds.has(message.id)) return;
+
+        if (reaction.partial) { try { await reaction.fetch(); } catch { return; } }
         if (!message?.guild) return;
 
         const doc = await ReactionRole.findOne({ messageId: message.id });
@@ -72,4 +101,7 @@ module.exports = {
     buildMenuEmbed,
     parseEmojiInput,
     emojiKeyFromReaction,
+    loadMenuCache,
+    trackMenu,
+    untrackMenu,
 };

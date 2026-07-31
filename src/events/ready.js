@@ -239,6 +239,10 @@ module.exports = {
         const { startBirthdayScheduler } = require('../utils/birthdayManager');
         startBirthdayScheduler(client);
 
+        // 3h. Warm the reaction-role menu cache so reactions skip the DB
+        const { loadMenuCache } = require('../utils/reactionRoleManager');
+        loadMenuCache().catch(err => logger.error('[REACTIONROLE] Cache load failed:', err));
+
         if (client.guilds.cache.size === 0) {
             return logger.warn('No guilds found in cache.');
         }

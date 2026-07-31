@@ -238,7 +238,14 @@ async function spawnNextOccurrence(client, ev) {
     const channel = guild?.channels.cache.get(ev.channelId);
     if (!channel) return;
 
-    const nextStartsAt = addWeeksKeepingLocalTime(ev.startsAt, 1);
+    // Advance a full week, and keep advancing if the bot was down long enough
+    // that "next week" is itself already past, so we never post a backlog of
+    // stale reminders, only the next real occurrence.
+    let nextStartsAt = addWeeksKeepingLocalTime(ev.startsAt, 1);
+    while (nextStartsAt.getTime() <= Date.now()) {
+        nextStartsAt = addWeeksKeepingLocalTime(nextStartsAt, 1);
+    }
+
     const evData = {
         guildId: ev.guildId,
         channelId: ev.channelId,
