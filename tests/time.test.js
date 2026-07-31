@@ -5,7 +5,10 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { getLocalDateString, getLocalDay, getLocalDayName, msUntilNextLocalMidnight } = require('../src/utils/time');
+const {
+    getLocalDateString, getLocalDay, getLocalDayName, msUntilNextLocalMidnight,
+    zonedWallTimeString, zonedWallTimeToDate, addWeeksKeepingLocalTime,
+} = require('../src/utils/time');
 
 describe('community-timezone helpers (America/New_York)', () => {
     // 2026-07-24 03:30 UTC == 2026-07-23 23:30 America/New_York (still Thursday).
@@ -31,5 +34,32 @@ describe('community-timezone helpers (America/New_York)', () => {
         const ms = msUntilNextLocalMidnight(lateThursdayNight);
         expect(ms).toBeGreaterThan(0);
         expect(ms).toBeLessThanOrEqual(24 * 60 * 60 * 1000);
+    });
+});
+
+describe('recurring-event time math', () => {
+    // 2026-07-31 23:00 UTC == 2026-07-31 19:00 (7pm) America/New_York.
+    const fridaySevenPm = new Date('2026-07-31T23:00:00Z');
+
+    test('zonedWallTimeString renders the local wall clock', () => {
+        expect(zonedWallTimeString(fridaySevenPm)).toBe('2026-07-31 19:00');
+    });
+
+    test('zonedWallTimeToDate round-trips with zonedWallTimeString', () => {
+        const back = zonedWallTimeToDate(zonedWallTimeString(fridaySevenPm));
+        expect(back.getTime()).toBe(fridaySevenPm.getTime());
+    });
+
+    test('addWeeksKeepingLocalTime keeps 7pm local a week later', () => {
+        const next = addWeeksKeepingLocalTime(fridaySevenPm, 1);
+        expect(zonedWallTimeString(next)).toBe('2026-08-07 19:00');
+    });
+
+    test('advancing across the fall DST change still lands at 7pm local', () => {
+        // US DST ends 2026-11-01. A weekly 7pm event the week before/after
+        // must stay 7pm wall-clock, not drift by the hour.
+        const octLate = new Date('2026-10-30T23:00:00Z'); // 7pm ET, DST on
+        const next = addWeeksKeepingLocalTime(octLate, 1); // crosses into standard time
+        expect(zonedWallTimeString(next).endsWith('19:00')).toBe(true);
     });
 });

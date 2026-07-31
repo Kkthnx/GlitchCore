@@ -15,6 +15,24 @@ const ADMIN_COMMANDS = new Set(['settings', 'levelrewards', 'giveaway', 'streame
 
 const FIELD_LIMIT = 1024;
 
+// Packs lines into newline-joined chunks that never exceed `limit` chars, so
+// each becomes a valid embed field. A single line longer than the limit is
+// truncated rather than dropped. Pure and unit-tested.
+function chunkLines(lines, limit = FIELD_LIMIT) {
+    const chunks = [];
+    let buf = '';
+    for (let line of lines) {
+        if (line.length > limit) line = `${line.slice(0, limit - 1)}…`;
+        if (buf && buf.length + 1 + line.length > limit) {
+            chunks.push(buf);
+            buf = '';
+        }
+        buf = buf ? `${buf}\n${line}` : line;
+    }
+    if (buf) chunks.push(buf);
+    return chunks;
+}
+
 // Adds a group as one or more embed fields, never exceeding Discord's 1024-char
 // field limit. Continuation fields use a zero-width name so it reads as one
 // section. Without this, /help throws once enough commands are registered.
@@ -24,18 +42,9 @@ function addGroup(embed, name, list) {
         embed.addFields({ name, value: '*None available.*' });
         return;
     }
-
-    let buf = '';
-    let first = true;
-    for (const line of lines) {
-        if (buf && buf.length + 1 + line.length > FIELD_LIMIT) {
-            embed.addFields({ name: first ? name : '​', value: buf });
-            buf = '';
-            first = false;
-        }
-        buf = buf ? `${buf}\n${line}` : line;
-    }
-    if (buf) embed.addFields({ name: first ? name : '​', value: buf });
+    chunkLines(lines).forEach((value, i) => {
+        embed.addFields({ name: i === 0 ? name : '​', value });
+    });
 }
 
 module.exports = {
@@ -59,4 +68,6 @@ module.exports = {
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
+    // Exported for unit tests.
+    chunkLines,
 };
