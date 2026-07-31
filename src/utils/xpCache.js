@@ -70,9 +70,29 @@ async function flushXpBuffer(client = null) {
         queryConditions.push({ userId, guildId });
     }
 
+    // Step 1: persist the XP increments. This is the only step whose failure
+    // means the XP was NOT saved, so it's the only one we re-queue for.
+    // Re-queuing after it succeeds would double-count the XP on the next flush.
     try {
         await User.bulkWrite(bulkOps, { ordered: false });
+    } catch (err) {
+        logger.error('[XP_SYNC_ERROR] XP increment failed, re-queuing batch:', err);
+        for (const [key, data] of batch.entries()) {
+            const current = xpBuffer.get(key);
+            if (!current) xpBuffer.set(key, { ...data });
+            else {
+                current.xp += data.xp;
+                current.textMessageCount += data.textMessageCount;
+            }
+        }
+        isFlushing = false;
+        return;
+    }
 
+    // Step 2: recompute levels from the now-persisted absolute XP. A failure
+    // here is safe to swallow, the next flush recomputes from the same XP, so
+    // we must NOT re-queue (the XP is already saved).
+    try {
         const updatedUsers = await User.find(
             { $or: queryConditions },
             { userId: 1, guildId: 1, xp: 1, level: 1 }
@@ -126,17 +146,7 @@ async function flushXpBuffer(client = null) {
             }
         }
     } catch (err) {
-        logger.error('[XP_SYNC_ERROR] Failed to batch sync XP adjustments to database:', err);
-
-        for (const [key, data] of batch.entries()) {
-            if (!xpBuffer.has(key)) {
-                xpBuffer.set(key, { ...data });
-            } else {
-                const current = xpBuffer.get(key);
-                current.xp += data.xp;
-                current.textMessageCount += data.textMessageCount;
-            }
-        }
+        logger.error('[XP_SYNC_ERROR] Level recompute failed (XP already saved, not re-queued):', err);
     } finally {
         isFlushing = false;
     }

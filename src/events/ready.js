@@ -171,29 +171,26 @@ module.exports = {
             await require('../utils/registerCommands').registerGuildCommands(client);
         }
 
-        // Warm the member cache so name-based statuses have people to call out
-        // right away instead of waiting for members to chat. Skip very large
-        // guilds so a full fetch can't stall startup, and refresh on a slow
-        // timer so the pool stays current as members join or leave.
-        const MEMBER_FETCH_LIMIT = 2000;
-        const warmMemberCache = () => {
-            for (const guild of client.guilds.cache.values()) {
-                if (guild.memberCount > MEMBER_FETCH_LIMIT) continue;
-                guild.members.fetch().catch(() => { /* missing intent, skip */ });
-            }
-        };
-        warmMemberCache();
-        setInterval(warmMemberCache, 6 * 60 * 60 * 1000);
+        // Note: name-based statuses read from whatever members are already
+        // cached (people who have chatted recently). We deliberately do NOT
+        // fetch the full member list here, a full guild fetch is a heavy CPU
+        // and memory burst and keeps every member pinned in cache for good.
 
-        // Set initial random status and rotate every 10 minutes
+        // Set initial random status and rotate every 10 minutes. Wrapped so a
+        // presence error can never escape to uncaughtException (which would
+        // exit the process and trigger a respawn loop under the shard manager).
         const updateStatus = () => {
-            // Roughly 40% of the time, call out a random member by name.
-            const status = (Math.random() < 0.4 && randomWatchingStatus(client))
-                || botStatuses[Math.floor(Math.random() * botStatuses.length)];
-            client.user.setPresence({
-                activities: [{ name: 'Custom Status', type: ActivityType.Custom, state: status }],
-                status: 'online',
-            });
+            try {
+                // Roughly 40% of the time, call out a random member by name.
+                const status = (Math.random() < 0.4 && randomWatchingStatus(client))
+                    || botStatuses[Math.floor(Math.random() * botStatuses.length)];
+                client.user.setPresence({
+                    activities: [{ name: 'Custom Status', type: ActivityType.Custom, state: status }],
+                    status: 'online',
+                });
+            } catch (err) {
+                logger.warn(`[STATUS] Failed to set presence: ${err.message}`);
+            }
         };
         updateStatus();
         setInterval(updateStatus, 10 * 60 * 1000);
