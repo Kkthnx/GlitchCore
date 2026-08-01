@@ -89,9 +89,12 @@ const BASE_RETRY_DELAY = 1000; // 1 second
 
 function connectMongo() {
     mongoose.connect(process.env.MONGO_URI, {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 10000,
         socketTimeoutMS: 45000,
         heartbeatFrequencyMS: 10000, // probe the primary every 10s so drops surface fast
+        minPoolSize: 2, // keep a couple of connections warm so idle reaping doesn't churn
+        maxPoolSize: 10,
+        family: 4, // force IPv4; the Atlas SRV lookup over IPv6 times out on some hosts
         retryWrites: true,
     })
         .then(() => {
@@ -114,11 +117,15 @@ function connectMongo() {
 
 connectMongo();
 
-// Listen for connection events to detect and handle disconnects
+// After the initial connect, the driver's own connection pool handles transient
+// drops and reconnects on its own. We only log the state changes. Manually
+// calling connect() again here would stack overlapping attempts and spam the log.
 mongoose.connection.on('disconnected', () => {
-    logger.warn('MongoDB connection lost. Attempting to reconnect...');
-    mongoRetryCount = 0;
-    setTimeout(connectMongo, BASE_RETRY_DELAY);
+    logger.warn('MongoDB connection lost. The driver is reconnecting...');
+});
+
+mongoose.connection.on('reconnected', () => {
+    logger.info('Reconnected to MongoDB Atlas');
 });
 
 mongoose.connection.on('error', (err) => {
