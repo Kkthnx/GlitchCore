@@ -38,9 +38,39 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
     });
 }
 
-manager.spawn()
-    .then(shards => console.log(`[SHARD] Spawned ${shards.size} shard(s)`))
-    .catch(err => {
-        console.error('[SHARD] Failed to spawn shards:', err);
-        process.exit(1);
-    });
+// Spawn with in-process backoff. Exiting on failure makes the host restart the
+// container, which re-hits Discord's gateway and can escalate a temporary
+// rate limit (HTTP 429) into a long crash-loop ban. Staying alive and retrying
+// gently is always better than dying and being restarted.
+const MIN_BACKOFF_MS = 30 * 1000;
+const MAX_BACKOFF_MS = 15 * 60 * 1000; // never sleep more than 15 minutes between tries
+
+function backoffFor(err, attempt) {
+    // Honor Retry-After (seconds) when Discord/Cloudflare sends one, capped so
+    // we still re-check periodically instead of sleeping for hours.
+    const retryAfter = Number(err?.headers?.get?.('retry-after'));
+    if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        return Math.min(retryAfter * 1000, MAX_BACKOFF_MS);
+    }
+    const exp = MIN_BACKOFF_MS * Math.pow(2, Math.min(attempt, 5));
+    return Math.min(exp, MAX_BACKOFF_MS);
+}
+
+async function spawnWithRetry() {
+    let attempt = 0;
+    for (;;) {
+        try {
+            const shards = await manager.spawn();
+            console.log(`[SHARD] Spawned ${shards.size} shard(s)`);
+            return;
+        } catch (err) {
+            attempt += 1;
+            const status = err?.status ? ` (HTTP ${err.status})` : '';
+            const waitMs = backoffFor(err, attempt);
+            console.error(`[SHARD] Spawn attempt ${attempt} failed${status}, retrying in ${Math.round(waitMs / 1000)}s:`, err?.message || err);
+            await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+    }
+}
+
+spawnWithRetry();
