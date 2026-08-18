@@ -19,6 +19,10 @@ const botStateSchema = new mongoose.Schema({
     // Calendar date string (YYYY-MM-DD) of the last birthday shoutout, so a
     // restart on the same local day can't post the birthday list twice.
     lastBirthdayDate: { type: String, default: null },
+
+    // Short commit hash the last update announcement was posted for, so a
+    // restart on the same build never re-announces.
+    lastAnnouncedCommit: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('BotState', botStateSchema);

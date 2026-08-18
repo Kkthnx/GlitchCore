@@ -240,6 +240,10 @@ module.exports = {
         const { loadMenuCache } = require('../utils/reactionRoleManager');
         loadMenuCache().catch(err => logger.error('[REACTIONROLE] Cache load failed:', err));
 
+        // 3i. Post a changelog to announcements if this is a new build
+        const { announceUpdate } = require('../utils/updateAnnouncer');
+        announceUpdate(client).catch(err => logger.error('[UPDATE] Announce failed:', err));
+
         if (client.guilds.cache.size === 0) {
             return logger.warn('No guilds found in cache.');
         }
