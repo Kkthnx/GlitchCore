@@ -5,21 +5,48 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
+const { EmbedBuilder } = require('discord.js');
 const BotState = require('../database/BotStateSchema');
 const { getVersionInfo, getCommitsSince } = require('./version');
 const { getGuildConfig } = require('./guildConfigCache');
-const { brandedEmbed, COLORS } = require('./brand');
 const channels = require('./channels');
 const logger = require('./logger');
 
+const NEON_GREEN = 0x39ff14;
 const MAX_LINES = 12;
 
-// Discord embed descriptions cap at 4096 chars. Keep well under with a budget.
-function buildChangelog(commits) {
-    const lines = commits.slice(0, MAX_LINES).map(s => `- ${s.length > 140 ? `${s.slice(0, 139)}…` : s}`);
+// Terminal palette, matching the event and leaderboard systems.
+const ESC = '\x1b';
+const G = `${ESC}[1;32m`;  // green
+const C = `${ESC}[1;36m`;  // cyan
+const W = `${ESC}[1;37m`;  // white
+const D = `${ESC}[1;30m`;  // dark grey
+const RST = `${ESC}[0m`;
+
+// Truncate and cap the raw commit subjects, returning the change lines plus an
+// optional summary of the remainder. Pure and unit-tested (presentation is
+// applied separately in buildPatchBlock).
+function capChanges(commits) {
+    const lines = commits.slice(0, MAX_LINES).map(s => (s.length > 140 ? `${s.slice(0, 139)}…` : s));
     const extra = commits.length - lines.length;
-    if (extra > 0) lines.push(`- ...and ${extra} more change${extra === 1 ? '' : 's'}`);
-    return lines.join('\n');
+    if (extra > 0) lines.push(`...and ${extra} more change${extra === 1 ? '' : 's'}`);
+    return lines;
+}
+
+// Renders the glitch-terminal patch readout as an ANSI code block.
+function buildPatchBlock(commits, info) {
+    const changes = capChanges(commits);
+    const rows = [
+        '```ansi',
+        `${G}> SYSTEM PATCH DEPLOYED${RST}`,
+        `${C}BUILD  ${RST} ${W}${info.commit}${RST}`,
+        `${C}BRANCH ${RST} ${info.branch || 'main'}`,
+        `${C}CHANGES${RST} ${commits.length}`,
+        '',
+        ...changes.map(c => (c.startsWith('...') ? `${D}  ${c}${RST}` : `${G}+ ${RST}${c}`)),
+        '```',
+    ];
+    return rows.join('\n');
 }
 
 // Posts a changelog to each guild's announcements channel when the running
@@ -27,7 +54,8 @@ function buildChangelog(commits) {
 // BotState.lastAnnouncedCommit. Silent on the very first run so we never dump
 // the whole history, and silent when there is no git commit to compare.
 async function announceUpdate(client) {
-    const { commit } = getVersionInfo();
+    const info = getVersionInfo();
+    const commit = info.commit;
     if (!commit) return; // not a git checkout, nothing to compare
 
     for (const guild of client.guilds.cache.values()) {
@@ -62,10 +90,13 @@ async function announceUpdate(client) {
             // so a send failure or mid-loop restart can't cause a repeat.
             await record();
 
-            const embed = brandedEmbed({ color: COLORS.primary, footer: `GlitchCore, ${commit}` })
+            const embed = new EmbedBuilder()
+                .setColor(NEON_GREEN)
                 .setAuthor({ name: '⚡ SYSTEM.UPDATE' })
-                .setTitle('🚀 GlitchCore was updated')
-                .setDescription(`Here is what changed.\n\n${buildChangelog(commits)}`);
+                .setTitle('> GLITCHCORE // PATCH NOTES')
+                .setDescription(buildPatchBlock(commits, info))
+                .setFooter({ text: `GLITCH_HAVEN // BUILD ${commit}` })
+                .setTimestamp();
 
             await channel.send({ embeds: [embed] }).catch(() => {});
             logger.info(`[UPDATE] Announced ${commits.length} change(s) to ${guild.id} for ${commit}.`);
@@ -75,4 +106,4 @@ async function announceUpdate(client) {
     }
 }
 
-module.exports = { announceUpdate, buildChangelog };
+module.exports = { announceUpdate, capChanges, buildPatchBlock };
