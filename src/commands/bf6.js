@@ -6,16 +6,15 @@
  */
 
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
-const { getProfile, overviewStats } = require('../utils/trackerClient');
+const { resolveProfile, overviewStats } = require('../utils/trackerClient');
 
-// Game and platform slugs are centralized so they are trivial to adjust when
-// Tracker.gg finalizes Battlefield 6 support.
+// Battlefield 6 profiles are looked up by in-game name (Steam name resolves to
+// a numeric id), with no platform in the tracker.gg URL. The public API still
+// needs a platform in its path but does not document BF6's slug, so we try a
+// few candidates and use whichever resolves. Steam first, since that is how the
+// site itself searches. Centralized for easy adjustment.
 const GAME = 'bf6';
-const PLATFORMS = [
-    { name: 'PC', value: 'origin' },
-    { name: 'PlayStation', value: 'psn' },
-    { name: 'Xbox', value: 'xbl' },
-];
+const PLATFORM_CANDIDATES = ['steam', 'ea', 'origin', 'pc'];
 
 // Stats we surface first, if the profile has them. Anything else fills in after,
 // so the card still renders even if Battlefield 6 uses different keys.
@@ -72,18 +71,15 @@ module.exports = {
         .setName('bf6')
         .setDescription('Look up Battlefield 6 player stats from Tracker.gg')
         .setDMPermission(false)
-        .addStringOption(o => o.setName('platform').setDescription('Player platform').setRequired(true)
-            .addChoices(...PLATFORMS))
-        .addStringOption(o => o.setName('username').setDescription('In-game name / ID').setRequired(true).setMaxLength(64)),
+        .addStringOption(o => o.setName('player').setDescription('In-game / Steam name, or the ID from your tracker.gg URL').setRequired(true).setMaxLength(64)),
 
     async execute(interaction) {
         await interaction.deferReply();
-        const platform = interaction.options.getString('platform');
-        const username = interaction.options.getString('username').trim();
+        const player = interaction.options.getString('player').trim();
 
-        const result = await getProfile(GAME, platform, username);
+        const result = await resolveProfile(GAME, PLATFORM_CANDIDATES, player);
         if (result.error) {
-            return interaction.editReply({ content: `\`BF6_ERR\` ${ERRORS[result.error] || ERRORS.unavailable}`, flags: MessageFlags.Ephemeral });
+            return interaction.editReply({ content: `\`BF6_ERR\` ${ERRORS[result.error] || ERRORS.unavailable}` });
         }
 
         const data = result.data;
@@ -92,9 +88,10 @@ module.exports = {
             return interaction.editReply({ content: '`BF6_ERR` That profile has no stats to show yet.' });
         }
 
-        const handle = data.platformInfo?.platformUserHandle || username;
+        const handle = data.platformInfo?.platformUserHandle || player;
         const avatar = data.platformInfo?.avatarUrl || null;
-        const profileUrl = `https://tracker.gg/${GAME}/profile/${platform}/${encodeURIComponent(username)}/overview`;
+        const profileId = data.platformInfo?.platformUserIdentifier || player;
+        const profileUrl = `https://tracker.gg/${GAME}/profile/${encodeURIComponent(profileId)}/overview`;
 
         const embed = new EmbedBuilder()
             .setColor(PALETTE)

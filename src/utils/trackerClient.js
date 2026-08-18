@@ -54,6 +54,25 @@ async function getProfile(game, platform, username) {
     }
 }
 
+/**
+ * Try a profile across several candidate platform slugs and return the first
+ * that resolves. Used for titles like Battlefield 6 whose public-API platform
+ * slug is not documented, so we self-discover it instead of guessing wrong.
+ * Stops early on errors that would not change across platforms (no key, auth,
+ * rate limit, network).
+ * @returns {{ data, platform } | { error }}
+ */
+async function resolveProfile(game, platforms, identifier) {
+    let lastError = 'not_found';
+    for (const platform of platforms) {
+        const r = await getProfile(game, platform, identifier);
+        if (!r.error) return { data: r.data, platform };
+        if (['no_key', 'auth', 'rate_limited', 'network'].includes(r.error)) return { error: r.error };
+        lastError = r.error;
+    }
+    return { error: lastError };
+}
+
 // The overview segment's stats map (or the first segment as a fallback), which
 // holds the lifetime numbers we display.
 function overviewStats(data) {
@@ -62,4 +81,4 @@ function overviewStats(data) {
     return seg?.stats || {};
 }
 
-module.exports = { isConfigured, getProfile, overviewStats };
+module.exports = { isConfigured, getProfile, resolveProfile, overviewStats };
