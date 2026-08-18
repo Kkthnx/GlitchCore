@@ -21,6 +21,11 @@ module.exports = {
     async execute(message) {
         try {
             if (!message.guild) return;
+            // Uncached (partial) deletes carry no author or content, so an entry
+            // for one is pure noise. It also catches the bot's own self-deleted
+            // messages (event cards, expired pings, starboard cleanup) once they
+            // age out of cache. Only log deletes we actually have data for.
+            if (message.partial) return;
             if (message.author?.bot) return;
 
             const cfg = await getGuildConfig(message.guild.id);

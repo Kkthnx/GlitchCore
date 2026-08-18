@@ -39,7 +39,7 @@ const client = new Client({
     // Bound the largest caches so long uptimes can't grow unbounded (OOM guard).
     makeCache: Options.cacheWithLimits({
         ...Options.DefaultMakeCacheSettings,
-        MessageManager: 50,                 // keep at most 50 messages per channel
+        MessageManager: 100,                // keep at most 100 messages per channel
         ReactionManager: 0,
         GuildInviteManager: 0,
     }),
@@ -48,7 +48,7 @@ const client = new Client({
         ...Options.DefaultSweeperSettings,
         messages: {
             interval: 600,                  // every 10 minutes
-            lifetime: 1800,                 // drop messages older than 30 minutes
+            lifetime: 3600,                 // drop messages older than 1 hour (so more deletes log with content)
         },
         users: {
             interval: 3600,                 // every hour
