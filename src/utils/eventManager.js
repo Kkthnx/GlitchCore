@@ -30,6 +30,10 @@ const RST = `${ESC}[0m`;
 // How long after start time an event is considered concluded and swept away.
 const CONCLUDE_GRACE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+// How long a recurring event's "starting now" heads-up stays before it self-
+// deletes, so weekly reminders never pile up in the channel.
+const REMINDER_PING_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+
 // A clean, sign-up-free reminder card used for recurring events. No roster,
 // slots, or buttons, just a good-looking heads-up that repeats each week.
 function buildReminderEmbed(ev) {
@@ -309,11 +313,14 @@ async function processStartingEvents(client) {
 
         if (weekly) {
             // Simple "starting now" heads-up, no roster since there are no
-            // sign-ups. Ping the role if one is set.
+            // sign-ups. Ping the role if one is set. The heads-up self-deletes
+            // after a grace window so weekly reminders never pile up.
             const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
             channel.send({
                 content: `🎮 **${ev.title}** is starting now! ${rolePing}`.trim(),
                 allowedMentions: { roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
+            }).then(ping => {
+                setTimeout(() => ping.delete().catch(() => {}), REMINDER_PING_TTL_MS);
             }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
 
             // Replace itself: delete the old card so the channel only shows the
