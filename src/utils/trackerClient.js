@@ -29,7 +29,13 @@ async function getProfile(game, platform, username) {
     let res;
     try {
         res = await fetch(url, {
-            headers: { 'TRN-Api-Key': process.env.TRACKER_API_KEY, Accept: 'application/json' },
+            headers: {
+                'TRN-Api-Key': process.env.TRACKER_API_KEY,
+                Accept: 'application/json',
+                // Tracker's public API is behind Cloudflare and rejects requests
+                // without a browser-like User-Agent (a bare node/undici UA 403s).
+                'User-Agent': 'Mozilla/5.0 (compatible; GlitchCore/1.0; +https://github.com/Kkthnx/GlitchCore)',
+            },
         });
     } catch (err) {
         logger.warn(`[TRACKER] Request failed: ${err.message}`);
@@ -37,9 +43,15 @@ async function getProfile(game, platform, username) {
     }
 
     if (res.status === 404) return { error: 'not_found' };
-    if (res.status === 401 || res.status === 403) return { error: 'auth' };
     if (res.status === 429) return { error: 'rate_limited' };
     if (res.status === 451) return { error: 'private' };
+    if (res.status === 401 || res.status === 403) {
+        // Log the body so we can tell an invalid key (401) from a Cloudflare /
+        // unapproved-app block (403) when diagnosing.
+        const body = await res.text().catch(() => '');
+        logger.warn(`[TRACKER] ${res.status} for ${game}/${platform}: ${body.slice(0, 200)}`);
+        return { error: res.status === 401 ? 'auth' : 'forbidden' };
+    }
     if (!res.ok) {
         logger.warn(`[TRACKER] Unexpected status ${res.status} for ${game}/${platform}`);
         return { error: 'unavailable' };
@@ -67,7 +79,7 @@ async function resolveProfile(game, platforms, identifier) {
     for (const platform of platforms) {
         const r = await getProfile(game, platform, identifier);
         if (!r.error) return { data: r.data, platform };
-        if (['no_key', 'auth', 'rate_limited', 'network'].includes(r.error)) return { error: r.error };
+        if (['no_key', 'auth', 'forbidden', 'rate_limited', 'network'].includes(r.error)) return { error: r.error };
         lastError = r.error;
     }
     return { error: lastError };
