@@ -74,7 +74,7 @@ module.exports = {
                 .map(b => ({ b, in: daysUntil(b.month, b.day, today) }))
                 .sort((a, z) => a.in - z.in)
                 .slice(0, 10)
-                .map(({ b, in: days }) => `**${fmt(b.month, b.day)}** — <@${b.userId}> ${days === 0 ? '(today! 🎉)' : `(in ${days}d)`}`);
+                .map(({ b, in: days }) => `**${fmt(b.month, b.day)}**, <@${b.userId}> ${days === 0 ? '(today! 🎉)' : `(in ${days}d)`}`);
 
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Birthdays' })
                 .setTitle('Upcoming birthdays')
@@ -87,7 +87,7 @@ module.exports = {
             const rows = await Birthday.find({ guildId, month }).sort({ day: 1 });
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Birthdays' })
                 .setTitle(`Birthdays in ${MONTHS[month - 1]}`)
-                .setDescription(rows.length ? rows.map(b => `**${b.day}** — <@${b.userId}>`).join('\n') : 'Nobody has a birthday saved this month.');
+                .setDescription(rows.length ? rows.map(b => `**${b.day}**, <@${b.userId}>`).join('\n') : 'Nobody has a birthday saved this month.');
             return interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
         }
     },

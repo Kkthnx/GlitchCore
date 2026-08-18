@@ -37,7 +37,7 @@ module.exports = {
             const who = newMessage.author ? `${newMessage.author.tag} (${newMessage.author.id})` : 'Unknown';
             const embed = brandedEmbed({ color: COLORS.hype, footer: 'GLITCH_HAVEN // AUDIT' })
                 .setAuthor({ name: '⚡ SYSTEM.MESSAGE_EDITED' })
-                .setDescription(`In ${newMessage.channel} — [jump](${newMessage.url})`)
+                .setDescription(`In ${newMessage.channel}, [jump](${newMessage.url})`)
                 .addFields(
                     { name: '> AUTHOR', value: who, inline: false },
                     { name: '> BEFORE', value: clip(oldMessage.content), inline: false },

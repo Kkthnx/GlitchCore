@@ -50,7 +50,7 @@ function parseEmojiInput(input) {
 
 function buildMenuEmbed(doc) {
     const lines = doc.pairs.length
-        ? doc.pairs.map(p => `${p.display} → <@&${p.roleId}>`).join('\n')
+        ? doc.pairs.map(p => `${p.display} for <@&${p.roleId}>`).join('\n')
         : '_No roles yet. A manager can add some with /reactionrole add._';
     return new EmbedBuilder()
         .setColor(PALETTE.accent)

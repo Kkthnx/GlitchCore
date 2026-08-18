@@ -81,7 +81,7 @@ module.exports = {
             doc.pairs.push({ emoji: key, label: display, roleId: role.id });
             await doc.save();
             await menuMsg.edit({ embeds: [buildMenuEmbed(doc)] });
-            return interaction.reply({ content: `Added ${display} → <@&${role.id}>.`, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });
+            return interaction.reply({ content: `Added ${display} for <@&${role.id}>.`, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });
         }
 
         if (sub === 'remove') {

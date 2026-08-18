@@ -19,7 +19,7 @@ module.exports = {
         for (let i = 3; i <= 6; i++) {
             b.addStringOption(o => o.setName(`option${i}`).setDescription(`Answer ${i}`).setRequired(false).setMaxLength(55));
         }
-        b.addIntegerOption(o => o.setName('hours').setDescription('How long the poll runs (1–168, default 24)').setMinValue(1).setMaxValue(168).setRequired(false));
+        b.addIntegerOption(o => o.setName('hours').setDescription('How long the poll runs (1-168, default 24)').setMinValue(1).setMaxValue(168).setRequired(false));
         b.addBooleanOption(o => o.setName('multi').setDescription('Allow selecting multiple answers').setRequired(false));
         return b;
     })(),
