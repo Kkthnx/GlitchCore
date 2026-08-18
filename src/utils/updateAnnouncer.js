@@ -5,10 +5,11 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const BotState = require('../database/BotStateSchema');
 const { getVersionInfo, getCommitsSince } = require('./version');
 const { getGuildConfig } = require('./guildConfigCache');
+const { generatePatchBanner } = require('./generatePatchBanner');
 const channels = require('./channels');
 const logger = require('./logger');
 
@@ -18,10 +19,21 @@ const MAX_LINES = 12;
 // Terminal palette, matching the event and leaderboard systems.
 const ESC = '\x1b';
 const G = `${ESC}[1;32m`;  // green
+const Y = `${ESC}[1;33m`;  // amber
+const R = `${ESC}[1;31m`;  // red
 const C = `${ESC}[1;36m`;  // cyan
 const W = `${ESC}[1;37m`;  // white
 const D = `${ESC}[1;30m`;  // dark grey
 const RST = `${ESC}[0m`;
+
+// Classify a change by its leading verb so the log reads in multiple colors:
+// amber "~" for fixes, red "-" for removals, green "+" for everything else.
+function classifyChange(subject) {
+    const w = String(subject).trim().toLowerCase().split(/\s+/)[0] || '';
+    if (/^(fix|hotfix|patch|correct|repair|resolve|harden|guard)/.test(w)) return { sym: '~', color: Y };
+    if (/^(remove|delete|drop|revert|strip|purge|clean)/.test(w)) return { sym: '-', color: R };
+    return { sym: '+', color: G };
+}
 
 // Truncate and cap the raw commit subjects, returning the change lines plus an
 // optional summary of the remainder. Pure and unit-tested (presentation is
@@ -41,12 +53,26 @@ function buildPatchBlock(commits, info) {
         `${G}> SYSTEM PATCH DEPLOYED${RST}`,
         `${C}BUILD  ${RST} ${W}${info.commit}${RST}`,
         `${C}BRANCH ${RST} ${info.branch || 'main'}`,
+        `${C}AUTHOR ${RST} ${info.author || 'unknown'}`,
         `${C}CHANGES${RST} ${commits.length}`,
         '',
-        ...changes.map(c => (c.startsWith('...') ? `${D}  ${c}${RST}` : `${G}+ ${RST}${c}`)),
+        `${D}░▒▓█ ${G}CHANGELOG ${D}█▓▒░${RST}`,
+        '',
+        ...changes.map(c => {
+            if (c.startsWith('...')) return `${D}  ${c}${RST}`;
+            const { sym, color } = classifyChange(c);
+            return `${color}${sym} ${RST}${c}`;
+        }),
         '```',
     ];
     return rows.join('\n');
+}
+
+// Small grey subtext line under the block with the deploy time.
+function deployedLine(info) {
+    if (!info.commitDate) return '';
+    const unix = Math.floor(new Date(info.commitDate).getTime() / 1000);
+    return `\n-# Deployed <t:${unix}:R>`;
 }
 
 // Posts a changelog to each guild's announcements channel when the running
@@ -94,11 +120,22 @@ async function announceUpdate(client) {
                 .setColor(NEON_GREEN)
                 .setAuthor({ name: '⚡ SYSTEM.UPDATE' })
                 .setTitle('> GLITCHCORE // PATCH NOTES')
-                .setDescription(buildPatchBlock(commits, info))
+                .setDescription(buildPatchBlock(commits, info) + deployedLine(info))
                 .setFooter({ text: `GLITCH_HAVEN // BUILD ${commit}` })
                 .setTimestamp();
 
-            await channel.send({ embeds: [embed] }).catch(() => {});
+            // Chromatic "PATCH DEPLOYED" header banner. If canvas fails for any
+            // reason, still send the text announcement.
+            const files = [];
+            try {
+                const banner = generatePatchBanner(commit);
+                files.push(new AttachmentBuilder(banner, { name: 'patch.png' }));
+                embed.setImage('attachment://patch.png');
+            } catch (err) {
+                logger.warn(`[UPDATE] Patch banner render failed: ${err.message}`);
+            }
+
+            await channel.send({ embeds: [embed], files }).catch(() => {});
             logger.info(`[UPDATE] Announced ${commits.length} change(s) to ${guild.id} for ${commit}.`);
         } catch (err) {
             logger.error(`[UPDATE] Announce failed for ${guild.id}:`, err);

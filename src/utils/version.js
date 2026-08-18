@@ -22,12 +22,13 @@ function git(args, cwd) {
 function getVersionInfo() {
     if (cached) return cached;
     const cwd = path.join(__dirname, '../..');
-    const info = { version: pkg.version, commit: null, branch: null, subject: null, commitDate: null };
+    const info = { version: pkg.version, commit: null, branch: null, subject: null, commitDate: null, author: null };
     try {
         info.commit = git('rev-parse --short HEAD', cwd);
         info.branch = git('rev-parse --abbrev-ref HEAD', cwd);
         info.subject = git('log -1 --pretty=%s', cwd);
         info.commitDate = git('log -1 --pretty=%cI', cwd);
+        info.author = git('log -1 --pretty=%an', cwd);
     } catch {
         // Not a git checkout or git isn't installed, fall back to package version.
     }
