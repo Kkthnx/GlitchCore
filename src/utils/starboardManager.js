@@ -37,8 +37,12 @@ function buildEmbed(message) {
 // Called on both add and remove so the count can go up or down and the post is
 // removed if stars fall back under the threshold.
 async function syncStarboard(reaction) {
-    reaction = await resolvePartial(reaction);
-    if (!reaction) return;
+    // A failed reaction fetch means the last one of that emoji was just removed
+    // (Discord 404s it). That is not fatal: count is then effectively 0, which
+    // still lets us tear down a post that has fallen below the threshold.
+    if (reaction.partial) {
+        try { await reaction.fetch(); } catch { /* gone, count treated as 0 below */ }
+    }
     const message = await resolvePartial(reaction.message);
     if (!message || !message.guild) return;
 

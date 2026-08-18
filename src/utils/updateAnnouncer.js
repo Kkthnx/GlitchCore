@@ -38,17 +38,18 @@ async function announceUpdate(client) {
             // Already announced this exact build, do nothing.
             if (last === commit) continue;
 
-            // Record first so a failed post (or a restart mid-loop) can't cause
-            // a repeat announcement later.
-            await BotState.findOneAndUpdate(
+            const record = () => BotState.findOneAndUpdate(
                 { guildId: guild.id },
                 { lastAnnouncedCommit: commit },
                 { upsert: true },
             );
 
             // First time we've ever seen this guild, adopt the build silently.
-            if (!last) continue;
+            if (!last) { await record(); continue; }
 
+            // Resolve the destination before recording. If there's no channel
+            // yet (unset/misconfigured at boot), leave the dedup untouched so a
+            // later boot with a valid channel still announces this build.
             const cfg = await getGuildConfig(guild.id) || {};
             const channelId = cfg.announcementsChannelId || channels.announcements;
             const channel = channelId && guild.channels.cache.get(channelId);
@@ -56,6 +57,10 @@ async function announceUpdate(client) {
 
             const commits = getCommitsSince(last);
             if (!commits.length) continue;
+
+            // Record now that we have a channel and a changelog, before sending,
+            // so a send failure or mid-loop restart can't cause a repeat.
+            await record();
 
             const embed = brandedEmbed({ color: COLORS.primary, footer: `GlitchCore, ${commit}` })
                 .setAuthor({ name: '⚡ SYSTEM.UPDATE' })

@@ -18,11 +18,14 @@ function fmt(month, day) {
     return `${MONTHS[month - 1]} ${day}`;
 }
 
-// Days from today (local) until the next occurrence of month/day.
+// Days from today (local) until the next occurrence of month/day. The day-of-
+// year basis uses MAX_DAY, which sums to 366 (Feb counted as 29), so the
+// wrap-around must add that same 366 to stay consistent and avoid an off-by-one.
+const YEAR_DAYS = MAX_DAY.reduce((a, b) => a + b, 0); // 366
 function daysUntil(month, day, today) {
     const dayOfYear = (m, d) => MAX_DAY.slice(0, m - 1).reduce((a, b) => a + b, 0) + d;
     let diff = dayOfYear(month, day) - dayOfYear(today.month, today.day);
-    if (diff < 0) diff += 365;
+    if (diff < 0) diff += YEAR_DAYS;
     return diff;
 }
 

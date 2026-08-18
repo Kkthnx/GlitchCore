@@ -31,10 +31,6 @@ function trackMenu(messageId) {
     menuMessageIds.add(messageId);
 }
 
-function untrackMenu(messageId) {
-    menuMessageIds.delete(messageId);
-}
-
 // The stable identity of an emoji: the custom-emoji id if present, else the
 // unicode character. Used both to store pairs and to match live reactions.
 function emojiKeyFromReaction(emoji) {
@@ -103,5 +99,4 @@ module.exports = {
     emojiKeyFromReaction,
     loadMenuCache,
     trackMenu,
-    untrackMenu,
 };
