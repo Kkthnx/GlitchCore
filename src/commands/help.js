@@ -11,7 +11,7 @@ const { brandedEmbed, COLORS } = require('../utils/brand');
 // Admin-only commands are grouped separately so they don't clutter the
 // member-facing list. Everything else is auto-discovered from the loaded
 // command collection, so this never drifts out of sync with reality.
-const ADMIN_COMMANDS = new Set(['settings', 'levelrewards', 'giveaway', 'streamers', 'reactionrole', 'warn', 'timeout', 'kick', 'ban', 'infractions', 'purge', 'slowmode', 'lock', 'unlock']);
+const ADMIN_COMMANDS = new Set(['settings', 'levelrewards', 'giveaway', 'streamers', 'reactionrole', 'warn', 'timeout', 'kick', 'ban', 'unban', 'infractions', 'purge', 'slowmode', 'lock', 'unlock']);
 
 const FIELD_LIMIT = 1024;
 

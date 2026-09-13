@@ -13,7 +13,7 @@ const infractionSchema = new mongoose.Schema({
     guildId: { type: String, required: true },
     userId: { type: String, required: true },
     moderatorId: { type: String, required: true },
-    type: { type: String, required: true, enum: ['warn', 'timeout', 'kick', 'ban'] },
+    type: { type: String, required: true, enum: ['warn', 'timeout', 'kick', 'ban', 'unban'] },
     reason: { type: String, default: 'No reason provided' },
     durationMs: { type: Number, default: null }, // timeouts only
 }, { timestamps: true });

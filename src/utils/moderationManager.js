@@ -12,7 +12,7 @@ const { humanizeDuration } = require('./duration');
 const channels = require('./channels');
 const logger = require('./logger');
 
-const ACTION_VERB = { warn: 'warned', timeout: 'timed out', kick: 'kicked', ban: 'banned' };
+const ACTION_VERB = { warn: 'warned', timeout: 'timed out', kick: 'kicked', ban: 'banned', unban: 'unbanned' };
 
 /**
  * Verifies the moderator may act on the target. Returns a reason string if the
