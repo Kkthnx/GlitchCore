@@ -5,30 +5,15 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
-const path = require('path');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const { roundRect } = require('./canvasKit');
 const themes = require('./cardThemes');
 const logger = require('./logger');
-
-// Fonts
-GlobalFonts.registerFromPath(path.join(__dirname, '../assets/Rajdhani-Bold.ttf'), 'Rajdhani');
-GlobalFonts.registerFromPath(path.join(__dirname, '../assets/Rajdhani-Regular.ttf'), 'Rajdhani-Regular');
 
 const W = 900;
 const H = 240;
 
 // ── low-level helpers ────────────────────────────────────────────────────────
-function roundRect(ctx, x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
-    ctx.closePath();
-}
-
 function rgbGradient(ctx, x1, y1, x2, y2) {
     const g = ctx.createLinearGradient(x1, y1, x2, y2);
     g.addColorStop(0.00, '#ff004c');

@@ -5,37 +5,12 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { createCanvas, GlobalFonts } = require('@napi-rs/canvas');
-const path = require('path');
-
-GlobalFonts.registerFromPath(path.join(__dirname, '../assets/Rajdhani-Bold.ttf'), 'Rajdhani');
+const { createCanvas } = require('@napi-rs/canvas');
+const { rgba, roundRect, chromatic } = require('./canvasKit');
 
 const W = 800;
 const H = 220;
 const GREEN = '#39e022';
-
-function rgba(hex, a) {
-    const n = parseInt(hex.slice(1), 16);
-    return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
-}
-function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-}
-// Draws text with a red/cyan chromatic-aberration split, base color on top.
-function chromatic(ctx, text, x, y, base, off) {
-    ctx.fillStyle = '#00e6ff';
-    ctx.fillText(text, x - off, y - off / 2);
-    ctx.fillStyle = '#ff2d6b';
-    ctx.fillText(text, x + off, y + off / 2);
-    ctx.fillStyle = base;
-    ctx.fillText(text, x, y);
-}
 
 // Renders a widescreen "PATCH DEPLOYED" glitch header for update announcements.
 function generatePatchBanner(commit = '') {
