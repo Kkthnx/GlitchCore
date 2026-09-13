@@ -31,6 +31,11 @@ function trackMenu(messageId) {
     menuMessageIds.add(messageId);
 }
 
+// Drop a deleted menu from the cache so its reactions stop being considered.
+function untrackMenu(messageId) {
+    menuMessageIds.delete(messageId);
+}
+
 // The stable identity of an emoji: the custom-emoji id if present, else the
 // unicode character. Used both to store pairs and to match live reactions.
 function emojiKeyFromReaction(emoji) {
@@ -99,4 +104,5 @@ module.exports = {
     emojiKeyFromReaction,
     loadMenuCache,
     trackMenu,
+    untrackMenu,
 };

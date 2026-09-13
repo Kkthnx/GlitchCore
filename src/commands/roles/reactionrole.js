@@ -7,7 +7,8 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const ReactionRole = require('../../database/ReactionRoleSchema');
-const { buildMenuEmbed, parseEmojiInput, trackMenu } = require('../../utils/reactionRoleManager');
+const { buildMenuEmbed, parseEmojiInput, trackMenu, untrackMenu } = require('../../utils/reactionRoleManager');
+const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 const MAX_PAIRS = 20;
 
@@ -26,10 +27,26 @@ module.exports = {
             .addRoleOption(o => o.setName('role').setDescription('Role to grant').setRequired(true)))
         .addSubcommand(s => s.setName('remove').setDescription('Remove a pair from a menu')
             .addStringOption(o => o.setName('message_id').setDescription('The menu message id').setRequired(true))
-            .addStringOption(o => o.setName('emoji').setDescription('Emoji to remove').setRequired(true))),
+            .addStringOption(o => o.setName('emoji').setDescription('Emoji to remove').setRequired(true)))
+        .addSubcommand(s => s.setName('delete').setDescription('Delete a whole menu and its message')
+            .addStringOption(o => o.setName('message_id').setDescription('The menu message id').setRequired(true)))
+        .addSubcommand(s => s.setName('list').setDescription('List the reaction-role menus in this server')),
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
+
+        if (sub === 'list') {
+            const menus = await ReactionRole.find({ guildId: interaction.guild.id }).sort({ createdAt: 1 });
+            const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Reaction Roles' })
+                .setTitle(`Reaction-role menus (${menus.length})`)
+                .setDescription(menus.length
+                    ? menus.map(m => {
+                        const link = `https://discord.com/channels/${m.guildId}/${m.channelId}/${m.messageId}`;
+                        return `**[${m.title}](${link})**\n\`${m.messageId}\`, ${m.pairs.length} role${m.pairs.length === 1 ? '' : 's'}`;
+                    }).join('\n\n')
+                    : 'No menus yet. Make one with `/reactionrole create`.');
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
 
         if (sub === 'create') {
             const title = interaction.options.getString('title').slice(0, 240);
@@ -58,7 +75,17 @@ module.exports = {
 
         const channel = interaction.guild.channels.cache.get(doc.channelId);
         const menuMsg = channel && await channel.messages.fetch(doc.messageId).catch(() => null);
-        if (!menuMsg) return interaction.reply({ content: 'The menu message seems to be gone. Delete it and make a new one.', flags: MessageFlags.Ephemeral });
+
+        // Delete runs even when the message is already gone, so an orphaned
+        // record can still be cleaned up.
+        if (sub === 'delete') {
+            if (menuMsg) await menuMsg.delete().catch(() => {});
+            await ReactionRole.deleteOne({ _id: doc._id });
+            untrackMenu(doc.messageId);
+            return interaction.reply({ content: `Deleted the **${doc.title}** menu.`, flags: MessageFlags.Ephemeral });
+        }
+
+        if (!menuMsg) return interaction.reply({ content: 'The menu message seems to be gone. Delete the record with `/reactionrole delete`, then make a new one.', flags: MessageFlags.Ephemeral });
 
         if (sub === 'add') {
             if (doc.pairs.length >= MAX_PAIRS) return interaction.reply({ content: `A menu can hold at most ${MAX_PAIRS} roles.`, flags: MessageFlags.Ephemeral });
