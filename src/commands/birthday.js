@@ -91,4 +91,6 @@ module.exports = {
             return interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
         }
     },
+    // Exported for unit tests.
+    daysUntil,
 };

@@ -8,7 +8,7 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const User = require('../../database/UserSchema');
 const { queueXp } = require('../../utils/xpCache');
-const { getLocalDateString, msUntilNextLocalMidnight } = require('../../utils/time');
+const { getLocalDateString, msUntilNextLocalMidnight, previousLocalDate } = require('../../utils/time');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 const BASE_XP = 50;
@@ -33,13 +33,7 @@ module.exports = {
             return interaction.reply({ content: `🕓 You've already claimed today. Come back <t:${next}:R>.`, flags: MessageFlags.Ephemeral });
         }
 
-        // Derive yesterday's local date by decrementing today's calendar date,
-        // not by subtracting 24h. A fixed 24h subtraction lands on the wrong
-        // local day across DST transitions and would break valid streaks.
-        const [ty, tm, td] = today.split('-').map(Number);
-        const prev = new Date(Date.UTC(ty, tm - 1, td));
-        prev.setUTCDate(prev.getUTCDate() - 1);
-        const yesterday = prev.toISOString().slice(0, 10);
+        const yesterday = previousLocalDate(today);
         const streak = user?.lastDailyDate === yesterday ? (user.dailyStreak || 0) + 1 : 1;
         const reward = BASE_XP + Math.min(streak, STREAK_CAP) * PER_STREAK_XP;
 

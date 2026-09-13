@@ -115,6 +115,19 @@ function zonedWallTimeToDate(input) {
 }
 
 /**
+ * The calendar date before `dateString` ("YYYY-MM-DD"), as another
+ * "YYYY-MM-DD". Pure calendar arithmetic, so DST can never shift the result.
+ * Subtracting a fixed 24h instead lands on the wrong local day across a
+ * transition, which silently breaks day-to-day streaks.
+ */
+function previousLocalDate(dateString) {
+    const [y, m, d] = String(dateString).split('-').map(Number);
+    const prev = new Date(Date.UTC(y, m - 1, d));
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    return prev.toISOString().slice(0, 10);
+}
+
+/**
  * Wall-clock string "YYYY-MM-DD HH:mm" for an instant, in the community
  * timezone. Round-trips with zonedWallTimeToDate.
  */
@@ -155,4 +168,5 @@ module.exports = {
     zonedWallTimeToDate,
     zonedWallTimeString,
     addWeeksKeepingLocalTime,
+    previousLocalDate,
 };
