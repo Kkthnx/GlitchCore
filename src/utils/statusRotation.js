@@ -5,6 +5,8 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
+const { shuffled } = require('./random');
+
 // Deals statuses like a deck of cards rather than rolling dice.
 //
 // Picking at random independently each time feels far more repetitive than
@@ -12,15 +14,6 @@
 // pick from 200 statuses still shows a repeat within the same day about as
 // often as not, and back-to-back duplicates happen outright. Dealing from a
 // shuffled deck means every status is shown once before any is shown twice.
-
-// Fisher-Yates, in place.
-function shuffle(arr, rng = Math.random) {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-}
 
 /**
  * A deck over `items`. next() deals one, reshuffling once the deck runs out.
@@ -38,7 +31,7 @@ function createDeck(items, rng = Math.random) {
             if (source.length === 0) return null;
 
             if (remaining.length === 0) {
-                remaining = shuffle([...source], rng);
+                remaining = shuffled(source, rng);
 
                 // A fresh shuffle can start with the card we just dealt, which
                 // would show the same status twice in a row at the seam, the one
@@ -65,4 +58,4 @@ function createDeck(items, rng = Math.random) {
     };
 }
 
-module.exports = { createDeck, shuffle };
+module.exports = { createDeck };

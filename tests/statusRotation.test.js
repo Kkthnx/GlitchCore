@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { createDeck, shuffle } = require('../src/utils/statusRotation');
+const { createDeck } = require('../src/utils/statusRotation');
 
 describe('createDeck', () => {
     test('deals every item before repeating any', () => {
@@ -81,18 +81,5 @@ describe('createDeck', () => {
         deck.next();
         deck.next();
         expect(deck.remaining).toBe(0);
-    });
-});
-
-describe('shuffle', () => {
-    test('keeps every element', () => {
-        const out = shuffle([1, 2, 3, 4, 5]);
-        expect([...out].sort()).toEqual([1, 2, 3, 4, 5]);
-    });
-
-    test('actually reorders, given enough elements', () => {
-        const original = Array.from({ length: 50 }, (_, i) => i);
-        const out = shuffle([...original]);
-        expect(out).not.toEqual(original); // astronomically unlikely to match
     });
 });

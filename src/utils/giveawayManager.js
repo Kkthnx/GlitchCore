@@ -9,6 +9,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('
 const Giveaway = require('../database/GiveawaySchema');
 const { startPolling } = require('./scheduler');
 const { brandedEmbed, COLORS } = require('./brand');
+const { shuffle } = require('./random');
 const logger = require('./logger');
 
 const ENTER_ID = 'giveaway:enter';
@@ -18,11 +19,8 @@ const ENTER_ID = 'giveaway:enter';
  * Pure + deterministic-friendly (inject rng for tests).
  */
 function pickWinners(entries, count, rng = Math.random) {
-    const pool = [...new Set(entries)];
-    for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
+    // Dedupe first: a double entry must not double the odds.
+    const pool = shuffle([...new Set(entries)], rng);
     return pool.slice(0, Math.max(0, count));
 }
 

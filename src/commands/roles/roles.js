@@ -10,12 +10,13 @@ const GuildConfig = require('../../database/GuildConfigSchema');
 const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { buildSelfRolesRow, buildPanelButton } = require('../../utils/selfRoleManager');
 const { smartColor } = require('../../utils/roleColors');
+const { shuffled, pick } = require('../../utils/random');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 // A spread of on-brand colors so auto-created roles aren't all the same hue.
 const COLOR_POOL = ['#5cc8ff', '#34d3b4', '#f0b429', '#b483ff', '#ff6b6b', '#2fe07a', '#ff5fd0', '#ff7a3c'];
 function randomColor() {
-    return COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
+    return pick(COLOR_POOL);
 }
 
 // Starter packs the bot can create in one command so admins never touch
@@ -178,7 +179,7 @@ module.exports = {
 
             // Known games/platforms get their real color; the rest spread across
             // a shuffled palette so nothing repeats needlessly.
-            const pool = [...COLOR_POOL].sort(() => Math.random() - 0.5);
+            const pool = shuffled(COLOR_POOL);
             let recolored = 0, skipped = 0, i = 0;
             for (const sr of roles) {
                 const role = interaction.guild.roles.cache.get(sr.roleId);
