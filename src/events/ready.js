@@ -203,14 +203,15 @@ module.exports = {
         // 2. Recover active voice sessions across all channels
         recoverActiveVoiceSessions(client);
 
-        // 3. Run stale LFG cleanup once on startup
+        // 3. Stale LFG cleanup, once on startup then every 30 minutes.
         const { cleanUpStaleLfgSessions } = require('../utils/lfgManager');
-        cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
-
-        // Schedule periodic stale LFG cleanup every 30 minutes (1,800,000 ms)
-        setInterval(() => {
-            cleanUpStaleLfgSessions(client).catch(err => logger.error('Stale LFG cleanup failed:', err));
-        }, 30 * 60 * 1000);
+        const { startPolling } = require('../utils/scheduler');
+        startPolling({
+            name: 'LFG_CLEANUP',
+            task: () => cleanUpStaleLfgSessions(client),
+            intervalMs: 30 * 60 * 1000,
+            immediate: true,
+        });
 
         // 3b. Game-night event scheduler, pings rosters at start time (1-min ticks)
         const { startEventScheduler } = require('../utils/eventManager');

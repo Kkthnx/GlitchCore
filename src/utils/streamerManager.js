@@ -9,6 +9,7 @@ const { EmbedBuilder } = require('discord.js');
 const Streamer = require('../database/StreamerSchema');
 const { getLiveStreams, isConfigured } = require('./twitchClient');
 const { getGuildConfig } = require('./guildConfigCache');
+const { startPolling } = require('./scheduler');
 const logger = require('./logger');
 
 const TWITCH_PURPLE = 0x9146ff;
@@ -114,8 +115,15 @@ function startStreamerScheduler(client) {
         logger.info('[TWITCH] Twitch credentials not set, streamer notifications disabled.');
         return;
     }
-    setTimeout(() => pollStreamers(client).catch(err => logger.error('[TWITCH] Initial poll failed:', err)), 15_000);
-    setInterval(() => pollStreamers(client).catch(err => logger.error('[TWITCH] Scheduler tick failed:', err)), POLL_INTERVAL_MS);
+    // A Twitch poll can take a while when many logins are tracked, so the
+    // overlap guard matters here: two concurrent polls would double-announce.
+    startPolling({
+        name: 'TWITCH',
+        task: () => pollStreamers(client),
+        intervalMs: POLL_INTERVAL_MS,
+        immediate: true,
+        delayMs: 15_000,
+    });
     logger.info('[TWITCH] Streamer go-live poller started.');
 }
 

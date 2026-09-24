@@ -7,6 +7,7 @@
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const Giveaway = require('../database/GiveawaySchema');
+const { startPolling } = require('./scheduler');
 const { brandedEmbed, COLORS } = require('./brand');
 const logger = require('./logger');
 
@@ -126,7 +127,11 @@ async function processEndedGiveaways(client) {
 }
 
 function startGiveawayScheduler(client) {
-    setInterval(() => processEndedGiveaways(client).catch(err => logger.error('[GIVEAWAY] Scheduler tick failed:', err)), 30 * 1000);
+    startPolling({
+        name: 'GIVEAWAY',
+        task: () => processEndedGiveaways(client),
+        intervalMs: 30 * 1000,
+    });
 }
 
 module.exports = {

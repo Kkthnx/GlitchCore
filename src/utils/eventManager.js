@@ -12,6 +12,7 @@ const Event = require('../database/EventSchema');
 const { applyRsvp } = require('./eventRsvp');
 const { addWeeksKeepingLocalTime } = require('./time');
 const { bannerAttachment } = require('./eventBanners');
+const { startPolling } = require('./scheduler');
 const logger = require('./logger');
 
 const BTN = { going: 'event:going', maybe: 'event:maybe', decline: 'event:decline', cancel: 'event:cancel' };
@@ -349,11 +350,19 @@ async function processStartingEvents(client) {
 
 function startEventScheduler(client) {
     // Start-time pings: check once a minute (cheap indexed query, at-most-once).
-    setInterval(() => processStartingEvents(client).catch(err => logger.error('[EVENTS] Scheduler tick failed:', err)), 60 * 1000);
+    startPolling({
+        name: 'EVENTS',
+        task: () => processStartingEvents(client),
+        intervalMs: 60 * 1000,
+    });
 
     // Cleanup: sweep concluded/cancelled events every 15 minutes (+ once on boot).
-    cleanUpFinishedEvents(client).catch(err => logger.error('[EVENTS] Initial cleanup failed:', err));
-    setInterval(() => cleanUpFinishedEvents(client).catch(err => logger.error('[EVENTS] Cleanup tick failed:', err)), 15 * 60 * 1000);
+    startPolling({
+        name: 'EVENTS_CLEANUP',
+        task: () => cleanUpFinishedEvents(client),
+        intervalMs: 15 * 60 * 1000,
+        immediate: true,
+    });
 }
 
 module.exports = {

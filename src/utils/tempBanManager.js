@@ -6,6 +6,7 @@
  */
 
 const TempBan = require('../database/TempBanSchema');
+const { startPolling } = require('./scheduler');
 const logger = require('./logger');
 
 // Records (or extends) a timed ban so the scheduler can lift it later.
@@ -50,7 +51,11 @@ async function processDueUnbans(client) {
 }
 
 function startTempBanScheduler(client) {
-    setInterval(() => processDueUnbans(client).catch(err => logger.error('[TEMPBAN] Tick failed:', err)), 60 * 1000);
+    startPolling({
+        name: 'TEMPBAN',
+        task: () => processDueUnbans(client),
+        intervalMs: 60 * 1000,
+    });
 }
 
 module.exports = { scheduleTempBan, clearTempBan, processDueUnbans, startTempBanScheduler };

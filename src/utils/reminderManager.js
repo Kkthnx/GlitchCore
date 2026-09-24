@@ -6,6 +6,7 @@
  */
 
 const Reminder = require('../database/ReminderSchema');
+const { startPolling } = require('./scheduler');
 const logger = require('./logger');
 
 async function processDueReminders(client) {
@@ -38,7 +39,11 @@ async function processDueReminders(client) {
 }
 
 function startReminderScheduler(client) {
-    setInterval(() => processDueReminders(client).catch(err => logger.error('[REMIND] Tick failed:', err)), 30 * 1000);
+    startPolling({
+        name: 'REMIND',
+        task: () => processDueReminders(client),
+        intervalMs: 30 * 1000,
+    });
 }
 
 module.exports = { processDueReminders, startReminderScheduler };
