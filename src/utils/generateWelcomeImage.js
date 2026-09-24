@@ -5,8 +5,8 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
-const { rgba, roundRect, chromatic } = require('./canvasKit');
+const { createCanvas } = require('@napi-rs/canvas');
+const { rgba, roundRect, chromatic, loadRemoteImage } = require('./canvasKit');
 
 const W = 1024;
 const H = 450;
@@ -77,7 +77,7 @@ async function buildWelcomeImage(user, opts = {}) {
     ctx.restore();
 
     try {
-        const avatar = await loadImage(user.displayAvatarURL({ extension: 'png', size: 256 }));
+        const avatar = await loadRemoteImage(user.displayAvatarURL({ extension: 'png', size: 256 }));
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);

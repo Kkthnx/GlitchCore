@@ -70,6 +70,7 @@ client.cooldowns = new Collection();
 const { sweepIdle } = require('./utils/antiSpam');
 const { sweepIdle: sweepCommandCooldowns } = require('./utils/commandCooldowns');
 const { sweepIdle: sweepJoinFlood } = require('./utils/joinFlood');
+const { sweepExpired: sweepAfk } = require('./utils/afkManager');
 const { pruneGuildConfigCache } = require('./utils/guildConfigCache');
 setInterval(() => {
     const now = Date.now();
@@ -85,6 +86,8 @@ setInterval(() => {
     sweepCommandCooldowns(now);
     // Evict join-rate windows for quiet guilds.
     sweepJoinFlood(now);
+    // Drop AFK entries for people who never came back to clear them.
+    sweepAfk(now);
     // Forget settings for guilds we are no longer in.
     pruneGuildConfigCache(client.guilds.cache.keys());
 }, 60 * 60 * 1000);

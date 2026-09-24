@@ -41,7 +41,21 @@ module.exports = {
         const ping = Math.max(0, Math.round(interaction.client.ws.ping));
         const uptime = humanizeDuration(process.uptime() * 1000);
 
-        const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Stats' })
+        // Memory and cache sizes for this shard. Worth surfacing because the
+        // member cache is the one discord.js never sweeps on its own: if memory
+        // ever does climb over a long uptime, this is where it shows up, and
+        // comparing it against uptime turns "is it leaking?" into something you
+        // can actually check rather than guess at.
+        const mem = process.memoryUsage();
+        const mb = bytes => `${Math.round(bytes / 1024 / 1024)}MB`;
+        const cache = interaction.client;
+        const cachedMembers = [...cache.guilds.cache.values()]
+            .reduce((sum, g) => sum + g.members.cache.size, 0);
+        const cachedMessages = [...cache.channels.cache.values()]
+            .reduce((sum, c) => sum + (c.messages?.cache.size ?? 0), 0);
+
+        const shardLabel = interaction.client.shard ? `, shard ${interaction.client.shard.ids[0]}` : '';
+        const embed = brandedEmbed({ color: COLORS.primary, footer: `Glitch Haven, Stats${shardLabel}` })
             .setAuthor({ name: `${interaction.guild.name}, Server Stats`, iconURL: interaction.guild.iconURL() || undefined })
             .addFields(
                 { name: '👥 Members', value: `${interaction.guild.memberCount.toLocaleString()}`, inline: true },
@@ -54,6 +68,16 @@ module.exports = {
                 { name: '🎮 Open LFGs', value: `${openLfgs}`, inline: true },
                 { name: '🛡️ Infractions', value: `${infractions}`, inline: true },
                 { name: '🤖 Bot Health', value: `Latency \`${ping}ms\`, Uptime \`${uptime}\``, inline: false },
+                {
+                    name: '🧠 Memory',
+                    value: `Heap \`${mb(mem.heapUsed)}\` / \`${mb(mem.heapTotal)}\`, RSS \`${mb(mem.rss)}\``,
+                    inline: true,
+                },
+                {
+                    name: '📇 Caches',
+                    value: `${cachedMembers.toLocaleString()} members, ${cache.users.cache.size.toLocaleString()} users, ${cachedMessages.toLocaleString()} messages`,
+                    inline: true,
+                },
             );
 
         return interaction.editReply({ embeds: [embed] });

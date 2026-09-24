@@ -21,9 +21,20 @@ const INVITE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:discord(?:app)?\.com\/invite|
  * @returns {boolean} true if this message trips the rate limit.
  */
 function recordAndCheckRate(key, now, maxMessages, windowMs) {
-    const recent = (buckets.get(key) || []).filter(t => now - t < windowMs);
+    let recent = buckets.get(key);
+    if (!recent) {
+        recent = [];
+        buckets.set(key, recent);
+    }
+
+    // Timestamps are appended in order, so everything expired sits at the front
+    // and can be dropped in one splice. Filtering into a fresh array instead
+    // allocated one per message plus a Map write, on the hottest path there is.
+    let expired = 0;
+    while (expired < recent.length && now - recent[expired] >= windowMs) expired += 1;
+    if (expired) recent.splice(0, expired);
+
     recent.push(now);
-    buckets.set(key, recent);
     return recent.length > maxMessages;
 }
 

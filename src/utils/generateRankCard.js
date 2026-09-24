@@ -5,8 +5,8 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
-const { roundRect } = require('./canvasKit');
+const { createCanvas } = require('@napi-rs/canvas');
+const { roundRect, loadRemoteImage } = require('./canvasKit');
 const themes = require('./cardThemes');
 const logger = require('./logger');
 
@@ -150,8 +150,8 @@ async function buildRankCard(user, currentXp, requiredXp, level, rank, themeId =
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
     let drew = false;
     if (url) {
-        try { ctx.drawImage(await loadImage(url), cx - r, cy - r, r * 2, r * 2); drew = true; }
-        catch (err) { logger.error('Rank card: failed to load avatar', err.message); }
+        try { ctx.drawImage(await loadRemoteImage(url), cx - r, cy - r, r * 2, r * 2); drew = true; }
+        catch (err) { logger.warn(`Rank card: failed to load avatar: ${err.message}`); }
     }
     if (!drew) {
         ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);

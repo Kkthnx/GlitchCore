@@ -64,29 +64,38 @@ module.exports = {
         // 1. Ignore bot messages and DMs
         if (message.author.bot || !message.guild) return;
 
-        // 2. Auto-Moderator Check
-        const searchValues = [message.content];
+        // 2. Auto-Moderator Check.
+        //
+        // This runs on every message in the server, so the plain-text case (very
+        // nearly all of them) is checked on its own and costs no allocation. The
+        // combined haystack of attachment names, sticker names and embed text is
+        // only built when the message actually carries any of that.
+        let filterViolation = checkMessage(message.content);
 
-        for (const attachment of message.attachments.values()) {
-            if (attachment.name) searchValues.push(attachment.name);
-            if (attachment.url) searchValues.push(attachment.url);
-        }
+        if (!filterViolation && (message.attachments.size || message.stickers.size || message.embeds.length)) {
+            const extras = [];
 
-        for (const sticker of message.stickers.values()) {
-            if (sticker.name) searchValues.push(sticker.name);
-        }
+            for (const attachment of message.attachments.values()) {
+                if (attachment.name) extras.push(attachment.name);
+                if (attachment.url) extras.push(attachment.url);
+            }
 
-        for (const embed of message.embeds) {
-            if (embed.title) searchValues.push(embed.title);
-            if (embed.description) searchValues.push(embed.description);
-            if (embed.fields) {
-                for (const field of embed.fields) {
-                    searchValues.push(field.name, field.value);
+            for (const sticker of message.stickers.values()) {
+                if (sticker.name) extras.push(sticker.name);
+            }
+
+            for (const embed of message.embeds) {
+                if (embed.title) extras.push(embed.title);
+                if (embed.description) extras.push(embed.description);
+                if (embed.fields) {
+                    for (const field of embed.fields) {
+                        extras.push(field.name, field.value);
+                    }
                 }
             }
-        }
 
-        const filterViolation = checkMessage(searchValues.join(' '));
+            if (extras.length) filterViolation = checkMessage(extras.join(' '));
+        }
         if (filterViolation) {
             try {
                 await message.delete();
