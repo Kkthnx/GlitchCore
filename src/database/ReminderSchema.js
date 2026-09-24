@@ -17,6 +17,11 @@ const reminderSchema = new mongoose.Schema({
     remindAt: { type: Date, required: true },
 }, { timestamps: true });
 
+// Scheduler query: everything due, across guilds.
 reminderSchema.index({ remindAt: 1 });
+
+// /remind list, /remind cancel's autocomplete, and the per-user cap all look up
+// one member's pending reminders, soonest first.
+reminderSchema.index({ guildId: 1, userId: 1, remindAt: 1 });
 
 module.exports = mongoose.model('Reminder', reminderSchema);

@@ -23,7 +23,7 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 - **Giveaways** — `/giveaway` with atomic entry and automatic winner draws.
 - **Streamer go-live** — `/streamers` announces when tracked members go live on Twitch and removes the post when they go offline.
 - **Tags** — `/tag` saved canned responses for FAQs and info (managed with Manage Messages), with autocomplete on tag names so nobody has to remember the exact spelling.
-- **Reminders and AFK** — `/remind` and `/afk`.
+- **Reminders and AFK** — `/remind set`, plus `/remind list` and `/remind cancel` (with autocomplete over your own pending ones), and `/afk`.
 - **Welcome and farewell** — glitch-styled join banners and sly leave messages.
 
 ### Moderation and safety
