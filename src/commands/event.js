@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, InteractionContextType, PermissionFlagsBits } = require('discord.js');
 const Event = require('../database/EventSchema');
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { buildEventEmbed, buildEventButtons } = require('../utils/eventManager');
@@ -15,16 +15,46 @@ const { BANNER_CHOICES, bannerFileForKey, bannerBlurbForKey, bannerAttachment } 
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const logger = require('../utils/logger');
 
-// Try to auto-match the game name to a configured self-role so the right
-// players get pinged without the host needing to know the role.
+/**
+ * Works out which role the event should ping.
+ *
+ * /event create is open to every member, by design: anyone can host a game
+ * night. That makes ping_role a privileged option rather than a free choice,
+ * because the bot sends the mention, not the member. Left unrestricted, anyone
+ * could have it ping @Moderators, or @everyone in a server where the bot holds
+ * Mention Everyone. So:
+ *
+ *   - @everyone is never a valid event ping, for anybody.
+ *   - Event managers may name any role, as they can already ping it themselves.
+ *   - Everyone else is limited to the self-assign roles, which is what the
+ *     feature is actually for: telling the people who opted in to that game.
+ *
+ * With no explicit role, the game name is matched against the self-assign list
+ * so the right players get pinged without the host knowing the role.
+ *
+ * @returns {{ roleId: string|null, denied?: 'everyone'|'not-self-role' }}
+ */
 async function resolveGamePingRole(interaction, game, explicitRole) {
-    if (explicitRole) return explicitRole.id;
     const cfg = await getGuildConfig(interaction.guild.id);
+    const selfRoles = cfg?.selfRoles || [];
+
+    if (explicitRole) {
+        // The @everyone role id is the guild id.
+        if (explicitRole.id === interaction.guild.id) return { roleId: null, denied: 'everyone' };
+
+        const isManager = interaction.member.permissions.has(PermissionFlagsBits.ManageEvents)
+            || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
+        if (isManager || selfRoles.some(r => r.roleId === explicitRole.id)) {
+            return { roleId: explicitRole.id };
+        }
+        return { roleId: null, denied: 'not-self-role' };
+    }
+
     const wanted = game.trim().toLowerCase();
-    const match = (cfg?.selfRoles || []).find(r =>
+    const match = selfRoles.find(r =>
         r.label.toLowerCase() === wanted ||
         interaction.guild.roles.cache.get(r.roleId)?.name.toLowerCase() === wanted);
-    return match ? match.roleId : null;
+    return { roleId: match ? match.roleId : null };
 }
 
 module.exports = {
@@ -40,7 +70,7 @@ module.exports = {
             .addStringOption(o => o.setName('when').setDescription('Start time: a delay like 2h / 1d, or "2026-07-25 20:00" (ET)').setRequired(true))
             .addIntegerOption(o => o.setName('capacity').setDescription('Max going before waitlist (0 = unlimited)').setMinValue(0).setMaxValue(100).setRequired(false))
             .addStringOption(o => o.setName('description').setDescription('Extra details').setRequired(false).setMaxLength(500))
-            .addRoleOption(o => o.setName('ping_role').setDescription('Role to ping (defaults to the matching game self-role)').setRequired(false))
+            .addRoleOption(o => o.setName('ping_role').setDescription('Self-assign role to ping (managers may pick any)').setRequired(false))
             .addBooleanOption(o => o.setName('repeat_weekly').setDescription('Re-post this event every week at the same time').setRequired(false))
             .addStringOption(o => o.setName('banner').setDescription('Use a bundled Glitch Haven banner').setRequired(false).addChoices(...BANNER_CHOICES)))
         .addSubcommand(sub => sub
@@ -94,7 +124,15 @@ module.exports = {
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-        const pingRoleId = await resolveGamePingRole(interaction, game, interaction.options.getRole('ping_role'));
+        const { roleId: pingRoleId, denied } = await resolveGamePingRole(interaction, game, interaction.options.getRole('ping_role'));
+        if (denied === 'everyone') {
+            return interaction.editReply({ content: 'Events can\'t ping `@everyone`. Pick a game or ping role instead.' });
+        }
+        if (denied === 'not-self-role') {
+            return interaction.editReply({
+                content: 'You can only ping a role from the self-assign menu (`/roles menu`). Ask a server manager if this event needs a different role pinged.',
+            });
+        }
         // A bundled banner wins; otherwise pull a widescreen game banner. Null if unavailable.
         const imgUrl = bannerFile ? null : await fetchGameBanner(game);
 
@@ -129,3 +167,6 @@ module.exports = {
         }
     },
 };
+
+// Exported for unit tests.
+module.exports.resolveGamePingRole = resolveGamePingRole;
