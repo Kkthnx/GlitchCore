@@ -5,14 +5,14 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, InteractionContextType } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('unlock')
         .setDescription('Unlock a previously locked channel')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addChannelOption(o => o.setName('channel').setDescription('Channel (defaults to here)').addChannelTypes(ChannelType.GuildText).setRequired(false)),
 
     async execute(interaction) {

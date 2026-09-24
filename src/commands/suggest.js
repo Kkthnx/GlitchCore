@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const Suggestion = require('../database/SuggestionSchema');
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { buildSuggestionEmbed, buildSuggestionButtons } = require('../utils/suggestionManager');
@@ -15,7 +15,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('suggest')
         .setDescription('Submit a suggestion for the server')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addStringOption(o => o.setName('text').setDescription('Your suggestion').setRequired(true).setMaxLength(1000)),
 
     async execute(interaction) {

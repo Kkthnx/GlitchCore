@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const User = require('../../database/UserSchema');
 const { queueXp } = require('../../utils/xpCache');
 const { getLocalDateString, msUntilNextLocalMidnight, previousLocalDate } = require('../../utils/time');
@@ -19,7 +19,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('daily')
         .setDescription('Claim your daily XP bonus and build a streak')
-        .setDMPermission(false),
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction) {
         const { id: userId } = interaction.user;
@@ -47,7 +47,7 @@ module.exports = {
 
         const next = Math.floor((Date.now() + msUntilNextLocalMidnight()) / 1000);
         const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven, Daily' })
-            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
             .setTitle('🎁 Daily claimed!')
             .setDescription(
                 `**+${reward} XP**\n` +

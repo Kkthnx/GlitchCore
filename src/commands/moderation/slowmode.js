@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, InteractionContextType } = require('discord.js');
 const { humanizeDuration } = require('../../utils/duration');
 
 module.exports = {
@@ -13,7 +13,7 @@ module.exports = {
         .setName('slowmode')
         .setDescription('Set slowmode (rate limit) on a channel')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addIntegerOption(o => o.setName('seconds').setDescription('Seconds between messages (0 to turn off, max 21600)').setMinValue(0).setMaxValue(21600).setRequired(true))
         .addChannelOption(o => o.setName('channel').setDescription('Channel (defaults to here)').addChannelTypes(ChannelType.GuildText).setRequired(false)),
 

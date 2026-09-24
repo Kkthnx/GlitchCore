@@ -1,7 +1,7 @@
 {
   "name": "glitchcore",
   "version": "1.0.0",
-  "description": "GlitchCore — proprietary Discord bot for Glitch Haven.",
+  "description": "GlitchCore \u2014 proprietary Discord bot for Glitch Haven.",
   "main": "index.js",
   "private": true,
   "author": "Kkthnx",
@@ -21,7 +21,8 @@
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
     "mongoose": "^9.9.1",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "winston-transport": "^4.9.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

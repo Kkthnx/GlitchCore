@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const Event = require('../database/EventSchema');
 const GuildConfig = require('../database/GuildConfigSchema');
 const { buildEventEmbed, buildEventButtons } = require('../utils/eventManager');
@@ -31,7 +31,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('event')
         .setDescription('Schedule and manage game-night events')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(sub => sub
             .setName('create')
             .setDescription('Schedule a game night with RSVP buttons')

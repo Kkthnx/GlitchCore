@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
 
 module.exports = {
@@ -13,7 +13,7 @@ module.exports = {
         .setName('kick')
         .setDescription('Kick a member from the server')
         .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('Member to kick').setRequired(true))
         .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false)),
 

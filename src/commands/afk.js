@@ -5,14 +5,14 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const { setAfk } = require('../utils/afkManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('afk')
         .setDescription('Set yourself AFK, I\'ll let people know if they ping you')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addStringOption(o => o.setName('reason').setDescription('Why you\'re away').setRequired(false).setMaxLength(200)),
 
     async execute(interaction) {

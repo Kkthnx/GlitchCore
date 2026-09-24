@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
 const { parseDuration, humanizeDuration } = require('../../utils/duration');
 const { scheduleTempBan, clearTempBan } = require('../../utils/tempBanManager');
@@ -15,7 +15,7 @@ module.exports = {
         .setName('ban')
         .setDescription('Ban a user from the server')
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('User to ban (works even if they left)').setRequired(true))
         .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false))
         .addStringOption(o => o.setName('duration').setDescription('Temp-ban length, e.g. 3d, 12h, 1w (blank = permanent)').setRequired(false))

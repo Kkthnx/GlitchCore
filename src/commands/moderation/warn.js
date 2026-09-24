@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget, countInfractions } = require('../../utils/moderationManager');
 
 module.exports = {
@@ -13,7 +13,7 @@ module.exports = {
         .setName('warn')
         .setDescription('Issue a warning to a member')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('Member to warn').setRequired(true))
         .addStringOption(o => o.setName('reason').setDescription('Reason for the warning').setRequired(false)),
 

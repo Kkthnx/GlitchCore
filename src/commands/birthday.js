@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const Birthday = require('../database/BirthdaySchema');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const { localMonthDay } = require('../utils/birthdayManager');
@@ -33,7 +33,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('birthday')
         .setDescription('Set or view birthdays for the shoutout')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(s => s.setName('set').setDescription('Save your birthday (no year needed)')
             .addIntegerOption(o => o.setName('month').setDescription('Month (1-12)').setMinValue(1).setMaxValue(12).setRequired(true))
             .addIntegerOption(o => o.setName('day').setDescription('Day (1-31)').setMinValue(1).setMaxValue(31).setRequired(true)))

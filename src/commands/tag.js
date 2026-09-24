@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const Tag = require('../database/TagSchema');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 
@@ -24,7 +24,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('tag')
         .setDescription('Recall or manage saved canned responses')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(s => s.setName('show').setDescription('Post a saved tag')
             .addStringOption(o => o.setName('name').setDescription('Tag name').setRequired(true)))
         .addSubcommand(s => s.setName('list').setDescription('List all tags'))

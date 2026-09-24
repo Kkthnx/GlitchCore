@@ -61,7 +61,7 @@ async function recordInfraction({ guild, targetUser, moderator, type, reason, du
         if (channel) {
             const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
                 .setTitle(`Member ${ACTION_VERB[type] || type}`)
-                .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+                .setThumbnail(targetUser.displayAvatarURL())
                 .addFields(
                     { name: 'User', value: `<@${targetUser.id}> \`${targetUser.tag}\``, inline: true },
                     { name: 'Moderator', value: `<@${moderator.id}>`, inline: true },

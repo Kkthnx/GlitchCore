@@ -5,14 +5,14 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PollLayoutType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PollLayoutType, MessageFlags, InteractionContextType } = require('discord.js');
 
 module.exports = {
     data: (() => {
         const b = new SlashCommandBuilder()
             .setName('poll')
             .setDescription('Create a poll the server votes on')
-            .setDMPermission(false)
+            .setContexts(InteractionContextType.Guild)
             .addStringOption(o => o.setName('question').setDescription('The poll question').setRequired(true).setMaxLength(300))
             .addStringOption(o => o.setName('option1').setDescription('Answer 1').setRequired(true).setMaxLength(55))
             .addStringOption(o => o.setName('option2').setDescription('Answer 2').setRequired(true).setMaxLength(55));

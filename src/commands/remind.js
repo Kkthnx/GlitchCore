@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const Reminder = require('../database/ReminderSchema');
 const { parseDuration, humanizeDuration } = require('../utils/duration');
 
@@ -15,7 +15,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('remind')
         .setDescription('Set a reminder')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addStringOption(o => o.setName('when').setDescription('In how long, e.g. 10m, 2h, 1d').setRequired(true))
         .addStringOption(o => o.setName('message').setDescription('What to remind you about').setRequired(true).setMaxLength(500)),
 

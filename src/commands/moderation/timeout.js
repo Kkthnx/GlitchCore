@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
 const { parseDuration, clampTimeout, humanizeDuration } = require('../../utils/duration');
 
@@ -14,7 +14,7 @@ module.exports = {
         .setName('timeout')
         .setDescription('Temporarily mute a member (Discord timeout)')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('Member to time out').setRequired(true))
         .addStringOption(o => o.setName('duration').setDescription('e.g. 10m, 1h, 1d (max 28d)').setRequired(true))
         .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false)),

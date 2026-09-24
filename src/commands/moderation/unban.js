@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const { recordInfraction } = require('../../utils/moderationManager');
 const { clearTempBan } = require('../../utils/tempBanManager');
 
@@ -17,7 +17,7 @@ module.exports = {
         .setName('unban')
         .setDescription('Lift a ban early')
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addStringOption(o => o.setName('user_id').setDescription('ID of the banned user').setRequired(true))
         .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false)),
 

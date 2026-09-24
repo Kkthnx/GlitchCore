@@ -5,14 +5,14 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType } = require('discord.js');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('userinfo')
         .setDescription('Show info about a user')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('User to look up (defaults to you)').setRequired(false)),
 
     async execute(interaction) {
@@ -20,8 +20,8 @@ module.exports = {
         const member = interaction.options.getMember('target') || (user.id === interaction.user.id ? interaction.member : null);
 
         const embed = brandedEmbed({ color: member?.displayHexColor && member.displayHexColor !== '#000000' ? member.displayHexColor : COLORS.primary, footer: 'Glitch Haven' })
-            .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true }) })
-            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
+            .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+            .setThumbnail(user.displayAvatarURL({ size: 256 }))
             .addFields(
                 { name: 'User', value: `<@${user.id}>`, inline: true },
                 { name: 'ID', value: `\`${user.id}\``, inline: true },

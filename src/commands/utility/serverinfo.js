@@ -5,14 +5,14 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, InteractionContextType } = require('discord.js');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('serverinfo')
         .setDescription('Show info about this server')
-        .setDMPermission(false),
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction) {
         const g = interaction.guild;
@@ -22,7 +22,7 @@ module.exports = {
 
         const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven' })
             .setTitle(g.name)
-            .setThumbnail(g.iconURL({ dynamic: true, size: 256 }) || null)
+            .setThumbnail(g.iconURL({ size: 256 }) || null)
             .addFields(
                 { name: 'Owner', value: `<@${g.ownerId}>`, inline: true },
                 { name: 'Members', value: `${g.memberCount.toLocaleString()}`, inline: true },

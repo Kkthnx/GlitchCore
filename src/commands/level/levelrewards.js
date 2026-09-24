@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const GuildConfig = require('../../database/GuildConfigSchema');
 const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { currentMilestone, roleNameFor } = require('../../utils/levelRoles');
@@ -19,7 +19,7 @@ module.exports = {
         .setName('levelrewards')
         .setDescription('Configure automated milestone level-roles')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(sub => sub
             .setName('milestones')
             .setDescription('Grant a role at every N levels (roles are auto-created)')

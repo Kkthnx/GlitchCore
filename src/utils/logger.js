@@ -14,16 +14,21 @@ const shardId = process.env.SHARDS ?? process.env.SHARD_ID ?? '0';
 // Mask the bot token (and other obvious secrets) in any logged string so it
 // can never leak to stdout, files, or an external log aggregator.
 const redactSecrets = format((info) => {
-    const token = process.env.TOKEN;
-    const mongo = process.env.MONGO_URI;
-    const apiKey = process.env.STEAMGRIDDB_API_KEY;
+    // Every credential the bot holds. A Twitch token error, for example, can
+    // echo the request body straight back into the log line.
+    const secrets = [
+        [process.env.TOKEN, '[REDACTED_TOKEN]'],
+        [process.env.MONGO_URI, '[REDACTED_MONGO_URI]'],
+        [process.env.STEAMGRIDDB_API_KEY, '[REDACTED_API_KEY]'],
+        [process.env.TWITCH_CLIENT_SECRET, '[REDACTED_TWITCH_SECRET]'],
+    ];
 
     const scrub = (value) => {
         if (typeof value !== 'string') return value;
         let out = value;
-        if (token) out = out.split(token).join('[REDACTED_TOKEN]');
-        if (mongo) out = out.split(mongo).join('[REDACTED_MONGO_URI]');
-        if (apiKey) out = out.split(apiKey).join('[REDACTED_API_KEY]');
+        for (const [secret, mask] of secrets) {
+            if (secret) out = out.split(secret).join(mask);
+        }
         return out;
     };
 

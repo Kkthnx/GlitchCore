@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const Giveaway = require('../database/GiveawaySchema');
 const { parseDuration, clampTimeout, humanizeDuration } = require('../utils/duration');
 const { buildGiveawayEmbed, buildGiveawayButton, pickWinners } = require('../utils/giveawayManager');
@@ -16,7 +16,7 @@ module.exports = {
         .setName('giveaway')
         .setDescription('Run a giveaway')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(sub => sub
             .setName('start')
             .setDescription('Start a giveaway')

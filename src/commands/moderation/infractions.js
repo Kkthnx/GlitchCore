@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const Infraction = require('../../database/InfractionSchema');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 const { humanizeDuration } = require('../../utils/duration');
@@ -17,7 +17,7 @@ module.exports = {
         .setName('infractions')
         .setDescription('View or clear a member\'s moderation history')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(sub => sub
             .setName('view')
             .setDescription('Show a member\'s infraction history')
@@ -45,7 +45,7 @@ module.exports = {
             .limit(15);
 
         const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
-            .setAuthor({ name: `Infractions, ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) });
+            .setAuthor({ name: `Infractions, ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() });
 
         if (!records.length) {
             embed.setDescription('✅ This member has a clean record.');

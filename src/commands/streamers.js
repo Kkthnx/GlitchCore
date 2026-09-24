@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const Streamer = require('../database/StreamerSchema');
 const { isConfigured, getUser, normalizeLogin } = require('../utils/twitchClient');
 const { getGuildConfig } = require('../utils/guildConfigCache');
@@ -16,7 +16,7 @@ module.exports = {
         .setName('streamers')
         .setDescription('Manage Twitch go-live announcements')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(sub => sub
             .setName('add')
             .setDescription('Track a Twitch streamer')

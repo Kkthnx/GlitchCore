@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const ReactionRole = require('../../database/ReactionRoleSchema');
 const { buildMenuEmbed, parseEmojiInput, trackMenu, untrackMenu } = require('../../utils/reactionRoleManager');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
@@ -17,7 +17,7 @@ module.exports = {
         .setName('reactionrole')
         .setDescription('Manage self-assign reaction-role menus')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(s => s.setName('create').setDescription('Post a new reaction-role menu here')
             .addStringOption(o => o.setName('title').setDescription('Menu title').setRequired(true))
             .addStringOption(o => o.setName('description').setDescription('Optional blurb').setRequired(false)))

@@ -5,14 +5,14 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('purge')
         .setDescription('Bulk-delete recent messages in this channel')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addIntegerOption(o => o.setName('amount').setDescription('How many messages (1-100)').setMinValue(1).setMaxValue(100).setRequired(true))
         .addUserOption(o => o.setName('user').setDescription('Only delete messages from this user').setRequired(false)),
 

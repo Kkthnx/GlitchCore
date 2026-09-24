@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, InteractionContextType } = require('discord.js');
 const { exportUserData, CONFIRM_ID } = require('../utils/privacyManager');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 
@@ -13,7 +13,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('forgetme')
         .setDescription('Export or delete the data GlitchCore stores about you')
-        .setDMPermission(false)
+        .setContexts(InteractionContextType.Guild)
         .addSubcommand(sub => sub.setName('export').setDescription('Download a copy of your stored data'))
         .addSubcommand(sub => sub.setName('delete').setDescription('Erase your profile/XP and remove you from rosters')),
 
