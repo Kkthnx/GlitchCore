@@ -26,7 +26,26 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('reroll')
             .setDescription('Reroll winners for an ended giveaway')
-            .addStringOption(o => o.setName('message_id').setDescription('The giveaway message ID').setRequired(true))),
+            .addStringOption(o => o.setName('message_id').setDescription('Which giveaway to reroll').setRequired(true).setAutocomplete(true))),
+
+    /** Offers this guild's ended giveaways, most recent first. */
+    async autocomplete(interaction) {
+        const focused = interaction.options.getFocused(true);
+        if (focused.name !== 'message_id') return interaction.respond([]);
+
+        const ended = await Giveaway.find(
+            { guildId: interaction.guild.id, ended: true },
+            { prize: 1, messageId: 1, endsAt: 1 },
+        ).sort({ endsAt: -1 }).limit(25).lean();
+
+        const query = String(focused.value || '').toLowerCase();
+        return interaction.respond(ended
+            .filter(g => !query || g.prize.toLowerCase().includes(query))
+            .map(g => ({
+                name: g.prize.length > 90 ? `${g.prize.slice(0, 89)}…` : g.prize,
+                value: g.messageId,
+            })));
+    },
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
@@ -55,14 +74,26 @@ module.exports = {
 
         // reroll
         const messageId = interaction.options.getString('message_id').trim();
-        const g = await Giveaway.findOne({ guildId: interaction.guild.id, messageId });
-        if (!g) return interaction.reply({ content: 'No giveaway found for that message ID.', flags: MessageFlags.Ephemeral });
-        if (!g.ended) return interaction.reply({ content: 'That giveaway hasn\'t ended yet.', flags: MessageFlags.Ephemeral });
-        if (!g.entries.length) return interaction.reply({ content: 'That giveaway had no entries to reroll.', flags: MessageFlags.Ephemeral });
+        const existing = await Giveaway.findOne({ guildId: interaction.guild.id, messageId }).lean();
+        if (!existing) return interaction.reply({ content: 'No giveaway found for that message ID.', flags: MessageFlags.Ephemeral });
+        if (!existing.ended) return interaction.reply({ content: 'That giveaway hasn\'t ended yet.', flags: MessageFlags.Ephemeral });
+        if (!existing.entries.length) return interaction.reply({ content: 'That giveaway had no entries to reroll.', flags: MessageFlags.Ephemeral });
 
-        const winners = pickWinners(g.entries, g.winnerCount);
-        g.winners = winners;
-        await g.save();
+        const winners = pickWinners(existing.entries, existing.winnerCount);
+        const g = await Giveaway.findOneAndUpdate(
+            { _id: existing._id },
+            { $set: { winners } },
+            { new: true },
+        ).lean();
+
+        // Keep the giveaway post honest: it announced the old winners, so
+        // leaving it alone means two different answers to who won.
+        const channel = interaction.guild.channels.cache.get(g.channelId);
+        if (channel) {
+            await channel.messages.fetch(g.messageId)
+                .then(msg => msg.edit({ embeds: [buildGiveawayEmbed(g)], components: [buildGiveawayButton(true)] }))
+                .catch(() => { /* post deleted, the reply below still stands */ });
+        }
 
         const link = `https://discord.com/channels/${g.guildId}/${g.channelId}/${g.messageId}`;
         return interaction.reply({

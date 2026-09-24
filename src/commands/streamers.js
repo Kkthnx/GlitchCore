@@ -25,10 +25,26 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('remove')
             .setDescription('Stop tracking a Twitch streamer')
-            .addStringOption(o => o.setName('twitch').setDescription('Twitch username').setRequired(true)))
+            .addStringOption(o => o.setName('twitch').setDescription('Twitch username').setRequired(true).setAutocomplete(true)))
         .addSubcommand(sub => sub
             .setName('list')
             .setDescription('List tracked streamers')),
+
+    /** Offers the logins this guild actually tracks, so removal needs no typing. */
+    async autocomplete(interaction) {
+        const focused = interaction.options.getFocused(true);
+        if (focused.name !== 'twitch') return interaction.respond([]);
+
+        const tracked = await Streamer.find(
+            { guildId: interaction.guild.id },
+            { twitchLogin: 1, twitchDisplayName: 1 },
+        ).sort({ twitchLogin: 1 }).limit(25).lean();
+
+        const query = String(focused.value || '').toLowerCase();
+        return interaction.respond(tracked
+            .filter(st => !query || st.twitchLogin.includes(query) || st.twitchDisplayName.toLowerCase().includes(query))
+            .map(st => ({ name: st.twitchDisplayName, value: st.twitchLogin })));
+    },
 
     async execute(interaction) {
         if (!isConfigured()) {
@@ -51,7 +67,7 @@ module.exports = {
             }
             if (!user) return interaction.editReply(`No Twitch user found for **${login}**.`);
 
-            if (await Streamer.findOne({ guildId, twitchLogin: user.login })) {
+            if (await Streamer.exists({ guildId, twitchLogin: user.login })) {
                 return interaction.editReply(`**${user.display_name}** is already being tracked.`);
             }
 
@@ -77,7 +93,10 @@ module.exports = {
         }
 
         // list
-        const streamers = await Streamer.find({ guildId }).sort({ twitchLogin: 1 });
+        const streamers = await Streamer.find(
+            { guildId },
+            { twitchLogin: 1, twitchDisplayName: 1, discordUserId: 1, isLive: 1 },
+        ).sort({ twitchLogin: 1 }).lean();
         const embed = brandedEmbed({ color: COLORS.accent, footer: 'Glitch Haven, Twitch' })
             .setTitle('📺 Tracked Streamers')
             .setDescription(streamers.length
