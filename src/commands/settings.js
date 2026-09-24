@@ -8,6 +8,16 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../utils/guildConfigCache');
 
+// Ranges for the numeric settings. These are guard rails, not taste: a zero or
+// negative tick length divides by zero in the voice XP loop, and an absurd
+// per-tick value inflates the whole leaderboard.
+const NUMERIC_BOUNDS = {
+    textCooldownSeconds: { min: 0, max: 3600 },
+    voiceXpPerTick: { min: 1, max: 1000 },
+    voiceTickMinutes: { min: 1, max: 1440 },
+    starboardThreshold: { min: 1, max: 100 },
+};
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('settings')
@@ -99,12 +109,20 @@ module.exports = {
             const key = interaction.options.getString('key');
             const value = interaction.options.getString('value');
 
-            const numericKeys = ['textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes', 'starboardThreshold'];
-            if (numericKeys.includes(key)) {
-                if (isNaN(value)) {
-                    return interaction.reply({ content: 'That value must be a number.', flags: MessageFlags.Ephemeral });
+            if (NUMERIC_BOUNDS[key]) {
+                const { min, max } = NUMERIC_BOUNDS[key];
+                const n = Number(value);
+                // Number('') is 0 and Number(' ') is 0, so isNaN alone lets an
+                // empty value through as zero. voiceTickMinutes: 0 then divides
+                // by zero in the voice tick and writes Infinity XP to everyone
+                // it touches, so each key carries an explicit range.
+                if (value.trim() === '' || !Number.isInteger(n)) {
+                    return interaction.reply({ content: `\`${key}\` must be a whole number.`, flags: MessageFlags.Ephemeral });
                 }
-                config[key] = Number(value);
+                if (n < min || n > max) {
+                    return interaction.reply({ content: `\`${key}\` must be between ${min} and ${max}.`, flags: MessageFlags.Ephemeral });
+                }
+                config[key] = n;
             } else if (['xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled'].includes(key)) {
                 if (!['true', 'false'].includes(value.toLowerCase())) {
                     return interaction.reply({ content: 'That value must be true or false.', flags: MessageFlags.Ephemeral });

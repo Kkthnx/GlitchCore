@@ -26,24 +26,40 @@ module.exports = {
         const guildId = interaction.guild.id;
         const today = getLocalDateString();
 
-        const user = await User.findOne({ userId, guildId });
-
-        if (user?.lastDailyDate === today) {
-            const next = Math.floor((Date.now() + msUntilNextLocalMidnight()) / 1000);
-            return interaction.reply({ content: `🕓 You've already claimed today. Come back <t:${next}:R>.`, flags: MessageFlags.Ephemeral });
+        // Claim the day atomically. Reading first and then writing let two
+        // rapid invocations both pass the "already claimed" check and both
+        // collect the reward, so the claim has to BE the check: only the caller
+        // whose update actually matches gets past this point.
+        //
+        // The filter is deliberately paired with upsert, which gives us the
+        // three outcomes we need in one round trip:
+        //   a document back -> we claimed it, and it holds the previous streak
+        //   null            -> the upsert inserted, so this is a first-ever claim
+        //   duplicate key   -> a document exists but already has today's date
+        let previous;
+        try {
+            previous = await User.findOneAndUpdate(
+                { userId, guildId, lastDailyDate: { $ne: today } },
+                { $set: { lastDailyDate: today } },
+                { new: false, upsert: true, setDefaultsOnInsert: true },
+            ).lean();
+        } catch (err) {
+            if (err?.code === 11000) {
+                const next = Math.floor((Date.now() + msUntilNextLocalMidnight()) / 1000);
+                return interaction.reply({ content: `🕓 You've already claimed today. Come back <t:${next}:R>.`, flags: MessageFlags.Ephemeral });
+            }
+            throw err;
         }
 
         const yesterday = previousLocalDate(today);
-        const streak = user?.lastDailyDate === yesterday ? (user.dailyStreak || 0) + 1 : 1;
+        const streak = previous?.lastDailyDate === yesterday ? (previous.dailyStreak || 0) + 1 : 1;
         const reward = BASE_XP + Math.min(streak, STREAK_CAP) * PER_STREAK_XP;
 
-        await User.updateOne(
-            { userId, guildId },
-            { $set: { dailyStreak: streak, lastDailyDate: today } },
-            { upsert: true },
-        );
+        // Only the winner of the claim above reaches this, so no race here.
+        await User.updateOne({ userId, guildId }, { $set: { dailyStreak: streak } });
+
         // Route the reward through the XP buffer so level-ups/rewards still fire.
-        queueXp(userId, guildId, reward, interaction.channel.id, { isMessage: false });
+        queueXp(userId, guildId, reward, interaction.channel?.id ?? null, { isMessage: false });
 
         const next = Math.floor((Date.now() + msUntilNextLocalMidnight()) / 1000);
         const embed = brandedEmbed({ color: COLORS.hype, footer: 'Glitch Haven, Daily' })

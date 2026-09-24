@@ -17,20 +17,6 @@ const STATUS = {
     denied: { color: COLORS.danger, label: '❌ Denied' },
 };
 
-/**
- * Toggle a member's vote. Clicking your current vote removes it; clicking the
- * opposite switches sides. Pure and unit-tested.
- */
-function applyVote(upvotes, downvotes, userId, dir) {
-    const wasUp = upvotes.includes(userId);
-    const wasDown = downvotes.includes(userId);
-    const up = upvotes.filter(u => u !== userId);
-    const down = downvotes.filter(u => u !== userId);
-    if (dir === 'up' && !wasUp) up.push(userId);
-    if (dir === 'down' && !wasDown) down.push(userId);
-    return { up, down };
-}
-
 function buildSuggestionEmbed(s, authorTag, authorIcon) {
     const up = s.upvotes.length;
     const down = s.downvotes.length;
@@ -57,29 +43,60 @@ function buildSuggestionButtons() {
     );
 }
 
+/**
+ * Translates a vote into the atomic update that applies it. Clicking your
+ * current vote clears it; clicking the other side moves you across. Pure, so
+ * the toggle logic stays unit-testable while the write stays a single op.
+ */
+function voteUpdate(userId, dir, alreadyVoted) {
+    if (dir === 'up') {
+        return alreadyVoted
+            ? { $pull: { upvotes: userId, downvotes: userId } }
+            : { $addToSet: { upvotes: userId }, $pull: { downvotes: userId } };
+    }
+    return alreadyVoted
+        ? { $pull: { downvotes: userId, upvotes: userId } }
+        : { $addToSet: { downvotes: userId }, $pull: { upvotes: userId } };
+}
+
 async function handleSuggestionButton(interaction) {
     const action = interaction.customId.split(':')[1];
-    const s = await Suggestion.findOne({ messageId: interaction.message.id });
-    if (!s) return interaction.reply({ content: 'This suggestion no longer exists.', flags: MessageFlags.Ephemeral });
+    const messageId = interaction.message.id;
+    const userId = interaction.user.id;
+
+    let s;
 
     // Approve / deny, managers only.
     if (action === 'approve' || action === 'deny') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
             return interaction.reply({ content: 'Only managers can approve or deny suggestions.', flags: MessageFlags.Ephemeral });
         }
-        s.status = action === 'approve' ? 'approved' : 'denied';
-        await s.save();
+        s = await Suggestion.findOneAndUpdate(
+            { messageId },
+            { $set: { status: action === 'approve' ? 'approved' : 'denied' } },
+            { new: true },
+        ).lean();
     } else {
-        // Up / down vote, toggle.
-        const { up, down } = applyVote(s.upvotes, s.downvotes, interaction.user.id, action);
-        s.upvotes = up;
-        s.downvotes = down;
-        await s.save();
+        // Up / down vote. Reading the arrays, rewriting them whole and saving
+        // loses a vote whenever two members click at once, since the second
+        // write is built from a snapshot taken before the first landed. Doing it
+        // as $addToSet/$pull lets the server apply both.
+        const current = await Suggestion.findOne({ messageId }, { upvotes: 1, downvotes: 1 }).lean();
+        if (!current) return interaction.reply({ content: 'This suggestion no longer exists.', flags: MessageFlags.Ephemeral });
+
+        const list = action === 'up' ? current.upvotes : current.downvotes;
+        s = await Suggestion.findOneAndUpdate(
+            { messageId },
+            voteUpdate(userId, action, list.includes(userId)),
+            { new: true },
+        ).lean();
     }
+
+    if (!s) return interaction.reply({ content: 'This suggestion no longer exists.', flags: MessageFlags.Ephemeral });
 
     const author = await interaction.client.users.fetch(s.authorId).catch(() => null);
     const embed = buildSuggestionEmbed(s, author ? author.tag : 'Suggestion', author?.displayAvatarURL());
     return interaction.update({ embeds: [embed], components: [buildSuggestionButtons()] });
 }
 
-module.exports = { BTN, applyVote, buildSuggestionEmbed, buildSuggestionButtons, handleSuggestionButton };
+module.exports = { BTN, voteUpdate, buildSuggestionEmbed, buildSuggestionButtons, handleSuggestionButton };
