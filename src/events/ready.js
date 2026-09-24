@@ -13,6 +13,7 @@ const { isDoubleXpStartDay } = require('../utils/isDoubleXp');
 const BotState = require('../database/BotStateSchema');
 const botStatuses = require('../utils/botStatuses');
 const { randomWatchingStatus } = require('../utils/watchingStatuses');
+const { createDeck } = require('../utils/statusRotation');
 const logger = require('../utils/logger');
 
 // Import the background synchronization handlers
@@ -176,14 +177,21 @@ module.exports = {
         // fetch the full member list here, a full guild fetch is a heavy CPU
         // and memory burst and keeps every member pinned in cache for good.
 
-        // Set initial random status and rotate every 10 minutes. Wrapped so a
-        // presence error can never escape to uncaughtException (which would
-        // exit the process and trigger a respawn loop under the shard manager).
+        // Set initial status and rotate every 10 minutes. Wrapped so a presence
+        // error can never escape to uncaughtException (which would exit the
+        // process and trigger a respawn loop under the shard manager).
+        //
+        // The general statuses are dealt from a shuffled deck rather than picked
+        // at random each time. Independent random picks feel far more repetitive
+        // than people expect, and back-to-back duplicates happen outright; a
+        // deck shows all of them before any repeats.
+        const statusDeck = createDeck(botStatuses);
         const updateStatus = () => {
             try {
                 // Roughly 40% of the time, call out a random member by name.
                 const status = (Math.random() < 0.4 && randomWatchingStatus(client))
-                    || botStatuses[Math.floor(Math.random() * botStatuses.length)];
+                    || statusDeck.next();
+                if (!status) return;
                 client.user.setPresence({
                     activities: [{ name: 'Custom Status', type: ActivityType.Custom, state: status }],
                     status: 'online',

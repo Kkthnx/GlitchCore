@@ -42,6 +42,7 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 - Timezone-aware scheduling (Double XP, birthdays, recurring events) so a UTC host never posts on the wrong day.
 - `@napi-rs/canvas` for rank cards, welcome banners, and event art.
 - Winston structured logging with automatic secret redaction (bot token, Mongo URI, SteamGridDB and Twitch credentials).
+- 200+ rotating custom statuses dealt from a shuffled deck (so every one shows before any repeats), plus ~70 name-based ones that call out a random member.
 
 See [PRIVACY.md](./PRIVACY.md) for the data-handling policy.
 
