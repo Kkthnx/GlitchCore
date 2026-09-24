@@ -77,6 +77,36 @@ async function recordInfraction({ guild, targetUser, moderator, type, reason, du
     return infraction;
 }
 
+/**
+ * Writes a mod-log entry for an action that isn't an infraction against one
+ * member, so there's nothing to append to anyone's history. A bulk purge is the
+ * case that matters: it's the most destructive thing a mod can do to a channel
+ * and it was the only message action leaving no trace, while single deletes and
+ * edits were both logged.
+ *
+ * @param {object} opts
+ * @param {import('discord.js').Guild} opts.guild
+ * @param {import('discord.js').User} opts.moderator
+ * @param {string} opts.title
+ * @param {{name: string, value: string, inline?: boolean}[]} opts.fields
+ */
+async function logModAction({ guild, moderator, title, fields }) {
+    try {
+        const cfg = await getGuildConfig(guild.id) || {};
+        const modLogId = cfg.modLogChannelId || channels.modLog;
+        const channel = modLogId && guild.channels.cache.get(modLogId);
+        if (!channel) return;
+
+        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
+            .setTitle(title)
+            .addFields({ name: 'Moderator', value: `<@${moderator.id}>`, inline: true }, ...fields);
+
+        await channel.send({ embeds: [embed] }).catch(() => {});
+    } catch (err) {
+        logger.error('Failed to write mod-log action:', err);
+    }
+}
+
 /** Best-effort DM to the target so they know what happened and why. */
 async function notifyTarget(targetUser, guildName, type, reason, durationMs) {
     try {
@@ -94,4 +124,4 @@ async function countInfractions(guildId, userId) {
     return Infraction.countDocuments({ guildId, userId });
 }
 
-module.exports = { blockReason, recordInfraction, notifyTarget, countInfractions, ACTION_VERB };
+module.exports = { blockReason, recordInfraction, logModAction, notifyTarget, countInfractions, ACTION_VERB };

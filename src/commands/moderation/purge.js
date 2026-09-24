@@ -6,6 +6,7 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
+const { logModAction } = require('../../utils/moderationManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -30,7 +31,28 @@ module.exports = {
             } else {
                 deleted = await interaction.channel.bulkDelete(amount, true);
             }
-            return interaction.editReply(`🧹 Deleted **${deleted.size}** message(s)${user ? ` from <@${user.id}>` : ''}.${deleted.size < amount ? ' (Some were older than 14 days and skipped.)' : ''}`);
+            // Leave an audit trail. The ephemeral reply below is only seen by
+            // the mod who ran it, and Discord's own audit log doesn't record who
+            // asked the bot to do this.
+            await logModAction({
+                guild: interaction.guild,
+                moderator: interaction.user,
+                title: 'Messages purged',
+                fields: [
+                    { name: 'Channel', value: `<#${interaction.channel.id}>`, inline: true },
+                    { name: 'Deleted', value: `${deleted.size}`, inline: true },
+                    ...(user ? [{ name: 'Only from', value: `<@${user.id}> \`${user.tag}\``, inline: false }] : []),
+                ],
+            });
+
+            // Fewer than asked for means Discord skipped some: either they were
+            // over 14 days old, or the user filter simply matched fewer.
+            const shortfall = deleted.size < amount
+                ? user
+                    ? ' (That\'s all I could find from them in the last 100 messages, ignoring any over 14 days old.)'
+                    : ' (Some were older than 14 days and skipped.)'
+                : '';
+            return interaction.editReply(`🧹 Deleted **${deleted.size}** message(s)${user ? ` from <@${user.id}>` : ''}.${shortfall}`);
         } catch (err) {
             return interaction.editReply(`Failed to purge: ${err.message}`);
         }

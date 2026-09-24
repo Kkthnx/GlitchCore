@@ -22,19 +22,28 @@ async function processDueReminders(client) {
     }
 
     for (const r of due) {
-        const content = `⏰ <@${r.userId}>, you asked me to remind you: **${r.message}**`;
-        const channel = client.channels.cache.get(r.channelId);
+        // Claim by deleting, before sending. Delivering and then deleting means
+        // a delete that fails leaves the row due, so the next tick reminds the
+        // member a second time. Only one caller gets the document back from a
+        // delete, so this is at-most-once even if two ticks race.
+        //
+        // The row is dropped either way (that was already true when the send
+        // failed), so this trades a possible duplicate for none.
+        const claimed = await Reminder.findOneAndDelete({ _id: r._id }).lean().catch(() => null);
+        if (!claimed) continue; // already delivered elsewhere
+
+        const content = `⏰ <@${claimed.userId}>, you asked me to remind you: **${claimed.message}**`;
+        const channel = client.channels.cache.get(claimed.channelId);
         try {
             if (channel) {
-                await channel.send({ content, allowedMentions: { users: [r.userId] } });
+                await channel.send({ content, allowedMentions: { users: [claimed.userId] } });
             } else {
-                const user = await client.users.fetch(r.userId).catch(() => null);
+                const user = await client.users.fetch(claimed.userId).catch(() => null);
                 if (user) await user.send(content).catch(() => {});
             }
         } catch (err) {
-            logger.warn(`[REMIND] Failed to deliver reminder ${r._id}: ${err.message}`);
+            logger.warn(`[REMIND] Failed to deliver reminder ${claimed._id}: ${err.message}`);
         }
-        await Reminder.deleteOne({ _id: r._id }).catch(() => {});
     }
 }
 
