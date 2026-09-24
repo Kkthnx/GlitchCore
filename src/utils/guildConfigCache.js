@@ -6,6 +6,7 @@
  */
 
 const GuildConfig = require('../database/GuildConfigSchema');
+const logger = require('./logger');
 
 const configCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -41,6 +42,17 @@ async function getGuildConfig(guildId) {
         .then((config) => {
             configCache.set(key, { config, fetchedAt: Date.now() });
             return config;
+        })
+        .catch((err) => {
+            // A database blip must not take the message path down with it. Serve
+            // the last known config even though it has expired: slightly stale
+            // settings for the length of an outage beats every message failing.
+            // The entry keeps its old timestamp, so the next call retries.
+            const stale = configCache.get(key);
+            logger.warn(
+                `[GUILD_CONFIG] Read failed for ${guildId}, ${stale ? 'serving the last known config' : 'no cached copy to fall back on'}: ${err.message}`,
+            );
+            return stale ? stale.config : null;
         })
         .finally(() => inflight.delete(key));
 

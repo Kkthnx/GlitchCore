@@ -151,10 +151,24 @@ if (fs.existsSync(eventsPath)) {
     for (const file of eventFiles) {
         const filePath = path.join(eventsPath, file);
         const event = require(filePath);
+
+        // Wrap every handler. Binding event.execute directly meant any rejection
+        // inside it became an unhandled rejection: reported without saying which
+        // event produced it, and one per occurrence. messageCreate awaits the
+        // guild config outside a try/catch, so a database blip used to mean one
+        // anonymous unhandled rejection for every message in the server.
+        const handler = async (...args) => {
+            try {
+                await event.execute(...args, client);
+            } catch (err) {
+                logger.error(`[EVENT_ERROR] ${event.name}:`, err);
+            }
+        };
+
         if (event.once) {
-            client.once(event.name, (...args) => event.execute(...args, client));
+            client.once(event.name, handler);
         } else {
-            client.on(event.name, (...args) => event.execute(...args, client));
+            client.on(event.name, handler);
         }
     }
 }
@@ -208,6 +222,12 @@ async function gracefulShutdown(signal) {
     shuttingDown = true;
     logger.info(`Received ${signal}, flushing XP buffer and shutting down`);
 
+    // Order matters. Close the gateway first so no new event arrives mid-teardown,
+    // then flush (which needs the database), then close the database. Closing
+    // Mongo while the gateway was still delivering events left a window where
+    // every handler that touched the database failed on the way out.
+    try { client.destroy(); } catch (err) { logger.error('Error destroying client:', err); }
+
     try {
         const { flushXpBuffer } = require('./utils/xpCache');
         await flushXpBuffer(client);
@@ -217,7 +237,6 @@ async function gracefulShutdown(signal) {
     }
 
     try { await mongoose.connection.close(); } catch (err) { logger.error('Error closing MongoDB:', err); }
-    try { client.destroy(); } catch (err) { logger.error('Error destroying client:', err); }
 
     process.exit(0);
 }

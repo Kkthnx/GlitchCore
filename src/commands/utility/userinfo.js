@@ -33,10 +33,18 @@ module.exports = {
             if (member.joinedTimestamp) {
                 embed.addFields({ name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true });
             }
-            const roles = member.roles.cache.filter(r => r.id !== interaction.guild.id).sort((a, b) => b.position - a.position);
+            const roles = [...member.roles.cache.values()]
+                .filter(r => r.id !== interaction.guild.id)
+                .sort((a, b) => b.position - a.position);
+            // Cap the list so a member with dozens of roles can't overflow the
+            // embed field, and say so rather than silently truncating.
+            const shown = roles.slice(0, 20);
+            const label = roles.length > shown.length
+                ? `Roles (${shown.length} of ${roles.length})`
+                : `Roles (${roles.length})`;
             embed.addFields({
-                name: `Roles (${roles.size})`,
-                value: roles.size ? roles.map(r => `<@&${r.id}>`).slice(0, 20).join(' ') : 'None',
+                name: label,
+                value: shown.length ? shown.map(r => `<@&${r.id}>`).join(' ') : 'None',
             });
         }
 

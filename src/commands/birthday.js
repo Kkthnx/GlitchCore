@@ -67,7 +67,7 @@ module.exports = {
 
         if (sub === 'next') {
             const today = localMonthDay();
-            const all = await Birthday.find({ guildId });
+            const all = await Birthday.find({ guildId }, { userId: 1, month: 1, day: 1 }).lean();
             if (!all.length) return interaction.reply({ content: 'No birthdays saved yet. Set yours with `/birthday set`.', flags: MessageFlags.Ephemeral });
 
             const upcoming = all
@@ -84,7 +84,7 @@ module.exports = {
 
         if (sub === 'list') {
             const month = interaction.options.getInteger('month') || localMonthDay().month;
-            const rows = await Birthday.find({ guildId, month }).sort({ day: 1 });
+            const rows = await Birthday.find({ guildId, month }, { userId: 1, day: 1 }).sort({ day: 1 }).lean();
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Birthdays' })
                 .setTitle(`Birthdays in ${MONTHS[month - 1]}`)
                 .setDescription(rows.length ? rows.map(b => `**${b.day}**, <@${b.userId}>`).join('\n') : 'Nobody has a birthday saved this month.');
