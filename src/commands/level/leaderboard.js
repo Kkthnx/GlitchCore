@@ -34,6 +34,9 @@ module.exports = {
         .setName('leaderboard')
         .setDescription('Show the top ranked members in Glitch Haven'),
 
+    // Cooldown: sorted scan, a count, and a bulk member fetch.
+    cooldown: 10,
+
     async execute(interaction) {
         await interaction.deferReply();
         const guildId = interaction.guild.id;

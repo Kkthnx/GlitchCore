@@ -18,6 +18,9 @@ module.exports = {
         .setName('stats')
         .setDescription('Server activity dashboard and bot health'),
 
+    // Cooldown: an aggregate plus four counts.
+    cooldown: 10,
+
     async execute(interaction) {
         await interaction.deferReply();
         const guildId = interaction.guild.id;

@@ -14,6 +14,9 @@ module.exports = {
         .setDescription('Show info about this server')
         .setContexts(InteractionContextType.Guild),
 
+    // Cooldown: walks the full channel and role cache.
+    cooldown: 5,
+
     async execute(interaction) {
         const g = interaction.guild;
         const channels = g.channels.cache;

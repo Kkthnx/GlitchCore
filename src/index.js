@@ -68,6 +68,8 @@ client.cooldowns = new Collection();
 
 // Periodically clean up in-memory maps to prevent leaks over long uptimes
 const { sweepIdle } = require('./utils/antiSpam');
+const { sweepIdle: sweepCommandCooldowns } = require('./utils/commandCooldowns');
+const { pruneGuildConfigCache } = require('./utils/guildConfigCache');
 setInterval(() => {
     const now = Date.now();
     for (const [key, timestamp] of client.cooldowns.entries()) {
@@ -78,6 +80,10 @@ setInterval(() => {
     }
     // Evict idle anti-spam rate buckets.
     sweepIdle(now);
+    // Evict idle per-command cooldown entries.
+    sweepCommandCooldowns(now);
+    // Forget settings for guilds we are no longer in.
+    pruneGuildConfigCache(client.guilds.cache.keys());
 }, 60 * 60 * 1000);
 
 // 2. Connect to the Database with Automatic Reconnect & Exponential Backoff

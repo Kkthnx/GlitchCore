@@ -20,6 +20,9 @@ module.exports = {
                 .setDescription('The user to check the rank of')
                 .setRequired(false)),
 
+    // Cooldown: renders a canvas card and downloads an avatar per call.
+    cooldown: 10,
+
     async execute(interaction) {
         // Defer the reply because generating the image and fetching DB takes a second
         await interaction.deferReply();

@@ -22,7 +22,7 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 - **Polls** — `/poll` native Discord polls with up to 6 options.
 - **Giveaways** — `/giveaway` with atomic entry and automatic winner draws.
 - **Streamer go-live** — `/streamers` announces when tracked members go live on Twitch and removes the post when they go offline.
-- **Tags** — `/tag` saved canned responses for FAQs and info (managed with Manage Messages).
+- **Tags** — `/tag` saved canned responses for FAQs and info (managed with Manage Messages), with autocomplete on tag names so nobody has to remember the exact spelling.
 - **Reminders and AFK** — `/remind` and `/afk`.
 - **Welcome and farewell** — glitch-styled join banners and sly leave messages.
 
@@ -37,6 +37,8 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 - Sharding via `ShardingManager`, with buffered XP flushed on shutdown.
 - Shard-scoped schedulers so multi-shard setups never double-fire, each wrapped in an overlap guard so a slow tick can't double-send a reminder or double-draw a giveaway.
 - Hot paths kept cheap: guild settings are cached (and read as plain objects), reaction handling filters on the gateway payload before spending an API fetch, and XP is read back per guild instead of per user.
+- Per-command cooldowns on the expensive commands (card rendering, aggregates), so one member holding enter can't pin the shard's event loop. Moderation commands stay unlimited on purpose.
+- Contested writes are atomic: `/daily` claims the day in the update itself, and giveaway entries, LFG slots and suggestion votes all use targeted operators rather than read-modify-write, so two people clicking at once can't lose a vote or double-claim.
 - Timezone-aware scheduling (Double XP, birthdays, recurring events) so a UTC host never posts on the wrong day.
 - `@napi-rs/canvas` for rank cards, welcome banners, and event art.
 - Winston structured logging with automatic secret redaction (bot token, Mongo URI, SteamGridDB and Twitch credentials).

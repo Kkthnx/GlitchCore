@@ -18,6 +18,9 @@ module.exports = {
         .setDescription('View your XP and level profile')
         .addUserOption(option => option.setName('target').setDescription('View another user\'s profile').setRequired(false)),
 
+    // Cooldown: a rank count over the guild every call.
+    cooldown: 5,
+
     async execute(interaction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

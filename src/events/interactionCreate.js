@@ -12,6 +12,7 @@ const { CONFIRM_ID: FORGET_CONFIRM_ID, handleForgetConfirm } = require('../utils
 const { ENTER_ID: GIVEAWAY_ENTER_ID, handleGiveawayEntry } = require('../utils/giveawayManager');
 const { handleSuggestionButton } = require('../utils/suggestionManager');
 const { MessageFlags } = require('discord.js');
+const { consume } = require('../utils/commandCooldowns');
 const logger = require('../utils/logger');
 
 // Safely send an error response. If the interaction already expired or was
@@ -42,11 +43,35 @@ module.exports = {
                 return;
             }
 
+            // Commands that render images or run aggregates declare a cooldown
+            // so one member can't pin the shard's event loop by holding enter.
+            const { allowed, retryAfterMs } = consume(command.data.name, interaction.user.id, command.cooldown);
+            if (!allowed) {
+                const seconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+                return safeErrorReply(interaction, `⏳ Slow down, try \`/${command.data.name}\` again in ${seconds}s.`);
+            }
+
             try {
                 await command.execute(interaction, client);
             } catch (error) {
                 logger.error(`[CMD_ERROR] /${interaction.commandName}:`, error);
                 await safeErrorReply(interaction, 'There was an error while executing this command!');
+            }
+        }
+
+        // ── Autocomplete ─────────────────────────────────────────────────────
+        // Discord gives this 3 seconds and it cannot be deferred, so a failure
+        // just means an empty list: never an error reply, which would be invalid
+        // for this interaction type anyway.
+        else if (interaction.isAutocomplete()) {
+            const command = client.commands.get(interaction.commandName);
+            if (!command?.autocomplete) return;
+
+            try {
+                await command.autocomplete(interaction, client);
+            } catch (error) {
+                logger.warn(`[AUTOCOMPLETE] /${interaction.commandName} failed: ${error.message}`);
+                if (!interaction.responded) await interaction.respond([]).catch(() => {});
             }
         }
 
