@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const GuildConfig = require('../database/GuildConfigSchema');
+const { getGuildConfig } = require('./guildConfigCache');
 const { PALETTE } = require('./brand');
 const { currentMilestone, roleNameFor, milestoneNameRegex } = require('./levelRoles');
 const logger = require('./logger');
@@ -51,7 +51,7 @@ async function applyMilestoneRole(member, level, config) {
 }
 
 async function applyLevelRewards(userId, guildId, level, client, member = null) {
-    const config = await GuildConfig.findOne({ guildId });
+    const config = await getGuildConfig(guildId);
     // Nothing to do if neither explicit rewards nor milestone roles are set up.
     if (!config || (!config.levelRewardRoles?.length && !config.levelRoleInterval)) return;
 

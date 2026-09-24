@@ -18,7 +18,7 @@ const menuMessageIds = new Set();
 
 async function loadMenuCache() {
     try {
-        const docs = await ReactionRole.find({}, { messageId: 1 });
+        const docs = await ReactionRole.find({}, { messageId: 1 }).lean();
         menuMessageIds.clear();
         for (const d of docs) menuMessageIds.add(d.messageId);
         logger.info(`[REACTIONROLE] Cached ${menuMessageIds.size} menu message(s).`);
@@ -55,7 +55,7 @@ function parseEmojiInput(input) {
 
 function buildMenuEmbed(doc) {
     const lines = doc.pairs.length
-        ? doc.pairs.map(p => `${p.display} for <@&${p.roleId}>`).join('\n')
+        ? doc.pairs.map(p => `${p.label} for <@&${p.roleId}>`).join('\n')
         : '_No roles yet. A manager can add some with /reactionrole add._';
     return new EmbedBuilder()
         .setColor(PALETTE.accent)

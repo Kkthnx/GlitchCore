@@ -16,6 +16,9 @@ const MAX_LEVEL = config.xpSettings.maxLevel || 1000;
 const MAX_BUFFER_ENTRIES = 2000;
 const xpBuffer = new Map();
 let isFlushing = false;
+// Set by startXpSync so an overflow flush triggered from queueXp (which has no
+// client of its own) can still send level-up embeds and grant reward roles.
+let syncClient = null;
 
 /**
  * Queues XP to be written to the database later.
@@ -40,7 +43,9 @@ function queueXp(userId, guildId, xpAmount, channelId, options = {}) {
 
     if (xpBuffer.size >= MAX_BUFFER_ENTRIES) {
         logger.warn('[XP_SYNC] XP buffer reached maximum size, flushing immediately.');
-        flushXpBuffer().catch(err => logger.error('[XP_SYNC] Failed to flush oversized XP buffer:', err));
+        // Pass the client captured by startXpSync, otherwise an overflow flush
+        // would silently level people up with no announcement and no reward role.
+        flushXpBuffer(syncClient).catch(err => logger.error('[XP_SYNC] Failed to flush oversized XP buffer:', err));
     }
 }
 
@@ -52,7 +57,10 @@ async function flushXpBuffer(client = null) {
     xpBuffer.clear();
 
     const bulkOps = [];
-    const queryConditions = [];
+    // userIds grouped by guild. One { guildId, userId: { $in: [...] } } clause
+    // per guild reads back the whole batch with a couple of indexed lookups,
+    // where one $or clause per user made the planner walk thousands of branches.
+    const userIdsByGuild = new Map();
 
     for (const [key, data] of batch.entries()) {
         const [userId, guildId] = key.split('::');
@@ -67,7 +75,9 @@ async function flushXpBuffer(client = null) {
             }
         });
 
-        queryConditions.push({ userId, guildId });
+        const ids = userIdsByGuild.get(guildId);
+        if (ids) ids.push(userId);
+        else userIdsByGuild.set(guildId, [userId]);
     }
 
     // Step 1: persist the XP increments. This is the only step whose failure
@@ -83,6 +93,9 @@ async function flushXpBuffer(client = null) {
             else {
                 current.xp += data.xp;
                 current.textMessageCount += data.textMessageCount;
+                // Keep a channel to announce in: the newer entry may have none
+                // (e.g. voice XP), and losing it would drop the level-up embed.
+                current.lastChannelId = current.lastChannelId || data.lastChannelId;
             }
         }
         isFlushing = false;
@@ -93,10 +106,16 @@ async function flushXpBuffer(client = null) {
     // here is safe to swallow, the next flush recomputes from the same XP, so
     // we must NOT re-queue (the XP is already saved).
     try {
+        const guildClauses = [...userIdsByGuild].map(([guildId, userIds]) => ({
+            guildId,
+            userId: { $in: userIds },
+        }));
+        // lean(): these are read once to compute levels, never saved, so there
+        // is no reason to hydrate a document per user.
         const updatedUsers = await User.find(
-            { $or: queryConditions },
+            guildClauses.length === 1 ? guildClauses[0] : { $or: guildClauses },
             { userId: 1, guildId: 1, xp: 1, level: 1 }
-        );
+        ).lean();
 
         const levelUpdateOps = [];
         const usersToNotify = [];
@@ -153,8 +172,9 @@ async function flushXpBuffer(client = null) {
 }
 
 function startXpSync(client) {
-    setInterval(async () => {
-        await flushXpBuffer(client).catch(err => logger.error('[XP_SYNC] Periodic flush failed:', err));
+    syncClient = client;
+    setInterval(() => {
+        flushXpBuffer(client).catch(err => logger.error('[XP_SYNC] Periodic flush failed:', err));
     }, 60 * 1000);
 }
 

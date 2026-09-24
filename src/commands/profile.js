@@ -7,7 +7,7 @@
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const User = require('../database/UserSchema');
-const GuildConfig = require('../database/GuildConfigSchema');
+const { getGuildConfig } = require('../utils/guildConfigCache');
 const { xpRequiredForLevel } = require('../utils/calculateXp');
 const { brandedEmbed, COLORS, progressBar } = require('../utils/brand');
 const { getUserRank } = require('../utils/ranking');
@@ -25,8 +25,8 @@ module.exports = {
         if (targetUser.bot) return interaction.editReply('Bots do not have profiles.');
 
         const [userData, guildConfig] = await Promise.all([
-            User.findOne({ userId: targetUser.id, guildId: interaction.guild.id }),
-            GuildConfig.findOne({ guildId: interaction.guild.id }),
+            User.findOne({ userId: targetUser.id, guildId: interaction.guild.id }).lean(),
+            getGuildConfig(interaction.guild.id),
         ]);
 
         if (!userData) {
@@ -55,9 +55,9 @@ module.exports = {
         const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Profile' })
             .setAuthor({
                 name: `${targetUser.username}'s Profile`,
-                iconURL: targetUser.displayAvatarURL({ dynamic: true }),
+                iconURL: targetUser.displayAvatarURL(),
             })
-            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
+            .setThumbnail(targetUser.displayAvatarURL({ size: 256 }))
             .addFields(
                 { name: 'Rank', value: `#${rank}`, inline: true },
                 { name: 'Level', value: `${currentLevel}`, inline: true },

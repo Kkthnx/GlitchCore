@@ -39,7 +39,7 @@ module.exports = {
         const guildId = interaction.guild.id;
 
         const [topUsers, totalRanked] = await Promise.all([
-            User.find({ guildId }).sort({ level: -1, xp: -1 }).limit(10),
+            User.find({ guildId }, { userId: 1, level: 1, xp: 1 }).sort({ level: -1, xp: -1 }).limit(10).lean(),
             User.countDocuments({ guildId }),
         ]);
 
@@ -70,7 +70,7 @@ module.exports = {
             .setColor(PALETTE.tech)
             .setAuthor({ name: '⚡ SYSTEM.LEADERBOARD' })
             .setTitle('> GLITCH HAVEN // TOP PLAYERS')
-            .setThumbnail(interaction.guild.iconURL({ dynamic: true }) || null)
+            .setThumbnail(interaction.guild.iconURL() || null)
             .setDescription(block)
             .setFooter({ text: 'GLITCH_HAVEN // LEADERBOARD' })
             .setTimestamp();
@@ -78,7 +78,7 @@ module.exports = {
         // If the requester is not in the top 10, show their standing too.
         const inTop = topUsers.some(u => u.userId === interaction.user.id);
         if (!inTop) {
-            const me = await User.findOne({ userId: interaction.user.id, guildId });
+            const me = await User.findOne({ userId: interaction.user.id, guildId }, { level: 1, xp: 1 }).lean();
             if (me) {
                 const rank = await getUserRank(guildId, me.level, me.xp);
                 const line = row(`#${rank}`, interaction.member.displayName, me.level, me.xp);

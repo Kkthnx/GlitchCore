@@ -27,7 +27,7 @@ module.exports = {
                 { $match: { guildId } },
                 { $group: { _id: null, users: { $sum: 1 }, totalXp: { $sum: '$xp' }, totalMsgs: { $sum: '$totalMessages' }, maxLevel: { $max: '$level' }, avgLevel: { $avg: '$level' } } },
             ]),
-            User.find({ guildId }).sort({ level: -1, xp: -1 }).limit(1),
+            User.find({ guildId }, { userId: 1 }).sort({ level: -1, xp: -1 }).limit(1).lean(),
             Event.countDocuments({ guildId, status: 'SCHEDULED' }),
             LfgSession.countDocuments({ guildId, status: 'OPEN' }),
             Infraction.countDocuments({ guildId }),
@@ -39,7 +39,7 @@ module.exports = {
         const uptime = humanizeDuration(process.uptime() * 1000);
 
         const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Stats' })
-            .setAuthor({ name: `${interaction.guild.name}, Server Stats`, iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined })
+            .setAuthor({ name: `${interaction.guild.name}, Server Stats`, iconURL: interaction.guild.iconURL() || undefined })
             .addFields(
                 { name: '👥 Members', value: `${interaction.guild.memberCount.toLocaleString()}`, inline: true },
                 { name: '📊 Ranked', value: `${stats.users.toLocaleString()}`, inline: true },
