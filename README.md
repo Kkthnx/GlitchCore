@@ -96,9 +96,10 @@ npm run lint:fix
    AUTO_DEPLOY=true
    ```
 
-   **Channel IDs live in the environment, not in the repo.** Set the channels you use:
+   **Server-specific IDs live in the environment, not in the repo.** Set the auto-role and the channels you use:
 
    ```env
+   MEMBER_ROLE_ID=
    WELCOME_CHANNEL_ID=
    LEAVE_CHANNEL_ID=
    ANNOUNCEMENTS_CHANNEL_ID=

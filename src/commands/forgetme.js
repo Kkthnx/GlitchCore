@@ -34,8 +34,10 @@ module.exports = {
         const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Privacy' })
             .setTitle('⚠️ Erase your data?')
             .setDescription(
-                'This permanently deletes your **profile, XP and level**, and removes you from all event and LFG rosters in this server.\n\n' +
-                'Moderation records (if any) are kept as server records. This cannot be undone.'
+                'This permanently deletes your **profile, XP and level**, your saved **birthday**, and any **reminders** you have pending. ' +
+                'It removes you from every event and LFG roster and withdraws you from any open giveaway, and unlinks your account from any tracked Twitch channel.\n\n' +
+                'Two things are kept: **moderation records**, as server records, and any **suggestions** you posted, which are published to the channel like a message. ' +
+                'A manager can remove an individual suggestion.\n\nThis cannot be undone.'
             );
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(CONFIRM_ID).setLabel('Yes, erase my data').setEmoji('🗑️').setStyle(ButtonStyle.Danger),

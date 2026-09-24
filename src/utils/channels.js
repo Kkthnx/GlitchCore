@@ -12,6 +12,8 @@ const config = require('../../config.json');
 
 const c = config.channels || {};
 
+const r = config.roles || {};
+
 module.exports = {
     welcome: process.env.WELCOME_CHANNEL_ID || c.welcome || '',
     leave: process.env.LEAVE_CHANNEL_ID || c.leave || '',
@@ -20,4 +22,12 @@ module.exports = {
     levelUpLog: process.env.LEVEL_UP_LOG_CHANNEL_ID || c.levelUpLog || '',
     modLog: process.env.MOD_LOG_CHANNEL_ID || c.modLog || '',
     birthday: process.env.BIRTHDAY_CHANNEL_ID || c.birthday || '',
+
+    // Role IDs belong in the environment for the same reason channel IDs do:
+    // they're specific to one server, so a committed value is wrong for anybody
+    // else running this and is a nuisance to change. config.json stays as the
+    // legacy fallback so an existing setup keeps working.
+    roles: {
+        member: process.env.MEMBER_ROLE_ID || r.member || '',
+    },
 };

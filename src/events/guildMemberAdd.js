@@ -10,7 +10,6 @@ const buildWelcomeImage = require('../utils/generateWelcomeImage');
 const { headlines, quips, pick } = require('../utils/welcomeSayings');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const { recordJoin } = require('../utils/joinFlood');
-const config = require('../../config.json');
 const channels = require('../utils/channels');
 const logger = require('../utils/logger');
 
@@ -27,12 +26,14 @@ module.exports = {
 
         // 1. Auto-Role Assignment
         try {
-            const memberRole = member.guild.roles.cache.get(config.roles.member);
+            const memberRole = channels.roles.member
+                && member.guild.roles.cache.get(channels.roles.member);
             if (memberRole) {
                 await member.roles.add(memberRole);
-            } else {
-                logger.warn('Member role ID is invalid or missing in config.json');
+            } else if (channels.roles.member) {
+                logger.warn(`[WELCOME] Auto-role ${channels.roles.member} not found in ${member.guild.id}.`);
             }
+            // No auto-role configured at all is a valid setup, so it is quiet.
         } catch (err) {
             logger.error(`Failed to assign role to ${member.user.tag}:`, err);
         }
