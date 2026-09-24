@@ -69,6 +69,7 @@ client.cooldowns = new Collection();
 // Periodically clean up in-memory maps to prevent leaks over long uptimes
 const { sweepIdle } = require('./utils/antiSpam');
 const { sweepIdle: sweepCommandCooldowns } = require('./utils/commandCooldowns');
+const { sweepIdle: sweepJoinFlood } = require('./utils/joinFlood');
 const { pruneGuildConfigCache } = require('./utils/guildConfigCache');
 setInterval(() => {
     const now = Date.now();
@@ -82,6 +83,8 @@ setInterval(() => {
     sweepIdle(now);
     // Evict idle per-command cooldown entries.
     sweepCommandCooldowns(now);
+    // Evict join-rate windows for quiet guilds.
+    sweepJoinFlood(now);
     // Forget settings for guilds we are no longer in.
     pruneGuildConfigCache(client.guilds.cache.keys());
 }, 60 * 60 * 1000);

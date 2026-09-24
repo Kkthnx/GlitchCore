@@ -9,6 +9,7 @@ const { AttachmentBuilder } = require('discord.js');
 const buildWelcomeImage = require('../utils/generateWelcomeImage');
 const { headlines, quips, pick } = require('../utils/welcomeSayings');
 const { brandedEmbed, COLORS } = require('../utils/brand');
+const { recordJoin } = require('../utils/joinFlood');
 const config = require('../../config.json');
 const channels = require('../utils/channels');
 const logger = require('../utils/logger');
@@ -16,6 +17,14 @@ const logger = require('../utils/logger');
 module.exports = {
     name: 'guildMemberAdd',
     async execute(member) {
+        // Check the join rate first. Under a flood the welcome degrades to plain
+        // text: the banner render is synchronous CPU that blocks the shard, and a
+        // burst of DMs looks like spam to Discord. Everyone still gets welcomed.
+        const { flooded, recent } = recordJoin(member.guild.id);
+        if (flooded) {
+            logger.warn(`[WELCOME] ${recent} joins in the last 20s in ${member.guild.id}, sending plain welcomes until it settles.`);
+        }
+
         // 1. Auto-Role Assignment
         try {
             const memberRole = member.guild.roles.cache.get(config.roles.member);
@@ -28,21 +37,24 @@ module.exports = {
             logger.error(`Failed to assign role to ${member.user.tag}:`, err);
         }
 
-        // 2. Private Message the User
-        try {
-            const dmEmbed = brandedEmbed({ color: COLORS.success, footer: 'GLITCH_HAVEN // WELCOME' })
-                .setAuthor({ name: '⚡ SYSTEM.NEW_CONNECTION' })
-                .setTitle('> WELCOME TO GLITCH HAVEN')
-                .setDescription(
-                    `Hey ${member.user.username}, glad you made it.\n\n` +
-                    `_"${pick(quips)}"_\n\n` +
-                    `Grab your roles with \`/roles\`, chat to level up, and use \`/lfg\` to squad up. Type \`/help\` any time.`
-                );
+        // 2. Private Message the User. Skipped during a flood: a burst of DMs to
+        // brand-new accounts is exactly the pattern Discord rate-limits.
+        if (!flooded) {
+            try {
+                const dmEmbed = brandedEmbed({ color: COLORS.success, footer: 'GLITCH_HAVEN // WELCOME' })
+                    .setAuthor({ name: '⚡ SYSTEM.NEW_CONNECTION' })
+                    .setTitle('> WELCOME TO GLITCH HAVEN')
+                    .setDescription(
+                        `Hey ${member.user.username}, glad you made it.\n\n` +
+                        `_"${pick(quips)}"_\n\n` +
+                        `Grab your roles with \`/roles\`, chat to level up, and use \`/lfg\` to squad up. Type \`/help\` any time.`
+                    );
 
-            await member.send({ embeds: [dmEmbed] });
-        } catch (err) {
-            // This triggers if the user has their DMs locked/disabled
-            logger.info(`Could not send DM to ${member.user.tag}.`);
+                await member.send({ embeds: [dmEmbed] });
+            } catch (err) {
+                // This triggers if the user has their DMs locked/disabled
+                logger.info(`Could not send DM to ${member.user.tag}.`);
+            }
         }
 
         // 3. Generate and Send Welcome Banner
@@ -54,16 +66,26 @@ module.exports = {
             const quip = pick(quips);
             const count = member.guild.memberCount;
 
-            const imageBuffer = await buildWelcomeImage(member.user, { memberCount: count, quip });
-            const attachment = new AttachmentBuilder(imageBuffer, { name: 'welcome-image.png' });
-
             const welcomeEmbed = brandedEmbed({ color: COLORS.success, footer: 'GLITCH_HAVEN // USER_CONNECTED' })
                 .setAuthor({ name: '⚡ SYSTEM.NEW_CONNECTION' })
                 .setTitle(`> ${headline}`)
-                .setDescription(`${member} just spawned in as member **#${count}**.\n\n_${quip}_\n\nGrab your roles with \`/roles\` and jump into the chat.`)
-                .setImage('attachment://welcome-image.png');
+                .setDescription(`${member} just spawned in as member **#${count}**.\n\n_${quip}_\n\nGrab your roles with \`/roles\` and jump into the chat.`);
 
-            await welcomeChannel.send({ content: `${member}`, embeds: [welcomeEmbed], files: [attachment], allowedMentions: { users: [member.id] } });
+            // The banner costs an avatar download plus a synchronous canvas
+            // render, so it's the first thing to go when joins spike.
+            const files = [];
+            if (!flooded) {
+                try {
+                    const imageBuffer = await buildWelcomeImage(member.user, { memberCount: count, quip });
+                    files.push(new AttachmentBuilder(imageBuffer, { name: 'welcome-image.png' }));
+                    welcomeEmbed.setImage('attachment://welcome-image.png');
+                } catch (err) {
+                    // A render failure shouldn't cost the member their welcome.
+                    logger.warn(`[WELCOME] Banner render failed for ${member.id}: ${err.message}`);
+                }
+            }
+
+            await welcomeChannel.send({ content: `${member}`, embeds: [welcomeEmbed], files, allowedMentions: { users: [member.id] } });
         } catch (err) {
             logger.error('Failed to send welcome message:', err);
         }

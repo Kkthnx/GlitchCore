@@ -27,9 +27,9 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 - **Welcome and farewell** — glitch-styled join banners and sly leave messages.
 
 ### Moderation and safety
-- **Moderation suite** — `/warn`, `/timeout`, `/kick`, `/ban` (with optional temp-ban `duration` that auto-unbans), and `/infractions`, backed by a persistent infraction log and a mod-log channel.
+- **Moderation suite** — `/warn`, `/timeout`, `/kick`, `/ban` (with optional temp-ban `duration` that auto-unbans), and `/infractions`, backed by a persistent infraction log and a mod-log channel. `/purge` is logged there too, with who ran it and how much it removed.
 - **Audit logging** — message edits and deletes are logged to the mod-log channel.
-- **Anti-raid / anti-spam** — auto-detects invite links, mass mentions, and message flooding, with per-guild toggles.
+- **Anti-raid / anti-spam** — auto-detects invite links, mass mentions, and message flooding, with per-guild toggles. Under a join flood, welcomes drop to plain text so the bot isn't spending its CPU rendering banners for a raid.
 - **Content auto-moderation** — configurable filter with themed clapbacks.
 - **Privacy** — `/forgetme export` downloads a user's stored data and `/forgetme delete` erases their profile on confirmation; all per-guild data is purged when the bot leaves a server.
 
