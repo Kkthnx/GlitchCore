@@ -35,7 +35,10 @@ module.exports = {
         }
 
         // Fetch user data from MongoDB
-        const userData = await User.findOne({ userId: targetUser.id, guildId: interaction.guild.id });
+        const userData = await User.findOne(
+            { userId: targetUser.id, guildId: interaction.guild.id },
+            { xp: 1, level: 1, cardStyle: 1 },
+        ).lean();
 
         if (!userData) {
             return interaction.editReply(`${targetUser.username} hasn't earned any XP yet. Tell them to start chatting!`);

@@ -7,7 +7,7 @@
 
 const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const Event = require('../database/EventSchema');
-const GuildConfig = require('../database/GuildConfigSchema');
+const { getGuildConfig } = require('../utils/guildConfigCache');
 const { buildEventEmbed, buildEventButtons } = require('../utils/eventManager');
 const { parseStartTime } = require('../utils/eventRsvp');
 const { fetchGameBanner } = require('../utils/steamGridClient');
@@ -19,7 +19,7 @@ const logger = require('../utils/logger');
 // players get pinged without the host needing to know the role.
 async function resolveGamePingRole(interaction, game, explicitRole) {
     if (explicitRole) return explicitRole.id;
-    const cfg = await GuildConfig.findOne({ guildId: interaction.guild.id });
+    const cfg = await getGuildConfig(interaction.guild.id);
     const wanted = game.trim().toLowerCase();
     const match = (cfg?.selfRoles || []).find(r =>
         r.label.toLowerCase() === wanted ||
@@ -51,8 +51,10 @@ module.exports = {
         const sub = interaction.options.getSubcommand();
 
         if (sub === 'list') {
-            const events = await Event.find({ guildId: interaction.guild.id, status: 'SCHEDULED', startsAt: { $gte: new Date() } })
-                .sort({ startsAt: 1 }).limit(10);
+            const events = await Event.find(
+                { guildId: interaction.guild.id, status: 'SCHEDULED', startsAt: { $gte: new Date() } },
+                { title: 1, game: 1, startsAt: 1, guildId: 1, channelId: 1, messageId: 1, going: 1 },
+            ).sort({ startsAt: 1 }).limit(10).lean();
 
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Events' })
                 .setTitle('📅 Upcoming Events');

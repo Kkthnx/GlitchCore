@@ -6,8 +6,7 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const GuildConfig = require('../../database/GuildConfigSchema');
-const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../../utils/guildConfigCache');
+const { getGuildConfig, getOrCreateGuildConfig, invalidateGuildConfig } = require('../../utils/guildConfigCache');
 const { currentMilestone, roleNameFor } = require('../../utils/levelRoles');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 const appConfig = require('../../../config.json');
@@ -84,7 +83,7 @@ module.exports = {
         }
 
         // preview
-        const cfg = await GuildConfig.findOne({ guildId });
+        const cfg = await getGuildConfig(guildId);
         const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Level Rewards' })
             .setTitle('Milestone Level-Roles');
 

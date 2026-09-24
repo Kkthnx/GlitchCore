@@ -278,7 +278,7 @@ async function handleInject(interaction) {
     }
 
     // 3. Nothing matched, re-read to give a precise reason.
-    const session = await LfgSession.findOne({ messageId: interaction.message.id });
+    const session = await LfgSession.findOne({ messageId: interaction.message.id }, { status: 1, waitlist: 1 }).lean();
     if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
     if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Session is **LOCKED**.', flags: MessageFlags.Ephemeral });
     if (session.status === 'CANCELLED') return interaction.reply({ content: '`ERROR_410` : Session has been cancelled.', flags: MessageFlags.Ephemeral });
@@ -293,7 +293,7 @@ async function handleInject(interaction) {
 // ---------------------------------------------------------------------------
 async function handleAbort(interaction) {
     const userId = interaction.user.id;
-    const session = await LfgSession.findOne({ messageId: interaction.message.id });
+    const session = await LfgSession.findOne({ messageId: interaction.message.id }, { hostId: 1, status: 1 }).lean();
     if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
     if (session.status === 'LOCKED') return interaction.reply({ content: '`ERROR_403` : Cannot abort a **LOCKED** session.', flags: MessageFlags.Ephemeral });
 
@@ -353,24 +353,31 @@ async function handleAbort(interaction) {
 // EXECUTE, host locks the session, pings the full roster
 // ---------------------------------------------------------------------------
 async function handleExecute(interaction) {
-    const session = await LfgSession.findOne({ messageId: interaction.message.id });
-    if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
+    // Atomic lock. Saving the whole document instead would write the roster as
+    // it looked at the read back over the top, silently dropping anyone who hit
+    // INJECT in between, and they'd be missing from the rally ping below. The
+    // returned document is post-lock, so the ping covers everyone who made it.
+    const locked = await LfgSession.findOneAndUpdate(
+        { messageId: interaction.message.id, hostId: interaction.user.id, status: { $ne: 'LOCKED' } },
+        { $set: { status: 'LOCKED' } },
+        { new: true },
+    ).lean();
 
-    if (interaction.user.id !== session.hostId) {
-        return interaction.reply({ content: '`ERROR_403` : Only the **Leader** can EXECUTE the lock.', flags: MessageFlags.Ephemeral });
-    }
-    if (session.status === 'LOCKED') {
+    if (!locked) {
+        // Nothing matched, so re-read to say precisely why.
+        const session = await LfgSession.findOne({ messageId: interaction.message.id }, { hostId: 1, status: 1 }).lean();
+        if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
+        if (interaction.user.id !== session.hostId) {
+            return interaction.reply({ content: '`ERROR_403` : Only the **Leader** can EXECUTE the lock.', flags: MessageFlags.Ephemeral });
+        }
         return interaction.reply({ content: '`ERROR_409` : Session is already **LOCKED**.', flags: MessageFlags.Ephemeral });
     }
 
-    session.status = 'LOCKED';
-    await session.save();
-
     // Update embed to red/locked state with disabled buttons
-    await interaction.update({ embeds: [buildLfgEmbed(session)], components: [buildLfgButtons(true)] });
+    await interaction.update({ embeds: [buildLfgEmbed(locked)], components: [buildLfgButtons(true)] });
 
     // Ping all roster members in a follow-up message
-    const mentions = session.roster.map(m => `<@${m.userId}>`).join(' ');
+    const mentions = locked.roster.map(m => `<@${m.userId}>`).join(' ');
     await interaction.channel.send({
         content: [
             `🔒 **SESSION LOCKED**, ${mentions}`,
@@ -386,21 +393,22 @@ async function handleExecute(interaction) {
 // ---------------------------------------------------------------------------
 async function handleCancel(interaction) {
     try {
-        const session = await LfgSession.findOne({ messageId: interaction.message.id });
-        if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
+        const cancelled = await LfgSession.findOneAndUpdate(
+            { messageId: interaction.message.id, hostId: interaction.user.id, status: { $ne: 'CANCELLED' } },
+            { $set: { status: 'CANCELLED' } },
+            { new: true },
+        ).lean();
 
-        if (interaction.user.id !== session.hostId) {
-            return interaction.reply({ content: '`ERROR_403` : Only the **Leader** can CANCEL the session.', flags: MessageFlags.Ephemeral });
-        }
-        
-        if (session.status === 'CANCELLED') {
+        if (!cancelled) {
+            const session = await LfgSession.findOne({ messageId: interaction.message.id }, { hostId: 1, status: 1 }).lean();
+            if (!session) return interaction.reply({ content: '`ERROR_404` : Session not found.', flags: MessageFlags.Ephemeral });
+            if (interaction.user.id !== session.hostId) {
+                return interaction.reply({ content: '`ERROR_403` : Only the **Leader** can CANCEL the session.', flags: MessageFlags.Ephemeral });
+            }
             return interaction.reply({ content: '`ERROR_409` : Session is already cancelling.', flags: MessageFlags.Ephemeral });
         }
 
-        session.status = 'CANCELLED';
-        await session.save();
-
-        const embed = buildLfgEmbed(session);
+        const embed = buildLfgEmbed(cancelled);
         // Append destruct warning
         embed.setDescription(embed.data.description + `\n\n\`\`\`ansi\n${R}[ DESTRUCT SEQUENCE INITIATED... T-MINUS 5 SECONDS ]${RST}\n\`\`\``);
 

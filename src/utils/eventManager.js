@@ -133,21 +133,67 @@ function buildEventButtons(disabled = false) {
     );
 }
 
-// ── RSVP button ──────────────────────────────────────────────────────────────
-async function handleEventRsvp(interaction, choice) {
-    const ev = await Event.findOne({ messageId: interaction.message.id });
-    if (!ev) return interaction.reply({ content: 'This event no longer exists.', flags: MessageFlags.Ephemeral });
-    if (ev.status !== 'SCHEDULED') {
-        return interaction.reply({ content: 'This event is closed for RSVPs.', flags: MessageFlags.Ephemeral });
+// How many times to retry an RSVP that lost a race. Three is plenty: each
+// retry only loses to a write that landed in the microseconds since our read.
+const RSVP_ATTEMPTS = 3;
+
+/**
+ * Applies an RSVP and persists it without losing a concurrent one.
+ *
+ * Everyone RSVPs to the same message, so this is the most contended write in
+ * the bot. Reading the rosters, computing new ones and saving the whole
+ * document back means two members clicking at the same moment both build their
+ * arrays from the same snapshot, and whoever saves second erases the first.
+ *
+ * The roster maths stays in the pure, unit-tested applyRsvp (capacity limits
+ * and waitlist promotion are too entangled to express as field operators), so
+ * the write is guarded instead: it only lands if the document's version is
+ * still the one we read. If it isn't, we read again and redo the maths.
+ *
+ * @returns {{ event?, result?, reason?: 'missing'|'closed'|'contended' }}
+ */
+async function commitRsvp(messageId, member, choice, attempts = RSVP_ATTEMPTS) {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        const ev = await Event.findOne({ messageId }).lean();
+        if (!ev) return { reason: 'missing' };
+        if (ev.status !== 'SCHEDULED') return { reason: 'closed' };
+
+        const result = applyRsvp(ev, member, choice, ev.capacity);
+
+        // The compare half of compare-and-swap: no match means someone else
+        // wrote first, so our computed rosters are stale and get discarded.
+        // Mongoose stamps __v on everything it creates, but "still has no
+        // version" is just as valid a thing to compare against as "still at
+        // version N", and $inc will set it to 1. Matching on a literal 0 would
+        // never match such a document, wedging its RSVPs permanently.
+        const versionGuard = ev.__v === undefined ? { __v: { $exists: false } } : { __v: ev.__v };
+
+        const event = await Event.findOneAndUpdate(
+            { _id: ev._id, ...versionGuard },
+            {
+                $set: { going: result.going, maybe: result.maybe, waitlist: result.waitlist },
+                $inc: { __v: 1 },
+            },
+            { new: true },
+        ).lean();
+
+        if (event) return { event, result };
     }
 
-    const member = { userId: interaction.user.id, username: interaction.user.username };
-    const result = applyRsvp(ev, member, choice, ev.capacity);
+    return { reason: 'contended' };
+}
 
-    ev.going = result.going;
-    ev.maybe = result.maybe;
-    ev.waitlist = result.waitlist;
-    await ev.save();
+// ── RSVP button ──────────────────────────────────────────────────────────────
+async function handleEventRsvp(interaction, choice) {
+    const member = { userId: interaction.user.id, username: interaction.user.username };
+    const { event: ev, result, reason } = await commitRsvp(interaction.message.id, member, choice);
+
+    if (reason === 'missing') return interaction.reply({ content: 'This event no longer exists.', flags: MessageFlags.Ephemeral });
+    if (reason === 'closed') return interaction.reply({ content: 'This event is closed for RSVPs.', flags: MessageFlags.Ephemeral });
+    if (reason === 'contended') {
+        // Nothing was written, so nothing was lost: they can just click again.
+        return interaction.reply({ content: 'A few people RSVP\'d at once, give that another click.', flags: MessageFlags.Ephemeral });
+    }
 
     await interaction.update({ embeds: [buildEventEmbed(ev)], components: [buildEventButtons(false)] });
 
@@ -171,7 +217,7 @@ async function handleEventRsvp(interaction, choice) {
 
 // ── Cancel button ────────────────────────────────────────────────────────────
 async function handleEventCancel(interaction) {
-    const ev = await Event.findOne({ messageId: interaction.message.id });
+    const ev = await Event.findOne({ messageId: interaction.message.id }, { hostId: 1, status: 1 }).lean();
     if (!ev) return interaction.reply({ content: 'This event no longer exists.', flags: MessageFlags.Ephemeral });
 
     const isHost = interaction.user.id === ev.hostId;
@@ -184,18 +230,27 @@ async function handleEventCancel(interaction) {
         return interaction.reply({ content: 'This event is already cancelled.', flags: MessageFlags.Ephemeral });
     }
 
-    ev.status = 'CANCELLED';
-    await ev.save();
+    // Targeted update: the event is about to be scrubbed, but writing the whole
+    // document back would still clobber an RSVP made since the read above, and
+    // the roster below is what gets notified.
+    const cancelled = await Event.findOneAndUpdate(
+        { _id: ev._id, status: { $ne: 'CANCELLED' } },
+        { $set: { status: 'CANCELLED' } },
+        { new: true },
+    ).lean();
+    if (!cancelled) {
+        return interaction.reply({ content: 'This event is already cancelled.', flags: MessageFlags.Ephemeral });
+    }
 
     // Show a glitchy self-destruct state, notify the roster, then scrub it.
-    const embed = buildEventEmbed(ev);
+    const embed = buildEventEmbed(cancelled);
     embed.setDescription(`${embed.data.description}\n\`\`\`ansi\n${R}[ EVENT ABORTED, PURGING IN T-MINUS 8s ]${RST}\n\`\`\``);
     await interaction.update({ embeds: [embed], components: [buildEventButtons(true)] });
 
-    const going = ev.going.map(m => m.userId);
+    const going = cancelled.going.map(m => m.userId);
     if (going.length) {
         interaction.channel.send({
-            content: `❌ **${ev.title}** was aborted by the host. ${going.map(id => `<@${id}>`).join(' ')}`,
+            content: `❌ **${cancelled.title}** was aborted by the host. ${going.map(id => `<@${id}>`).join(' ')}`,
             allowedMentions: { users: going },
         }).catch(() => {});
     }
@@ -296,21 +351,39 @@ async function processStartingEvents(client) {
         return logger.error('[EVENTS] Failed to query due events:', err);
     }
 
-    for (const ev of due) {
+    for (const pending of due) {
+        // Claim the event before doing anything visible. Flipping startNotified
+        // as the filter makes this at-most-once: a slow tick that overlaps the
+        // next one, or a second shard that sees the same row, finds nothing to
+        // claim and moves on instead of pinging the roster twice.
+        //
+        // It also hands back the current document, so the roster we ping is the
+        // one as of now rather than the snapshot from the top of the tick. The
+        // old code saved that whole snapshot back, dropping anyone who RSVP'd
+        // while the tick was running.
+        const ev = await Event.findOneAndUpdate(
+            { _id: pending._id, startNotified: false },
+            { $set: { startNotified: true, status: 'STARTED' } },
+            { new: true },
+        ).lean().catch(err => {
+            logger.error(`[EVENTS] Could not claim ${pending._id}:`, err);
+            return null;
+        });
+        if (!ev) continue; // already handled elsewhere
+
         const weekly = ev.recurrence === 'weekly';
-        ev.startNotified = true;
-        ev.status = 'STARTED';
 
         // Post next week's copy once so a weekly event is always up in the
-        // channel. spawnedNext prevents a double clone.
+        // channel. The claim above already makes this run once, and spawnedNext
+        // keeps that true across a restart mid-tick.
         if (weekly && !ev.spawnedNext) {
-            ev.spawnedNext = true;
+            await Event.updateOne({ _id: ev._id }, { $set: { spawnedNext: true } }).catch(() => {});
             await spawnNextOccurrence(client, ev);
         }
 
         const guild = client.guilds.cache.get(ev.guildId);
         const channel = guild?.channels.cache.get(ev.channelId);
-        if (!channel) { await ev.save().catch(() => {}); continue; }
+        if (!channel) continue; // already marked STARTED by the claim
 
         if (weekly) {
             // Simple "starting now" heads-up, no roster since there are no
@@ -337,8 +410,7 @@ async function processStartingEvents(client) {
                 allowedMentions: { users: ev.going.map(m => m.userId), roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
             }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
 
-            // One-off: mark STARTED and let the 2h cleanup sweep it later.
-            await ev.save().catch(() => {});
+            // Already marked STARTED by the claim; the 2h cleanup sweeps it later.
             channel.messages.fetch(ev.messageId)
                 .then(msg => msg.edit({ embeds: [buildEventEmbed(ev)], components: [buildEventButtons(true)] }))
                 .catch(() => {});
@@ -367,6 +439,7 @@ function startEventScheduler(client) {
 
 module.exports = {
     BTN,
+    commitRsvp,
     buildEventEmbed,
     buildEventButtons,
     handleEventRsvp,
