@@ -129,7 +129,10 @@ function startVoiceXpSync(client) {
                         continue;
                     }
 
-                    processVoiceXp(userId, guildId, member, client, ticks);
+                    // Fire and forget, but never unhandled: a DB blip here would
+                    // otherwise surface as an unhandled rejection.
+                    processVoiceXp(userId, guildId, member, client, ticks)
+                        .catch(err => logger.error('[VoiceXP] Tick grant failed:', err));
 
                     // Reset the joinTime so they can start earning the next tick
                     voiceSessions.set(sessionKey, now);

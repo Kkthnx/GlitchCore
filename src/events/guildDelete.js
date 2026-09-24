@@ -20,6 +20,7 @@ const TempBan = require('../database/TempBanSchema');
 const Tag = require('../database/TagSchema');
 const ReactionRole = require('../database/ReactionRoleSchema');
 const Birthday = require('../database/BirthdaySchema');
+const { invalidateGuildConfig } = require('../utils/guildConfigCache');
 const logger = require('../utils/logger');
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,10 @@ module.exports = {
             logger.warn(`[GUILD_DELETE] Guild ${guild.id} is unavailable (outage), skipping purge.`);
             return;
         }
+
+        // Drop the cached config first, so nothing can read the settings of a
+        // guild we just purged out of the database.
+        invalidateGuildConfig(guild.id);
 
         const filter = { guildId: guild.id };
         const models = {

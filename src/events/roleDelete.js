@@ -6,6 +6,7 @@
  */
 
 const GuildConfig = require('../database/GuildConfigSchema');
+const ReactionRole = require('../database/ReactionRoleSchema');
 const { invalidateGuildConfig } = require('../utils/guildConfigCache');
 const logger = require('../utils/logger');
 
@@ -27,7 +28,7 @@ module.exports = {
             cfg.levelRewardRoles = cfg.levelRewardRoles.filter(r => r.roleId !== role.id);
             if (cfg.levelRewardRoles.length !== rewardBefore) changed = true;
 
-            for (const key of ['doubleXpRoleId', 'streamerPingRoleId']) {
+            for (const key of ['doubleXpRoleId', 'streamerPingRoleId', 'lfgPingRoleId']) {
                 if (cfg[key] === role.id) { cfg[key] = null; changed = true; }
             }
 
@@ -35,6 +36,16 @@ module.exports = {
                 await cfg.save();
                 invalidateGuildConfig(role.guild.id);
                 logger.info(`[ROLES] Scrubbed deleted role ${role.id} from ${role.guild.id} config.`);
+            }
+
+            // Reaction-role menus point at roles too. Leaving a dead pairing in
+            // place means members react and silently get nothing.
+            const pruned = await ReactionRole.updateMany(
+                { guildId: role.guild.id, 'pairs.roleId': role.id },
+                { $pull: { pairs: { roleId: role.id } } },
+            );
+            if (pruned.modifiedCount) {
+                logger.info(`[ROLES] Removed deleted role ${role.id} from ${pruned.modifiedCount} reaction-role menu(s).`);
             }
         } catch (err) {
             logger.error('roleDelete cleanup failed:', err);

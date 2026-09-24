@@ -19,23 +19,40 @@ const G = `${ESC}[1;32m`;
 const Y = `${ESC}[1;33m`;
 const RST = `${ESC}[0m`;
 
+// First id in the list that resolves to a channel we can actually post in.
+function resolveChannel(client, ids) {
+    for (const id of ids) {
+        if (!id) continue;
+        const channel = client.channels.cache.get(id);
+        if (channel?.isTextBased?.()) return channel;
+    }
+    return null;
+}
+
 /**
  * Generates and sends a stylized level up embed.
+ *
+ * Channel precedence: the guild's configured level-up log, then the env-level
+ * one, then the channel the member was actually active in. That last fallback
+ * is why xpCache tracks lastChannelId, without it a server that never set a
+ * level-up channel would never see a single level-up announcement.
+ *
  * @param {string} userId - The Discord user ID
  * @param {string} guildId - The Discord guild ID
  * @param {number} newLevel - The user's new level
  * @param {Client} client - The Discord.js client
+ * @param {string|null} [activeChannelId] - Where they earned the XP
  */
-async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
-    let channelId = channels.levelUpLog;
+async function sendLevelUpEmbed(userId, guildId, newLevel, client, activeChannelId = null) {
+    let configuredId = channels.levelUpLog;
     try {
         const guildSettings = await getGuildConfig(guildId) || {};
-        channelId = guildSettings.levelUpLogChannelId || channelId;
+        configuredId = guildSettings.levelUpLogChannelId || configuredId;
     } catch (err) {
         logger.warn('Could not load guild settings for level up log channel fallback:', err);
     }
 
-    const channel = client.channels.cache.get(channelId);
+    const channel = resolveChannel(client, [configuredId, activeChannelId]);
     if (!channel) return;
 
     try {
@@ -62,7 +79,7 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
         }
 
         const name = discordUser ? (discordUser.globalName || discordUser.username) : 'PLAYER';
-        const avatar = discordUser ? discordUser.displayAvatarURL({ dynamic: true }) : null;
+        const avatar = discordUser ? discordUser.displayAvatarURL() : null;
         const randomSaying = levelUpSayings[Math.floor(Math.random() * levelUpSayings.length)];
 
         const readout = [
@@ -83,7 +100,7 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
                 `_"${randomSaying}"_` +
                 (isDoubleXpActive() ? `\n\n🔥 **Double XP Weekend** active, you are earning 2x XP right now.` : '')
             )
-            .setThumbnail(discordUser ? discordUser.displayAvatarURL({ dynamic: true, size: 256 }) : null)
+            .setThumbnail(discordUser ? discordUser.displayAvatarURL({ size: 256 }) : null)
             .setFooter({ text: 'GLITCH_HAVEN // LEVELING' })
             .setTimestamp();
 
@@ -94,4 +111,4 @@ async function sendLevelUpEmbed(userId, guildId, newLevel, client) {
     }
 }
 
-module.exports = { sendLevelUpEmbed };
+module.exports = { sendLevelUpEmbed, resolveChannel };
