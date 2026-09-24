@@ -38,15 +38,14 @@ module.exports = {
             return interaction.editReply('Invalid theme selected.');
         }
 
-        // Fetch or create user
-        let userData = await User.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
-        if (!userData) {
-            userData = new User({ userId: interaction.user.id, guildId: interaction.guild.id });
-        }
-
-        // Update theme
-        userData.cardStyle = themeId;
-        await userData.save();
+        // Set the style in one upsert. Reading, mutating and saving meant a
+        // brand-new document was inserted by hand, which races the XP flush's own
+        // upsert for the same {userId, guildId} and loses to the unique index.
+        const userData = await User.findOneAndUpdate(
+            { userId: interaction.user.id, guildId: interaction.guild.id },
+            { $set: { cardStyle: themeId } },
+            { new: true, upsert: true, setDefaultsOnInsert: true },
+        ).lean();
 
         const currentLevelThreshold = xpRequiredForLevel(userData.level);
         const nextLevelThreshold = xpRequiredForLevel(userData.level + 1);

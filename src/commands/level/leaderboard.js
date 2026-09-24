@@ -50,12 +50,22 @@ module.exports = {
             return interaction.editReply('`ERROR_204` : No rankings yet. Be the first to start chatting.');
         }
 
-        // Resolve display names in one bulk fetch so every name is readable.
+        // Resolve display names, preferring the cache. The top of the leaderboard
+        // is by definition the most active members, so they are usually all
+        // cached already and the REST fetch can be skipped entirely.
         const names = new Map();
-        try {
-            const members = await interaction.guild.members.fetch({ user: topUsers.map(u => u.userId) });
-            members.forEach(m => names.set(m.id, m.displayName));
-        } catch { /* some may have left, handled by the fallback below */ }
+        const missing = [];
+        for (const u of topUsers) {
+            const cached = interaction.guild.members.cache.get(u.userId);
+            if (cached) names.set(u.userId, cached.displayName);
+            else missing.push(u.userId);
+        }
+        if (missing.length) {
+            try {
+                const members = await interaction.guild.members.fetch({ user: missing });
+                members.forEach(m => names.set(m.id, m.displayName));
+            } catch { /* some may have left, handled by the fallback below */ }
+        }
         const nameOf = id => names.get(id) || 'Unknown';
 
         const headerRow = `${col('RNK', 4)}${col('PLAYER', NAME_W)}  ${col('LVL', 6)}  ${'XP'.padStart(9)}`;

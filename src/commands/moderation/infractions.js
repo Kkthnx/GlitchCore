@@ -10,7 +10,9 @@ const Infraction = require('../../database/InfractionSchema');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 const { humanizeDuration } = require('../../utils/duration');
 
-const TYPE_ICON = { warn: '⚠️', timeout: '🔇', kick: '👢', ban: '🔨' };
+const TYPE_ICON = { warn: '⚠️', timeout: '🔇', kick: '👢', ban: '🔨', unban: '🔓' };
+
+const PAGE_SIZE = 15;
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -40,9 +42,13 @@ module.exports = {
         }
 
         // view
-        const records = await Infraction.find({ guildId: interaction.guild.id, userId: targetUser.id })
-            .sort({ createdAt: -1 })
-            .limit(15);
+        const filter = { guildId: interaction.guild.id, userId: targetUser.id };
+        const [records, totals] = await Promise.all([
+            Infraction.find(filter).sort({ createdAt: -1 }).limit(PAGE_SIZE).lean(),
+            // Counted across the whole history, not just the page below. Summing
+            // the page called 3 warns a summary when the member had 50.
+            Infraction.aggregate([{ $match: filter }, { $group: { _id: '$type', n: { $sum: 1 } } }]),
+        ]);
 
         const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
             .setAuthor({ name: `Infractions, ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() });
@@ -52,8 +58,11 @@ module.exports = {
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        const counts = records.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {});
-        const summary = Object.entries(counts).map(([t, n]) => `${TYPE_ICON[t] || ''} ${n} ${t}`).join(', ');
+        const total = totals.reduce((sum, t) => sum + t.n, 0);
+        const summary = totals
+            .sort((a, b) => b.n - a.n)
+            .map(t => `${TYPE_ICON[t._id] || ''} ${t.n} ${t._id}`)
+            .join(', ');
 
         embed.setDescription(`**Summary:** ${summary}\n\n` + records.map(r => {
             const when = `<t:${Math.floor(new Date(r.createdAt).getTime() / 1000)}:R>`;
@@ -61,7 +70,9 @@ module.exports = {
             return `${TYPE_ICON[r.type] || ''} **${r.type}**${dur}, ${r.reason}\n└ by <@${r.moderatorId}> ${when}`;
         }).join('\n'));
 
-        if (records.length === 15) embed.setFooter({ text: 'Glitch Haven, Moderation, showing latest 15' });
+        if (total > records.length) {
+            embed.setFooter({ text: `Glitch Haven, Moderation, showing the latest ${records.length} of ${total}` });
+        }
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
