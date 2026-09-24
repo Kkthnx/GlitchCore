@@ -17,7 +17,7 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 - **Game-night events** — `/event create` schedules a session with RSVP buttons and an auto-promoting waitlist, or a sign-up-free **recurring weekly reminder** (`repeat_weekly`) with bundled banners that reposts itself and cleans up the old card.
 - **Birthdays** — `/birthday set` saves a month/day and a local-midnight scheduler shouts out the day's birthdays (deduped so restarts don't double-post).
 - **LFG** — `/lfg` looking-for-group lobbies with live roster buttons and stale-session cleanup.
-- **Starboard** — star-react highly-rated messages into a highlights channel; the count tracks up and down.
+- **Starboard** — star-react highly-rated messages into a highlights channel; the count tracks up and down, and deleting the original (or purging it) takes its highlight down with it.
 - **Suggestions** — `/suggest` posts a votable suggestion with manager approve/deny.
 - **Polls** — `/poll` native Discord polls with up to 6 options.
 - **Giveaways** — `/giveaway` with atomic entry and automatic winner draws.
@@ -35,10 +35,11 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 
 ### Under the hood
 - Sharding via `ShardingManager`, with buffered XP flushed on shutdown.
-- Shard-scoped schedulers so multi-shard setups never double-fire.
+- Shard-scoped schedulers so multi-shard setups never double-fire, each wrapped in an overlap guard so a slow tick can't double-send a reminder or double-draw a giveaway.
+- Hot paths kept cheap: guild settings are cached (and read as plain objects), reaction handling filters on the gateway payload before spending an API fetch, and XP is read back per guild instead of per user.
 - Timezone-aware scheduling (Double XP, birthdays, recurring events) so a UTC host never posts on the wrong day.
 - `@napi-rs/canvas` for rank cards, welcome banners, and event art.
-- Winston structured logging with automatic secret redaction.
+- Winston structured logging with automatic secret redaction (bot token, Mongo URI, SteamGridDB and Twitch credentials).
 
 See [PRIVACY.md](./PRIVACY.md) for the data-handling policy.
 

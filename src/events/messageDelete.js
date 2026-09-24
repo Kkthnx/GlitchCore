@@ -6,6 +6,7 @@
  */
 
 const { getGuildConfig } = require('../utils/guildConfigCache');
+const { removeForDeletedOrigins } = require('../utils/starboardManager');
 const { brandedEmbed, COLORS } = require('../utils/brand');
 const channels = require('../utils/channels');
 const logger = require('../utils/logger');
@@ -21,6 +22,13 @@ module.exports = {
     async execute(message) {
         try {
             if (!message.guild) return;
+
+            // Runs for partial deletes too: a starred message that has aged out
+            // of cache still leaves its copy in the highlights channel, so the
+            // teardown must not be gated on having the content.
+            await removeForDeletedOrigins(message.guild, [message.id])
+                .catch(err => logger.error('[STARBOARD] Teardown on delete failed:', err));
+
             // Uncached (partial) deletes carry no author or content, so an entry
             // for one is pure noise. It also catches the bot's own self-deleted
             // messages (event cards, expired pings, starboard cleanup) once they
