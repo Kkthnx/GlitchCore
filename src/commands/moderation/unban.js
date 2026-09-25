@@ -19,7 +19,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
         .setContexts(InteractionContextType.Guild)
         .addStringOption(o => o.setName('user_id').setDescription('ID of the banned user').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false)),
+        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false).setMaxLength(500)),
 
     async execute(interaction) {
         const userId = interaction.options.getString('user_id').trim();

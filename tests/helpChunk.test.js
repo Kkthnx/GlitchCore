@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { chunkLines } = require('../src/commands/help');
+const { chunkLines } = require('../src/utils/embedText');
 
 describe('chunkLines', () => {
     test('keeps a small list in a single chunk', () => {

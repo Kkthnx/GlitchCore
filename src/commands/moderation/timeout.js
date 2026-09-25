@@ -17,7 +17,7 @@ module.exports = {
         .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('Member to time out').setRequired(true))
         .addStringOption(o => o.setName('duration').setDescription('e.g. 10m, 1h, 1d (max 28d)').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false)),
+        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false).setMaxLength(500)),
 
     async execute(interaction) {
         const targetUser = interaction.options.getUser('target');

@@ -10,6 +10,7 @@ const Streamer = require('../database/StreamerSchema');
 const { isConfigured, getUser, normalizeLogin } = require('../utils/twitchClient');
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { brandedEmbed, COLORS } = require('../utils/brand');
+const { fitLines, LIMITS } = require('../utils/embedText');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -100,7 +101,10 @@ module.exports = {
         const embed = brandedEmbed({ color: COLORS.accent, footer: 'Glitch Haven, Twitch' })
             .setTitle('📺 Tracked Streamers')
             .setDescription(streamers.length
-                ? streamers.map(s => `${s.isLive ? '🔴' : '⚫'} [${s.twitchDisplayName}](https://twitch.tv/${s.twitchLogin})${s.discordUserId ? `, <@${s.discordUserId}>` : ''}`).join('\n')
+                ? fitLines(
+                    streamers.map(s => `${s.isLive ? '🔴' : '⚫'} [${s.twitchDisplayName}](https://twitch.tv/${s.twitchLogin})${s.discordUserId ? `, <@${s.discordUserId}>` : ''}`),
+                    LIMITS.description,
+                )
                 : 'None yet. Add one with `/streamers add`.');
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },

@@ -8,6 +8,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const Tag = require('../database/TagSchema');
 const { brandedEmbed, COLORS } = require('../utils/brand');
+const { fitLines, LIMITS } = require('../utils/embedText');
 
 const NAME_MAX = 32;
 const CONTENT_MAX = 1800;
@@ -81,7 +82,12 @@ module.exports = {
             if (!tags.length) return interaction.reply({ content: 'No tags yet. Create one with `/tag create`.', flags: MessageFlags.Ephemeral });
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Tags' })
                 .setTitle(`Tags (${tags.length})`)
-                .setDescription(tags.map(t => `\`${t.name}\``).join(', '));
+                // A server can accumulate more tags than fit in one embed.
+                .setDescription(fitLines(
+                    tags.map(t => `\`${t.name}\``),
+                    LIMITS.description,
+                    { separator: ', ', more: n => `_…and ${n} more, see \`/tag show\`_` },
+                ));
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 

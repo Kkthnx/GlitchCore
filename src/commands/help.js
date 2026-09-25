@@ -7,31 +7,12 @@
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { brandedEmbed, COLORS } = require('../utils/brand');
+const { chunkLines } = require('../utils/embedText');
 
 // Admin-only commands are grouped separately so they don't clutter the
 // member-facing list. Everything else is auto-discovered from the loaded
 // command collection, so this never drifts out of sync with reality.
 const ADMIN_COMMANDS = new Set(['settings', 'levelrewards', 'giveaway', 'streamers', 'reactionrole', 'warn', 'timeout', 'kick', 'ban', 'unban', 'infractions', 'purge', 'slowmode', 'lock', 'unlock']);
-
-const FIELD_LIMIT = 1024;
-
-// Packs lines into newline-joined chunks that never exceed `limit` chars, so
-// each becomes a valid embed field. A single line longer than the limit is
-// truncated rather than dropped. Pure and unit-tested.
-function chunkLines(lines, limit = FIELD_LIMIT) {
-    const chunks = [];
-    let buf = '';
-    for (let line of lines) {
-        if (line.length > limit) line = `${line.slice(0, limit - 1)}…`;
-        if (buf && buf.length + 1 + line.length > limit) {
-            chunks.push(buf);
-            buf = '';
-        }
-        buf = buf ? `${buf}\n${line}` : line;
-    }
-    if (buf) chunks.push(buf);
-    return chunks;
-}
 
 // Adds a group as one or more embed fields, never exceeding Discord's 1024-char
 // field limit. Continuation fields use a zero-width name so it reads as one
@@ -68,6 +49,4 @@ module.exports = {
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
-    // Exported for unit tests.
-    chunkLines,
 };

@@ -15,7 +15,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
         .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('Member to kick').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false)),
+        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false).setMaxLength(500)),
 
     async execute(interaction) {
         const targetUser = interaction.options.getUser('target');

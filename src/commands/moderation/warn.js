@@ -15,7 +15,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('Member to warn').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('Reason for the warning').setRequired(false)),
+        .addStringOption(o => o.setName('reason').setDescription('Reason for the warning').setRequired(false).setMaxLength(500)),
 
     async execute(interaction) {
         const targetUser = interaction.options.getUser('target');

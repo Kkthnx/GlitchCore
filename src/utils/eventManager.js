@@ -12,6 +12,7 @@ const Event = require('../database/EventSchema');
 const { applyRsvp } = require('./eventRsvp');
 const { addWeeksKeepingLocalTime } = require('./time');
 const { bannerAttachment } = require('./eventBanners');
+const { LIMITS, fitLines, mentionBatches } = require('./embedText');
 const { startPolling } = require('./scheduler');
 const logger = require('./logger');
 
@@ -109,14 +110,31 @@ function buildEventEmbed(ev) {
     } else {
         roster.push('`[ ... no attendees yet ... ]`');
     }
-    if (ev.maybe.length) roster.push(`\n**> MAYBE:** ${ev.maybe.map(m => `<@${m.userId}>`).join(', ')}`);
-    if (ev.waitlist.length) roster.push(`**> WAITLIST:** ${ev.waitlist.map(m => `<@${m.userId}>`).join(', ')}`);
+    // One entry per line rather than one long line, so the budget below can trim
+    // these instead of being forced to drop a whole 40-name block.
+    if (ev.maybe.length) {
+        roster.push('\n**> MAYBE:**');
+        for (const m of ev.maybe) roster.push(`\`( )\` <@${m.userId}>`);
+    }
+    if (ev.waitlist.length) {
+        roster.push('\n**> WAITLIST:**');
+        ev.waitlist.forEach((m, i) => roster.push(`\`(${i + 1})\` <@${m.userId}>`));
+    }
+
+    // The roster is the only unbounded part, and capacity goes up to 100, so it
+    // gets whatever the header leaves of Discord's 4096. Without this the
+    // builder throws once a big event fills up, and because the card is rebuilt
+    // on every RSVP that means the card freezes while RSVPs keep landing in the
+    // database, and every member clicking gets a generic error.
+    const headerText = header.join('\n');
+    const budget = LIMITS.description - headerText.length - 2;
+    const rosterText = fitLines(roster, budget, n => `_…and ${n} more_`);
 
     const embed = new EmbedBuilder()
         .setColor(color)
         .setAuthor({ name: `⚡ SYSTEM.EVENT_${ev.status}` })
         .setTitle(`> ${ev.title}`)
-        .setDescription(header.join('\n') + '\n' + roster.join('\n'))
+        .setDescription(`${headerText}\n${rosterText}`)
         .setFooter({ text: 'GLITCH_HAVEN // EVENT_SYSTEM' })
         .setTimestamp();
 
@@ -249,10 +267,20 @@ async function handleEventCancel(interaction) {
 
     const going = cancelled.going.map(m => m.userId);
     if (going.length) {
-        interaction.channel.send({
-            content: `❌ **${cancelled.title}** was aborted by the host. ${going.map(id => `<@${id}>`).join(' ')}`,
-            allowedMentions: { users: going },
-        }).catch(() => {});
+        // Same 2000-character ceiling as the start ping: tell everyone, in as
+        // many messages as that takes.
+        const batches = mentionBatches(
+            going.map(uid => `<@${uid}>`),
+            `❌ **${cancelled.title}** was aborted by the host. `,
+        );
+        (async () => {
+            for (const content of batches) {
+                await interaction.channel.send({
+                    content,
+                    allowedMentions: { users: going.filter(uid => content.includes(uid)) },
+                });
+            }
+        })().catch(() => {});
     }
 
     // Self-destruct: delete the message + record so the channel stays clean.
@@ -403,12 +431,33 @@ async function processStartingEvents(client) {
             await Event.deleteOne({ _id: ev._id }).catch(() => {});
         } else {
             // Ping the RSVP roster that it's game time.
-            const roster = ev.going.map(m => `<@${m.userId}>`).join(' ');
+            //
+            // A full roster of mentions runs past Discord's 2000-character
+            // message limit (capacity goes to 100, and 0 means unlimited), and
+            // the send simply failed, so the biggest events were exactly the
+            // ones that never got their heads-up. Batching also keeps each
+            // message under the 100-entry cap on allowed_mentions.
             const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
-            channel.send({
-                content: `🎮 **It's game time, ${ev.title}!** ${rolePing}\n${roster || '*No one RSVP\'d, but the lobby is open.*'}`,
-                allowedMentions: { users: ev.going.map(m => m.userId), roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
-            }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
+            const lead = `🎮 **It's game time, ${ev.title}!** ${rolePing}`.trim();
+            const mentions = ev.going.map(m => `<@${m.userId}>`);
+
+            const batches = mentions.length
+                ? mentionBatches(mentions, `${lead}\n`)
+                : [`${lead}\n*No one RSVP'd, but the lobby is open.*`];
+
+            (async () => {
+                for (const [i, content] of batches.entries()) {
+                    await channel.send({
+                        content,
+                        allowedMentions: {
+                            // Only the ids actually in this batch, and only ping
+                            // the role once rather than on every follow-up.
+                            users: ev.going.map(m => m.userId).filter(uid => content.includes(uid)),
+                            roles: i === 0 && ev.pingRoleId ? [ev.pingRoleId] : [],
+                        },
+                    });
+                }
+            })().catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
 
             // Already marked STARTED by the claim; the 2h cleanup sweeps it later.
             channel.messages.fetch(ev.messageId)

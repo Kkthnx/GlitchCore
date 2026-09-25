@@ -9,8 +9,12 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionConte
 const Infraction = require('../../database/InfractionSchema');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 const { humanizeDuration } = require('../../utils/duration');
+const { clamp, fitLines, LIMITS } = require('../../utils/embedText');
 
 const TYPE_ICON = { warn: '⚠️', timeout: '🔇', kick: '👢', ban: '🔨', unban: '🔓' };
+
+// How much of a reason to show in the list. The full text is kept in the record.
+const REASON_PREVIEW = 180;
 
 const PAGE_SIZE = 15;
 
@@ -64,11 +68,18 @@ module.exports = {
             .map(t => `${TYPE_ICON[t._id] || ''} ${t.n} ${t._id}`)
             .join(', ');
 
-        embed.setDescription(`**Summary:** ${summary}\n\n` + records.map(r => {
+        // Reasons are free text from a moderator, so a handful of paragraphs is
+        // enough to push this past Discord's 4096 and make the whole command
+        // throw. Each reason is clamped for the list, and the list itself is
+        // fitted to what's left; the full text stays in the database.
+        const lines = records.map(r => {
             const when = `<t:${Math.floor(new Date(r.createdAt).getTime() / 1000)}:R>`;
             const dur = r.durationMs ? ` (${humanizeDuration(r.durationMs)})` : '';
-            return `${TYPE_ICON[r.type] || ''} **${r.type}**${dur}, ${r.reason}\n└ by <@${r.moderatorId}> ${when}`;
-        }).join('\n'));
+            return `${TYPE_ICON[r.type] || ''} **${r.type}**${dur}, ${clamp(r.reason, REASON_PREVIEW)}\n└ by <@${r.moderatorId}> ${when}`;
+        });
+
+        const heading = `**Summary:** ${clamp(summary, 500)}\n\n`;
+        embed.setDescription(heading + fitLines(lines, LIMITS.description - heading.length - 2));
 
         if (total > records.length) {
             embed.setFooter({ text: `Glitch Haven, Moderation, showing the latest ${records.length} of ${total}` });

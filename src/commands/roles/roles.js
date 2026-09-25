@@ -11,6 +11,7 @@ const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../../utils/g
 const { buildSelfRolesRow, buildPanelButton } = require('../../utils/selfRoleManager');
 const { smartColor } = require('../../utils/roleColors');
 const { shuffled, pick } = require('../../utils/random');
+const { clamp, fitLines, LIMITS } = require('../../utils/embedText');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
 
 // A spread of on-brand colors so auto-created roles aren't all the same hue.
@@ -311,7 +312,10 @@ module.exports = {
             const embed = brandedEmbed({ color: COLORS.primary, footer: 'Glitch Haven, Roles' })
                 .setTitle('Self-Assignable Roles')
                 .setDescription(roles.length
-                    ? roles.map(r => `${r.emoji ? r.emoji + ' ' : ''}<@&${r.roleId}>, ${r.label}${r.description ? ` *(${r.description})*` : ''}`).join('\n')
+                    ? fitLines(
+                        roles.map(r => clamp(`${r.emoji ? r.emoji + ' ' : ''}<@&${r.roleId}>, ${r.label}${r.description ? ` *(${r.description})*` : ''}`, 200)),
+                        LIMITS.description,
+                    )
                     : 'None configured. Add some with `/roles add`.');
             if (pruned) embed.setFooter({ text: `Glitch Haven, Roles, cleaned up ${pruned} deleted role(s)` });
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

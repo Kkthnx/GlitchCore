@@ -17,7 +17,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
         .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('User to ban (works even if they left)').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false))
+        .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false).setMaxLength(500))
         .addStringOption(o => o.setName('duration').setDescription('Temp-ban length, e.g. 3d, 12h, 1w (blank = permanent)').setRequired(false))
         .addIntegerOption(o => o.setName('delete_days').setDescription('Delete their messages from the last N days (0-7)').setMinValue(0).setMaxValue(7).setRequired(false)),
 
