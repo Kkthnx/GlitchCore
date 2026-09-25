@@ -47,6 +47,9 @@ const guildConfigSchema = new mongoose.Schema({
     // Moderation
     modLogChannelId: { type: String, default: null },
     antiSpamEnabled: { type: Boolean, default: config.moderation?.antiSpam?.enabled ?? true },
+    // The word/content filter. Was previously unconditional, with no way to turn
+    // it off per server, which made it the only moderation feature without a switch.
+    contentFilterEnabled: { type: Boolean, default: true },
 
     // Starboard, repost highly-reacted messages to a highlights channel.
     starboardChannelId: { type: String, default: null },

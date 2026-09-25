@@ -6,9 +6,14 @@
  */
 
 // Generates branded custom-emoji PNGs (128x128) for Glitch Haven, upload them
-// under Server Settings Emoji (base servers have 50 slots, no boost needed).
+// under Server Settings > Emoji.
+//
+// It writes 59 emojis, which is more than the 50 slots an unboosted server has,
+// so pick the ones you want rather than uploading the lot. It also writes three
+// `_contact-*.png` sheets: those are previews for choosing from, not emojis.
+//
 // Two styles: clean "badge" (roles/regions/platforms) and "glitch" (chromatic
-// aberration + scanlines) reaction emojis.
+// aberration + scanlines) reaction emojis, plus a set of faces.
 // Usage: node scripts/generate-emojis.js [outputDir]
 const { createCanvas, GlobalFonts } = require('@napi-rs/canvas');
 const fs = require('fs');

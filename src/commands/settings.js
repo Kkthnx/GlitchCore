@@ -39,6 +39,7 @@ module.exports = {
                             { name: 'xp_enabled', value: 'xpEnabled' },
                             { name: 'voice_xp_enabled', value: 'voiceXpEnabled' },
                             { name: 'anti_spam_enabled', value: 'antiSpamEnabled' },
+                            { name: 'content_filter_enabled', value: 'contentFilterEnabled' },
                             { name: 'lfg_channel_id', value: 'lfgChannelId' },
                             { name: 'lfg_ping_role_id', value: 'lfgPingRoleId' },
                             { name: 'announcements_channel_id', value: 'announcementsChannelId' },
@@ -96,6 +97,7 @@ module.exports = {
                 `modLogChannelId: ${config.modLogChannelId || 'not set'}`,
                 `doubleXpRoleId: ${config.doubleXpRoleId || 'not set'}`,
                 `antiSpamEnabled: ${config.antiSpamEnabled}`,
+                `contentFilterEnabled: ${config.contentFilterEnabled}`,
                 `selfRoles: ${config.selfRoles?.length || 0} configured (manage with /roles)`,
                 `textCooldownSeconds: ${config.textCooldownSeconds}`,
                 `voiceXpPerTick: ${config.voiceXpPerTick}`,
@@ -123,7 +125,7 @@ module.exports = {
                     return interaction.reply({ content: `\`${key}\` must be between ${min} and ${max}.`, flags: MessageFlags.Ephemeral });
                 }
                 config[key] = n;
-            } else if (['xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled'].includes(key)) {
+            } else if (['xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled', 'contentFilterEnabled'].includes(key)) {
                 if (!['true', 'false'].includes(value.toLowerCase())) {
                     return interaction.reply({ content: 'That value must be true or false.', flags: MessageFlags.Ephemeral });
                 }

@@ -64,15 +64,21 @@ module.exports = {
         // 1. Ignore bot messages and DMs
         if (message.author.bot || !message.guild) return;
 
+        // The guild's settings drive everything below, and the read is cached, so
+        // it happens once up front rather than midway through.
+        const guildConfig = await getGuildConfig(message.guild.id) || {};
+
         // 2. Auto-Moderator Check.
         //
         // This runs on every message in the server, so the plain-text case (very
         // nearly all of them) is checked on its own and costs no allocation. The
         // combined haystack of attachment names, sticker names and embed text is
         // only built when the message actually carries any of that.
-        let filterViolation = checkMessage(message.content);
+        const filterEnabled = guildConfig.contentFilterEnabled !== false;
+        let filterViolation = filterEnabled ? checkMessage(message.content) : null;
 
-        if (!filterViolation && (message.attachments.size || message.stickers.size || message.embeds.length)) {
+        if (filterEnabled && !filterViolation
+            && (message.attachments.size || message.stickers.size || message.embeds.length)) {
             const extras = [];
 
             for (const attachment of message.attachments.values()) {
@@ -105,13 +111,24 @@ module.exports = {
 
                 // Auto-delete the clapback after 5 seconds to keep chat clean
                 setTimeout(() => clapbackMsg.delete().catch(() => { }), 5000);
+
+                // Leave a record, the way anti-spam already does. The clapback is
+                // the only thing the member sees, so without this a repeat
+                // offender left no trail for a mod to find. The trigger category
+                // goes in the reason, so /infractions distinguishes a slur from a
+                // politics derail rather than showing them as the same thing.
+                await recordInfraction({
+                    guild: message.guild,
+                    targetUser: message.author,
+                    moderator: message.client.user,
+                    type: 'warn',
+                    reason: `Auto-mod: ${filterViolation}`,
+                });
             } catch (err) {
                 logger.error('Failed to moderate message:', err);
             }
             return; // Stop processing XP and commands for this message
         }
-
-        const guildConfig = await getGuildConfig(message.guild.id) || {};
 
         // 2b. Anti-spam / anti-raid (invites, mass mentions, flooding)
         if (guildConfig.antiSpamEnabled !== false && AS.enabled !== false) {
