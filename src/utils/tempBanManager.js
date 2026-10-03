@@ -14,7 +14,7 @@ async function scheduleTempBan(guildId, userId, unbanAt, reason) {
     await TempBan.findOneAndUpdate(
         { guildId, userId },
         { unbanAt, reason },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: 'after' },
     );
 }
 

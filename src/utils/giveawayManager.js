@@ -62,7 +62,7 @@ async function handleGiveawayEntry(interaction) {
     const joined = await Giveaway.findOneAndUpdate(
         { messageId: interaction.message.id, ended: false, entries: { $ne: userId } },
         { $addToSet: { entries: userId } },
-        { new: true },
+        { returnDocument: 'after' },
     );
 
     if (joined) {
@@ -74,7 +74,7 @@ async function handleGiveawayEntry(interaction) {
     const left = await Giveaway.findOneAndUpdate(
         { messageId: interaction.message.id, ended: false, entries: userId },
         { $pull: { entries: userId } },
-        { new: true },
+        { returnDocument: 'after' },
     );
 
     if (left) {

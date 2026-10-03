@@ -74,7 +74,7 @@ async function handleSuggestionButton(interaction) {
         s = await Suggestion.findOneAndUpdate(
             { messageId },
             { $set: { status: action === 'approve' ? 'approved' : 'denied' } },
-            { new: true },
+            { returnDocument: 'after' },
         ).lean();
     } else {
         // Up / down vote. Reading the arrays, rewriting them whole and saving
@@ -88,7 +88,7 @@ async function handleSuggestionButton(interaction) {
         s = await Suggestion.findOneAndUpdate(
             { messageId },
             voteUpdate(userId, action, list.includes(userId)),
-            { new: true },
+            { returnDocument: 'after' },
         ).lean();
     }
 

@@ -83,7 +83,7 @@ module.exports = {
         const g = await Giveaway.findOneAndUpdate(
             { _id: existing._id },
             { $set: { winners } },
-            { new: true },
+            { returnDocument: 'after' },
         ).lean();
 
         // Keep the giveaway post honest: it announced the old winners, so

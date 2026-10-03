@@ -41,7 +41,7 @@ module.exports = {
             previous = await User.findOneAndUpdate(
                 { userId, guildId, lastDailyDate: { $ne: today } },
                 { $set: { lastDailyDate: today } },
-                { new: false, upsert: true, setDefaultsOnInsert: true },
+                { returnDocument: 'before', upsert: true, setDefaultsOnInsert: true },
             ).lean();
         } catch (err) {
             if (err?.code === 11000) {

@@ -192,7 +192,7 @@ async function commitRsvp(messageId, member, choice, attempts = RSVP_ATTEMPTS) {
                 $set: { going: result.going, maybe: result.maybe, waitlist: result.waitlist },
                 $inc: { __v: 1 },
             },
-            { new: true },
+            { returnDocument: 'after' },
         ).lean();
 
         if (event) return { event, result };
@@ -254,7 +254,7 @@ async function handleEventCancel(interaction) {
     const cancelled = await Event.findOneAndUpdate(
         { _id: ev._id, status: { $ne: 'CANCELLED' } },
         { $set: { status: 'CANCELLED' } },
-        { new: true },
+        { returnDocument: 'after' },
     ).lean();
     if (!cancelled) {
         return interaction.reply({ content: 'This event is already cancelled.', flags: MessageFlags.Ephemeral });
@@ -392,7 +392,7 @@ async function processStartingEvents(client) {
         const ev = await Event.findOneAndUpdate(
             { _id: pending._id, startNotified: false },
             { $set: { startNotified: true, status: 'STARTED' } },
-            { new: true },
+            { returnDocument: 'after' },
         ).lean().catch(err => {
             logger.error(`[EVENTS] Could not claim ${pending._id}:`, err);
             return null;

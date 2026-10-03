@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { Client, GatewayIntentBits, Collection, Options, Partials } = require('discord.js');
 const mongoose = require('mongoose');
 const fs = require('fs');

@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') }); // Adjust path if you run from root
+require('dotenv').config({ path: require('path').join(__dirname, '../.env'), quiet: true }); // Adjust path if you run from root
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');

@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { ShardingManager } = require('discord.js');
 const path = require('path');
 

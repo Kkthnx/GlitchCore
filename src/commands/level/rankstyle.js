@@ -44,7 +44,7 @@ module.exports = {
         const userData = await User.findOneAndUpdate(
             { userId: interaction.user.id, guildId: interaction.guild.id },
             { $set: { cardStyle: themeId } },
-            { new: true, upsert: true, setDefaultsOnInsert: true },
+            { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true },
         ).lean();
 
         const currentLevelThreshold = xpRequiredForLevel(userData.level);

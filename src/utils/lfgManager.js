@@ -252,7 +252,7 @@ async function handleInject(interaction) {
             $expr: { $lt: [{ $size: '$roster' }, '$totalSlots'] },
         },
         { $push: { roster: member } },
-        { new: true }
+        { returnDocument: 'after' }
     );
 
     if (joined) {
@@ -269,7 +269,7 @@ async function handleInject(interaction) {
             $expr: { $gte: [{ $size: '$roster' }, '$totalSlots'] },
         },
         { $push: { waitlist: member } },
-        { new: true }
+        { returnDocument: 'after' }
     );
 
     if (waitlisted) {
@@ -308,7 +308,7 @@ async function handleAbort(interaction) {
     let updated = await LfgSession.findOneAndUpdate(
         { messageId: interaction.message.id, status: { $ne: 'LOCKED' }, 'roster.userId': userId },
         { $pull: { roster: { userId } } },
-        { new: true }
+        { returnDocument: 'after' }
     );
 
     if (updated) {
@@ -323,7 +323,7 @@ async function handleAbort(interaction) {
                     $expr: { $lt: [{ $size: '$roster' }, '$totalSlots'] },
                 },
                 { $pull: { waitlist: { userId: next.userId } }, $push: { roster: { userId: next.userId, username: next.username } } },
-                { new: true }
+                { returnDocument: 'after' }
             );
             if (promoted) {
                 updated = promoted;
@@ -339,7 +339,7 @@ async function handleAbort(interaction) {
     const leftWaitlist = await LfgSession.findOneAndUpdate(
         { messageId: interaction.message.id, status: { $ne: 'LOCKED' }, 'waitlist.userId': userId },
         { $pull: { waitlist: { userId } } },
-        { new: true }
+        { returnDocument: 'after' }
     );
 
     if (!leftWaitlist) {
@@ -360,7 +360,7 @@ async function handleExecute(interaction) {
     const locked = await LfgSession.findOneAndUpdate(
         { messageId: interaction.message.id, hostId: interaction.user.id, status: { $ne: 'LOCKED' } },
         { $set: { status: 'LOCKED' } },
-        { new: true },
+        { returnDocument: 'after' },
     ).lean();
 
     if (!locked) {
@@ -396,7 +396,7 @@ async function handleCancel(interaction) {
         const cancelled = await LfgSession.findOneAndUpdate(
             { messageId: interaction.message.id, hostId: interaction.user.id, status: { $ne: 'CANCELLED' } },
             { $set: { status: 'CANCELLED' } },
-            { new: true },
+            { returnDocument: 'after' },
         ).lean();
 
         if (!cancelled) {
