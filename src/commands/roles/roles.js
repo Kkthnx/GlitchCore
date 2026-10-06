@@ -13,6 +13,9 @@ const { smartColor } = require('../../utils/roleColors');
 const { shuffled, pick } = require('../../utils/random');
 const { clamp, fitLines, LIMITS } = require('../../utils/embedText');
 const { brandedEmbed, COLORS } = require('../../utils/brand');
+const { isValidEmoji } = require('../../utils/emojiInput');
+
+const BAD_EMOJI = 'That is not an emoji. Use a standard emoji or a server emoji like <:name:123456789012345678>.';
 
 // A spread of on-brand colors so auto-created roles aren't all the same hue.
 const COLOR_POOL = ['#5cc8ff', '#34d3b4', '#f0b429', '#b483ff', '#ff6b6b', '#2fe07a', '#ff5fd0', '#ff7a3c'];
@@ -141,8 +144,8 @@ module.exports = {
             .setName('post')
             .setDescription('(Admin) Post a persistent role picker panel')
             .addChannelOption(o => o.setName('channel').setDescription('Channel to post in (defaults to here)').addChannelTypes(ChannelType.GuildText).setRequired(false))
-            .addStringOption(o => o.setName('title').setDescription('Panel title').setRequired(false))
-            .addStringOption(o => o.setName('description').setDescription('Panel description').setRequired(false))),
+            .addStringOption(o => o.setName('title').setDescription('Panel title').setRequired(false).setMaxLength(200))
+            .addStringOption(o => o.setName('description').setDescription('Panel description').setRequired(false).setMaxLength(1500))),
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
@@ -196,6 +199,10 @@ module.exports = {
 
         if (sub === 'create') {
             const name = interaction.options.getString('name').trim();
+            const emoji = interaction.options.getString('emoji')?.trim() || null;
+            if (emoji && !isValidEmoji(emoji)) {
+                return interaction.reply({ content: BAD_EMOJI, flags: MessageFlags.Ephemeral });
+            }
             const cfg = await getOrCreateGuildConfig(guildId);
             if (cfg.selfRoles.length >= 25) {
                 return interaction.reply({ content: 'The self-role menu is limited to 25 roles.', flags: MessageFlags.Ephemeral });
@@ -204,7 +211,7 @@ module.exports = {
             try {
                 const { role, created, listed } = await ensureSelfRole(interaction.guild, cfg, {
                     name,
-                    emoji: interaction.options.getString('emoji') || null,
+                    emoji,
                     color: interaction.options.getString('color') || undefined,
                     description: interaction.options.getString('description') || null,
                 });
@@ -251,6 +258,11 @@ module.exports = {
                 return interaction.reply({ content: `My highest role must be **above** ${role} for me to assign it. Move my role up.`, flags: MessageFlags.Ephemeral });
             }
 
+            const emoji = interaction.options.getString('emoji')?.trim() || null;
+            if (emoji && !isValidEmoji(emoji)) {
+                return interaction.reply({ content: BAD_EMOJI, flags: MessageFlags.Ephemeral });
+            }
+
             const cfg = await getOrCreateGuildConfig(guildId);
             if (cfg.selfRoles.some(r => r.roleId === role.id)) {
                 return interaction.reply({ content: `${role} is already self-assignable.`, flags: MessageFlags.Ephemeral });
@@ -262,7 +274,7 @@ module.exports = {
             cfg.selfRoles.push({
                 roleId: role.id,
                 label: (interaction.options.getString('label') || role.name).slice(0, 80),
-                emoji: interaction.options.getString('emoji') || null,
+                emoji,
                 description: interaction.options.getString('description') || null,
             });
             await cfg.save();
