@@ -31,7 +31,9 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessageReactions
+        GatewayIntentBits.GuildMessageReactions,
+        // Needed for guildAuditLogEntryCreate. Not a privileged intent.
+        GatewayIntentBits.GuildModeration,
     ],
     // Partials let reaction events fire for messages that aren't cached
     // (e.g. older messages), which the starboard relies on.

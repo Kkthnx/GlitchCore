@@ -5,15 +5,23 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { getGuildConfig } = require('../utils/guildConfigCache');
+const { getAuditChannel, postAudit } = require('../utils/auditLog');
 const { removeForDeletedOrigins } = require('../utils/starboardManager');
-const { brandedEmbed, COLORS } = require('../utils/brand');
-const channels = require('../utils/channels');
 const logger = require('../utils/logger');
 
-function clip(text, max = 1000) {
-    if (!text) return '_(no text, likely an embed or attachment)_';
-    return text.length > max ? `${text.slice(0, max)}...` : text;
+// What was in the message, including files and stickers. A deleted image used
+// to log as "no text", which told a moderator nothing about what was removed.
+function describeBody(message) {
+    const parts = [];
+    if (message.content) parts.push(message.content);
+
+    const files = [...(message.attachments?.values() ?? [])].map(a => a.name).filter(Boolean);
+    if (files.length) parts.push(`Attachments, ${files.join(', ')}`);
+
+    const stickers = [...(message.stickers?.values() ?? [])].map(s => s.name).filter(Boolean);
+    if (stickers.length) parts.push(`Stickers, ${stickers.join(', ')}`);
+
+    return parts.length ? parts.join('\n') : '_(no text, likely an embed)_';
 }
 
 // Logs deleted messages to the guild's mod-log channel for audit trails.
@@ -36,23 +44,19 @@ module.exports = {
             if (message.partial) return;
             if (message.author?.bot) return;
 
-            const cfg = await getGuildConfig(message.guild.id);
-            const modLogId = cfg?.modLogChannelId || channels.modLog;
-            if (!modLogId) return;
-            const channel = message.guild.channels.cache.get(modLogId);
+            const channel = await getAuditChannel(message.guild);
             if (!channel) return;
 
             const who = message.author ? `${message.author.tag} (${message.author.id})` : 'Unknown (uncached)';
-            const embed = brandedEmbed({ color: COLORS.danger, footer: 'GLITCH_HAVEN // AUDIT' })
-                .setAuthor({ name: '⚡ SYSTEM.MESSAGE_DELETED' })
-                .setDescription(`In ${message.channel}`)
-                .addFields(
-                    { name: '> AUTHOR', value: who, inline: false },
-                    { name: '> CONTENT', value: clip(message.content), inline: false },
-                )
-                .setTimestamp();
-
-            await channel.send({ embeds: [embed] });
+            await postAudit(message.guild, {
+                title: 'MESSAGE_DELETED',
+                color: 'danger',
+                description: `In ${message.channel}`,
+                fields: [
+                    { name: 'Author', value: who },
+                    { name: 'Content', value: describeBody(message) },
+                ],
+            }, channel);
         } catch (err) {
             logger.error('messageDelete audit log failed:', err);
         }

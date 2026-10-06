@@ -51,6 +51,10 @@ const guildConfigSchema = new mongoose.Schema({
     // it off per server, which made it the only moderation feature without a switch.
     contentFilterEnabled: { type: Boolean, default: true },
 
+    // Master switch for the audit log posted to the mod-log channel. Nothing is
+    // stored, this only decides whether entries are posted.
+    auditLogEnabled: { type: Boolean, default: true },
+
     // Starboard, repost highly-reacted messages to a highlights channel.
     starboardChannelId: { type: String, default: null },
     starboardThreshold: { type: Number, default: 3 },

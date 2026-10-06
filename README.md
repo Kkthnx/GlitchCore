@@ -5,33 +5,33 @@ GlitchCore is the custom Discord bot for the Glitch Haven gaming community, buil
 ## Features
 
 ### Leveling and engagement
-- **XP and leveling** — earn XP from text messages and voice chat, with Double XP days (max level 1000). XP is buffered in memory and bulk-written to keep the database light.
-- **Rank cards** — `/rank` renders a custom card with selectable styles via `/rankstyle`, and `/leaderboard` shows the top players.
-- **Milestone level-roles** — `/levelrewards milestones interval:10` auto-creates and grants a prestige role every N levels (rank or stacking mode).
-- **Opt-in Double XP role** — announcements ping a self-assigned `@DoubleXP` role instead of `@everyone` when one is set.
-- **Daily streaks and stats** — `/daily` streak rewards and `/stats` server insights.
+- **XP and leveling**, earn XP from text messages and voice chat, with Double XP days (max level 1000). XP is buffered in memory and bulk-written to keep the database light.
+- **Rank cards**, `/rank` renders a custom card with selectable styles via `/rankstyle`, and `/leaderboard` shows the top players.
+- **Milestone level-roles**, `/levelrewards milestones interval:10` auto-creates and grants a prestige role every N levels (rank or stacking mode).
+- **Opt-in Double XP role**, announcements ping a self-assigned `@DoubleXP` role instead of `@everyone` when one is set.
+- **Daily streaks and stats**, `/daily` streak rewards and `/stats` server insights.
 
 ### Community
-- **Self-assign roles** — `/roles` menu plus postable panels for games and pings.
-- **Reaction roles** — `/reactionrole` builds menus where members react to grant or remove a role (menu IDs cached in memory so reactions stay cheap).
-- **Game-night events** — `/event create` schedules a session with RSVP buttons and an auto-promoting waitlist, or a sign-up-free **recurring weekly reminder** (`repeat_weekly`) with bundled banners that reposts itself and cleans up the old card.
-- **Birthdays** — `/birthday set` saves a month/day and a local-midnight scheduler shouts out the day's birthdays (deduped so restarts don't double-post).
-- **LFG** — `/lfg` looking-for-group lobbies with live roster buttons and stale-session cleanup.
-- **Starboard** — star-react highly-rated messages into a highlights channel; the count tracks up and down, and deleting the original (or purging it) takes its highlight down with it.
-- **Suggestions** — `/suggest` posts a votable suggestion with manager approve/deny.
-- **Polls** — `/poll` native Discord polls with up to 6 options.
-- **Giveaways** — `/giveaway` with atomic entry and automatic winner draws.
-- **Streamer go-live** — `/streamers` announces when tracked members go live on Twitch and removes the post when they go offline.
-- **Tags** — `/tag` saved canned responses for FAQs and info (managed with Manage Messages), with autocomplete on tag names so nobody has to remember the exact spelling.
-- **Reminders and AFK** — `/remind set`, plus `/remind list` and `/remind cancel` (with autocomplete over your own pending ones), and `/afk`.
-- **Welcome and farewell** — glitch-styled join banners and sly leave messages.
+- **Self-assign roles**, `/roles` menu plus postable panels for games and pings.
+- **Reaction roles**, `/reactionrole` builds menus where members react to grant or remove a role (menu IDs cached in memory so reactions stay cheap).
+- **Game-night events**, `/event create` schedules a session with RSVP buttons and an auto-promoting waitlist, or a sign-up-free **recurring weekly reminder** (`repeat_weekly`) with bundled banners that reposts itself and cleans up the old card.
+- **Birthdays**, `/birthday set` saves a month/day and a local-midnight scheduler shouts out the day's birthdays (deduped so restarts don't double-post).
+- **LFG**, `/lfg` looking-for-group lobbies with live roster buttons and stale-session cleanup.
+- **Starboard**, star-react highly-rated messages into a highlights channel; the count tracks up and down, and deleting the original (or purging it) takes its highlight down with it.
+- **Suggestions**, `/suggest` posts a votable suggestion with manager approve/deny.
+- **Polls**, `/poll` native Discord polls with up to 6 options.
+- **Giveaways**, `/giveaway` with atomic entry and automatic winner draws.
+- **Streamer go-live**, `/streamers` announces when tracked members go live on Twitch and removes the post when they go offline.
+- **Tags**, `/tag` saved canned responses for FAQs and info (managed with Manage Messages), with autocomplete on tag names so nobody has to remember the exact spelling.
+- **Reminders and AFK**, `/remind set`, plus `/remind list` and `/remind cancel` (with autocomplete over your own pending ones), and `/afk`.
+- **Welcome and farewell**, glitch-styled join banners and sly leave messages.
 
 ### Moderation and safety
-- **Moderation suite** — `/warn`, `/timeout`, `/kick`, `/ban` (with optional temp-ban `duration` that auto-unbans), and `/infractions`, backed by a persistent infraction log and a mod-log channel. `/purge` is logged there too, with who ran it and how much it removed.
-- **Audit logging** — message edits and deletes are logged to the mod-log channel.
-- **Anti-raid / anti-spam** — auto-detects invite links, mass mentions, and message flooding, with per-guild toggles. Under a join flood, welcomes drop to plain text so the bot isn't spending its CPU rendering banners for a raid.
-- **Content auto-moderation** — filter with themed clapbacks, per-guild toggle (`/settings set key:content_filter_enabled`), and a logged infraction naming which rule was tripped.
-- **Privacy** — `/forgetme export` downloads a user's stored data and `/forgetme delete` erases their profile on confirmation; all per-guild data is purged when the bot leaves a server.
+- **Moderation suite**, `/warn`, `/timeout`, `/kick`, `/ban` (with optional temp-ban `duration` that auto-unbans), and `/infractions`, backed by a persistent infraction log and a mod-log channel. `/purge` is logged there too, with who ran it and how much it removed.
+- **Audit logging**, everything lands in the mod-log channel and nothing is stored in the database. Message edits and deletes (including attachment names) are logged, and with the View Audit Log permission so are kicks, bans, unbans, timeouts set or lifted by a person, nickname changes, role assignments, channel and role changes (with the permissions gained or lost), permission overrides, server setting changes, and bulk deletes. The bot's own actions are skipped so level roles and self roles never add noise. Turn it off with `/settings set audit_log_enabled false`.
+- **Anti-raid / anti-spam**, auto-detects invite links, mass mentions, and message flooding, with per-guild toggles. Under a join flood, welcomes drop to plain text so the bot isn't spending its CPU rendering banners for a raid.
+- **Content auto-moderation**, filter with themed clapbacks, per-guild toggle (`/settings set key:content_filter_enabled`), and a logged infraction naming which rule was tripped.
+- **Privacy**, `/forgetme export` downloads a user's stored data and `/forgetme delete` erases their profile on confirmation; all per-guild data is purged when the bot leaves a server.
 
 ### Under the hood
 - Sharding via `ShardingManager`, with buffered XP flushed on shutdown.
@@ -59,6 +59,7 @@ npm run lint:fix
 - Node.js v20 or newer
 - A MongoDB instance (Mongoose)
 - A Discord bot token with the Server Members and Message Content privileged intents enabled
+- The View Audit Log permission for the bot in your server, which is what lets it report who did what (the Server Members and Message Content intents are the only privileged ones, the audit log needs no extra intent toggle in the developer portal)
 
 ## Installation
 

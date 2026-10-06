@@ -5,14 +5,11 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { getGuildConfig } = require('../utils/guildConfigCache');
-const { brandedEmbed, COLORS } = require('../utils/brand');
-const channels = require('../utils/channels');
+const { getAuditChannel, postAudit } = require('../utils/auditLog');
 const logger = require('../utils/logger');
 
-function clip(text, max = 950) {
-    if (!text) return '_(empty)_';
-    return text.length > max ? `${text.slice(0, max)}...` : text;
+function clip(text) {
+    return text || '_(empty)_';
 }
 
 // Logs message edits to the guild's mod-log channel for audit trails.
@@ -28,24 +25,20 @@ module.exports = {
             // Only content edits matter here. Embed unfurls fire this too.
             if (oldMessage.content === newMessage.content) return;
 
-            const cfg = await getGuildConfig(newMessage.guild.id);
-            const modLogId = cfg?.modLogChannelId || channels.modLog;
-            if (!modLogId) return;
-            const channel = newMessage.guild.channels.cache.get(modLogId);
+            const channel = await getAuditChannel(newMessage.guild);
             if (!channel) return;
 
             const who = newMessage.author ? `${newMessage.author.tag} (${newMessage.author.id})` : 'Unknown';
-            const embed = brandedEmbed({ color: COLORS.hype, footer: 'GLITCH_HAVEN // AUDIT' })
-                .setAuthor({ name: '⚡ SYSTEM.MESSAGE_EDITED' })
-                .setDescription(`In ${newMessage.channel}, [jump](${newMessage.url})`)
-                .addFields(
-                    { name: '> AUTHOR', value: who, inline: false },
-                    { name: '> BEFORE', value: clip(oldMessage.content), inline: false },
-                    { name: '> AFTER', value: clip(newMessage.content), inline: false },
-                )
-                .setTimestamp();
-
-            await channel.send({ embeds: [embed] });
+            await postAudit(newMessage.guild, {
+                title: 'MESSAGE_EDITED',
+                color: 'hype',
+                description: `In ${newMessage.channel}, [jump](${newMessage.url})`,
+                fields: [
+                    { name: 'Author', value: who },
+                    { name: 'Before', value: clip(oldMessage.content) },
+                    { name: 'After', value: clip(newMessage.content) },
+                ],
+            }, channel);
         } catch (err) {
             logger.error('messageUpdate audit log failed:', err);
         }
