@@ -18,7 +18,7 @@ const ACTION_VERB = { warn: 'warned', timeout: 'timed out', kick: 'kicked', ban:
  * Verifies the moderator may act on the target. Returns a reason string if the
  * action must be blocked, or null if it's allowed.
  */
-function blockReason(interaction, targetMember, { needBannable = false, requireBotAction = true } = {}) {
+function blockReason(interaction, targetMember, { needBannable = false, needKickable = false, requireBotAction = true } = {}) {
     if (!targetMember) return null; // e.g. banning a user not in the guild, caller decides
     if (targetMember.id === interaction.user.id) return "You can't moderate yourself.";
     if (targetMember.id === interaction.client.user.id) return "I can't moderate myself.";
@@ -32,9 +32,18 @@ function blockReason(interaction, targetMember, { needBannable = false, requireB
     }
 
     // The bot must be able to act on the target (skipped for warnings, which
-    // take no Discord-side action against the member).
-    if (requireBotAction && (needBannable ? !targetMember.bannable : !targetMember.moderatable)) {
-        return "I don't have permission to action that member (check my role position).";
+    // take no Discord-side action against the member). Each action has its own
+    // test in discord.js. Using the timeout one (moderatable) for a kick would
+    // demand the wrong permission and refuse any target holding Administrator.
+    if (requireBotAction) {
+        let canAct;
+        if (needBannable) canAct = targetMember.bannable;
+        else if (needKickable) canAct = targetMember.kickable;
+        else canAct = targetMember.moderatable;
+
+        if (!canAct) {
+            return "I can't do that to this member. My role has to sit above theirs and I need the matching permission.";
+        }
     }
     return null;
 }

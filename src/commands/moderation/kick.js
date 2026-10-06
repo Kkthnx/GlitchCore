@@ -24,7 +24,7 @@ module.exports = {
 
         if (!member) return interaction.reply({ content: 'That user is not in this server.', flags: MessageFlags.Ephemeral });
 
-        const block = blockReason(interaction, member);
+        const block = blockReason(interaction, member, { needKickable: true });
         if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
         // DM before removing them, once kicked we can't message via the guild.
