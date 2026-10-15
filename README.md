@@ -1,135 +1,47 @@
 # GlitchCore
 
-GlitchCore is the custom Discord bot for the Glitch Haven gaming community, built with [Discord.js](https://discord.js.org/) v14 and Node.js. It runs under a sharding manager, stores data in MongoDB via Mongoose, and auto-deploys its slash commands on startup.
+The custom Discord bot for the Glitch Haven gaming community, built with Discord.js v14 and Node.js. It runs under a sharding manager, stores data in MongoDB, and auto-deploys its slash commands on startup.
 
-## Features
+## What it does
 
-### Leveling and engagement
-- **XP and leveling**, earn XP from text messages and voice chat, with Double XP days (max level 1000). XP is buffered in memory and bulk-written to keep the database light.
-- **Rank cards**, `/rank` renders a custom card with selectable styles via `/rankstyle`, and `/leaderboard` shows the top players.
-- **Milestone level-roles**, `/levelrewards milestones interval:10` auto-creates and grants a prestige role every N levels (rank or stacking mode).
-- **Opt-in Double XP role**, announcements ping a self-assigned `@DoubleXP` role instead of `@everyone` when one is set.
-- **Daily streaks and stats**, `/daily` streak rewards and `/stats` server insights.
+- XP and leveling from text and voice chat, rank cards (`/rank`), level roles, daily streaks, and opt-in Double XP days.
+- Community tools: self-assign roles, reaction roles, game nights with RSVP, birthdays, LFG lobbies, polls, giveaways, suggestions, reminders, and streamer go-live announcements.
+- Full moderation suite: warn, timeout, kick, ban (with temp-ban durations), an infraction log, purge, and audit logging to a mod-log channel.
+- Anti-raid and anti-spam: auto-detects invite links, mass mentions, and message flooding, with content filters and themed clapbacks.
+- Privacy built in: `/forgetme` exports or deletes a user's data, and all per-guild data is purged when the bot leaves a server.
 
-### Community
-- **Self-assign roles**, `/roles` menu plus postable panels for games and pings.
-- **Reaction roles**, `/reactionrole` builds menus where members react to grant or remove a role (menu IDs cached in memory so reactions stay cheap).
-- **Game-night events**, `/event create` schedules a session with RSVP buttons and an auto-promoting waitlist, or a sign-up-free **recurring weekly reminder** (`repeat_weekly`) with bundled banners that reposts itself and cleans up the old card.
-- **Birthdays**, `/birthday set` saves a month/day and a local-midnight scheduler shouts out the day's birthdays (deduped so restarts don't double-post).
-- **LFG**, `/lfg` looking-for-group lobbies with live roster buttons and stale-session cleanup.
-- **Starboard**, star-react highly-rated messages into a highlights channel; the count tracks up and down, and deleting the original (or purging it) takes its highlight down with it.
-- **Suggestions**, `/suggest` posts a votable suggestion with manager approve/deny.
-- **Polls**, `/poll` native Discord polls with up to 6 options.
-- **Giveaways**, `/giveaway` with atomic entry and automatic winner draws.
-- **Streamer go-live**, `/streamers` announces when tracked members go live on Twitch and removes the post when they go offline.
-- **Tags**, `/tag` saved canned responses for FAQs and info (managed with Manage Messages), with autocomplete on tag names so nobody has to remember the exact spelling.
-- **Reminders and AFK**, `/remind set`, plus `/remind list` and `/remind cancel` (with autocomplete over your own pending ones), and `/afk`.
-- **Welcome and farewell**, glitch-styled join banners and sly leave messages.
+## Get it
 
-### Moderation and safety
-- **Moderation suite**, `/warn`, `/timeout`, `/kick`, `/ban` (with optional temp-ban `duration` that auto-unbans), and `/infractions`, backed by a persistent infraction log and a mod-log channel. `/purge` is logged there too, with who ran it and how much it removed.
-- **Audit logging**, everything lands in the mod-log channel and nothing is stored in the database. Message edits and deletes (including attachment names) are logged, and with the View Audit Log permission so are kicks, bans, unbans, timeouts set or lifted by a person, nickname changes, role assignments, channel and role changes (with the permissions gained or lost), permission overrides, server setting changes, and bulk deletes. The bot's own actions are skipped so level roles and self roles never add noise. Turn it off with `/settings set audit_log_enabled false`.
-- **Anti-raid / anti-spam**, auto-detects invite links, mass mentions, and message flooding, with per-guild toggles. Under a join flood, welcomes drop to plain text so the bot isn't spending its CPU rendering banners for a raid.
-- **Content auto-moderation**, filter with themed clapbacks, per-guild toggle (`/settings set key:content_filter_enabled`), and a logged infraction naming which rule was tripped.
-- **Privacy**, `/forgetme export` downloads a user's stored data and `/forgetme delete` erases their profile on confirmation; all per-guild data is purged when the bot leaves a server.
+GlitchCore is self-hosted. You need Node.js v20 or newer, a MongoDB instance, and a Discord bot token with the Server Members and Message Content privileged intents enabled.
 
-### Under the hood
-- Sharding via `ShardingManager`, with buffered XP flushed on shutdown.
-- Shard-scoped schedulers so multi-shard setups never double-fire, each wrapped in an overlap guard so a slow tick can't double-send a reminder or double-draw a giveaway.
-- Hot paths kept cheap: guild settings are cached (and read as plain objects), reaction handling filters on the gateway payload before spending an API fetch, and XP is read back per guild instead of per user.
-- Per-command cooldowns on the expensive commands (card rendering, aggregates), so one member holding enter can't pin the shard's event loop. Moderation commands stay unlimited on purpose.
-- Contested writes are atomic: `/daily` claims the day in the update itself, and giveaway entries, LFG slots and suggestion votes all use targeted operators rather than read-modify-write, so two people clicking at once can't lose a vote or double-claim.
-- Timezone-aware scheduling (Double XP, birthdays, recurring events) so a UTC host never posts on the wrong day.
-- `@napi-rs/canvas` for rank cards, welcome banners, and event art.
-- Winston structured logging with automatic secret redaction (bot token, Mongo URI, SteamGridDB and Twitch credentials).
-- 200+ rotating custom statuses dealt from a shuffled deck (so every one shows before any repeats), plus ~70 name-based ones that call out a random member.
+1. Clone the repo and run `npm install`.
+2. Copy `.env.example` to `.env` and fill in your token, client IDs, and MongoDB URI.
+3. Set your community's timezone in `config.json`.
+4. Run `npm start`. Slash commands register on startup.
 
-See [PRIVACY.md](./PRIVACY.md) for the data-handling policy.
+See PRIVACY.md for the data-handling policy.
 
-## Testing and linting
+## Quick start
 
-```bash
-npm test        # run the Jest unit suite
-npm run lint    # eslint
-npm run lint:fix
-```
+1. Finish the setup above and run `npm start`.
+2. Use `/settings` to set your mod-log, welcome, and announcements channels.
+3. Use `/levelrewards` to set up milestone roles and `/event create` to schedule your first game night.
 
-## Prerequisites
+## Support the work
 
-- Node.js v20 or newer
-- A MongoDB instance (Mongoose)
-- A Discord bot token with the Server Members and Message Content privileged intents enabled
-- The View Audit Log permission for the bot in your server, which is what lets it report who did what (the Server Members and Message Content intents are the only privileged ones, the audit log needs no extra intent toggle in the developer portal)
+Free forever. If it saved you time, chip in:
 
-## Installation
+- [Ko-fi](https://ko-fi.com/kkthnx)
+- [Buy Me a Coffee](https://buymeacoffee.com/kkthnx)
+- [PayPal](https://www.paypal.com/paypalme/kkthnxtv)
 
-1. Clone the repository.
-2. Install dependencies:
+Every bit goes back into building more.
 
-   ```bash
-   npm install
-   ```
+## Community
 
-3. Configure your environment. Copy `.env.example` to `.env` and fill in the values:
+- Glitch Haven Discord: https://discord.gg/FaVGhTYmck
+- Website: https://kkthnx.com
 
-   ```bash
-   cp .env.example .env
-   ```
+## License
 
-   Core values:
-
-   ```env
-   TOKEN=your_bot_token_here
-   CLIENT_ID=your_application_client_id
-   GUILD_ID=your_dev_guild_id
-   MONGO_URI=your_mongodb_uri_here
-
-   # Optional services
-   STEAMGRIDDB_API_KEY=your_steamgriddb_key
-   TWITCH_CLIENT_ID=your_twitch_client_id
-   TWITCH_CLIENT_SECRET=your_twitch_client_secret
-
-   # Logging
-   NODE_ENV=development
-   LOG_LEVEL=info
-
-   # Register slash commands on startup (default on). "false" = deploy manually.
-   AUTO_DEPLOY=true
-   ```
-
-   **Server-specific IDs live in the environment, not in the repo.** Set the auto-role and the channels you use:
-
-   ```env
-   MEMBER_ROLE_ID=
-   WELCOME_CHANNEL_ID=
-   LEAVE_CHANNEL_ID=
-   ANNOUNCEMENTS_CHANNEL_ID=
-   LFG_CHANNEL_ID=
-   LEVEL_UP_LOG_CHANNEL_ID=
-   MOD_LOG_CHANNEL_ID=
-   BIRTHDAY_CHANNEL_ID=
-   ERROR_CHANNEL_ID=
-   ```
-
-   `LEAVE_CHANNEL_ID` and `BIRTHDAY_CHANNEL_ID` fall back to the welcome and announcements channels when blank.
-
-4. Set `timezone` in `config.json` (an IANA name like `America/New_York`) to your community's timezone. Double XP days, birthday shoutouts, and recurring events are all evaluated in this timezone, so the host can run in UTC without posting early or re-posting on restart. Per-guild settings (mod-log, starboard, streamer, and suggestion channels) are managed at runtime with `/settings`.
-
-## Usage
-
-```bash
-npm start     # launch via the shard manager (auto-deploys commands)
-npm run dev   # development with nodemon
-npm run deploy  # manually (re)register slash commands
-```
-
-Windows users can also run `start_bot.bat`.
-
-## License and Copyright
-
-**Copyright © 2026 Kkthnx. All Rights Reserved.**
-
-This project is **proprietary and closed-source**. No permission is granted to
-use, copy, modify, distribute, host, or create derivative works from any part
-of this code without the express written permission of the author. Viewing this
-repository does not grant any license. See [LICENSE](./LICENSE) for full terms.
+Copyright (c) 2026 Kkthnx. All rights reserved. Proprietary. No permission is granted to use, copy, modify, distribute, or host this code without written permission. See [LICENSE](LICENSE).
