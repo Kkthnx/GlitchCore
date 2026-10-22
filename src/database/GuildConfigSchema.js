@@ -51,6 +51,25 @@ const guildConfigSchema = new mongoose.Schema({
     // it off per server, which made it the only moderation feature without a switch.
     contentFilterEnabled: { type: Boolean, default: true },
 
+    // Account-age gating. Joins from accounts younger than minAccountAgeDays
+    // get flagged in the mod-log (ban evasion usually runs on fresh alts), and
+    // when newAccountHoldMinutes is set they're also timed out for that long.
+    // 0 days disables the check entirely.
+    minAccountAgeDays: { type: Number, default: 7 },
+    newAccountHoldMinutes: { type: Number, default: 0 },
+
+    // Channel IDs where the CJK filter doesn't apply (e.g. an international
+    // chat). Empty means no exemptions.
+    cjkExemptChannelIds: { type: [String], default: [] },
+
+    // Strike escalation: collecting strikeWarnThreshold warns inside
+    // strikeWindowDays automatically triggers strikeAction (timeout, kick or
+    // ban). Threshold 0 disables it.
+    strikeWarnThreshold: { type: Number, default: 3 },
+    strikeWindowDays: { type: Number, default: 30 },
+    strikeAction: { type: String, default: 'timeout' },
+    strikeTimeoutMinutes: { type: Number, default: 60 },
+
     // Master switch for the audit log posted to the mod-log channel. Nothing is
     // stored, this only decides whether entries are posted.
     auditLogEnabled: { type: Boolean, default: true },

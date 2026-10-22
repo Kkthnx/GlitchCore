@@ -6,7 +6,8 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { blockReason, recordInfraction, notifyTarget, countInfractions } = require('../../utils/moderationManager');
+const { blockReason, recordInfraction, notifyTarget, countInfractions, checkStrikeEscalation } = require('../../utils/moderationManager');
+const logger = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -29,10 +30,31 @@ module.exports = {
         const block = blockReason(interaction, member, { requireBotAction: false });
         if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
-        await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'warn', reason });
+        // A warning IS the database record (no Discord-side action), so a failed
+        // write means the warn didn't happen. Say so instead of pretending.
+        try {
+            await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'warn', reason });
+        } catch (err) {
+            logger.error('recordInfraction failed for warn:', err);
+            return interaction.reply({ content: 'Failed to record the warning, nothing was issued. Try again.', flags: MessageFlags.Ephemeral });
+        }
         await notifyTarget(targetUser, interaction.guild.name, 'warn', reason);
 
+        // Automatic strike escalation runs here, so repeat offenders face the
+        // configured consequence even when no mod connects the dots.
+        let escalationNote = '';
+        try {
+            escalationNote = await checkStrikeEscalation({
+                guild: interaction.guild,
+                member,
+                targetUser,
+                moderator: interaction.client.user,
+            }) || '';
+        } catch (err) {
+            logger.error('Strike escalation check failed:', err);
+        }
+
         const total = await countInfractions(interaction.guild.id, targetUser.id);
-        return interaction.reply({ content: `⚠️ Warned <@${targetUser.id}>, ${reason}\nThey now have **${total}** infraction(s) on record.` });
+        return interaction.reply({ content: `⚠️ Warned <@${targetUser.id}>, ${reason}\nThey now have **${total}** infraction(s) on record.${escalationNote}` });
     },
 };

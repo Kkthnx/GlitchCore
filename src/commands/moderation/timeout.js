@@ -6,8 +6,9 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
+const { blockReason, recordInfraction, notifyTarget, auditReason } = require('../../utils/moderationManager');
 const { parseDuration, clampTimeout, humanizeDuration } = require('../../utils/duration');
+const logger = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -34,12 +35,19 @@ module.exports = {
         const durationMs = clampTimeout(parsed);
 
         try {
-            await member.timeout(durationMs, `${interaction.user.tag}: ${reason}`);
+            await member.timeout(durationMs, auditReason(interaction.user.tag, reason));
         } catch (err) {
             return interaction.reply({ content: `Failed to time out that member: ${err.message}`, flags: MessageFlags.Ephemeral });
         }
 
-        await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'timeout', reason, durationMs });
+        // The timeout already landed, so a failed history write must not look
+        // like a failed timeout. Say so plainly instead.
+        try {
+            await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'timeout', reason, durationMs });
+        } catch (err) {
+            logger.error('recordInfraction failed after a successful timeout:', err);
+            return interaction.reply({ content: `🔇 Timed out <@${targetUser.id}>, but I couldn't write the infraction record. Check /infractions for them later.`, flags: MessageFlags.Ephemeral });
+        }
         await notifyTarget(targetUser, interaction.guild.name, 'timeout', reason, durationMs);
 
         return interaction.reply({ content: `🔇 Timed out <@${targetUser.id}> for **${humanizeDuration(durationMs)}**, ${reason}` });

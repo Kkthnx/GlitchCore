@@ -16,7 +16,30 @@ const NUMERIC_BOUNDS = {
     voiceXpPerTick: { min: 1, max: 1000 },
     voiceTickMinutes: { min: 1, max: 1440 },
     starboardThreshold: { min: 1, max: 100 },
+    minAccountAgeDays: { min: 0, max: 365 },
+    newAccountHoldMinutes: { min: 0, max: 1440 },
+    strikeWarnThreshold: { min: 0, max: 10 },
+    strikeWindowDays: { min: 1, max: 365 },
+    strikeTimeoutMinutes: { min: 1, max: 40320 },
 };
+
+// strikeAction isn't numeric, so it's validated separately in the set handler.
+const STRIKE_ACTIONS = ['timeout', 'kick', 'ban'];
+
+// Every key the set subcommand accepts. These used to be a fixed choice list,
+// but Discord caps an option at 25 choices and the moderation settings pushed
+// it to 27, so the option now uses autocomplete against this list instead.
+const SETTABLE_KEYS = [
+    'xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled', 'contentFilterEnabled',
+    'auditLogEnabled', 'lfgChannelId', 'lfgPingRoleId', 'announcementsChannelId',
+    'levelUpLogChannelId', 'modLogChannelId', 'doubleXpRoleId',
+    'starboardChannelId', 'starboardThreshold', 'starboardEmoji',
+    'streamerChannelId', 'streamerPingRoleId', 'suggestionChannelId',
+    'textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes',
+    'minAccountAgeDays', 'newAccountHoldMinutes', 'cjkExemptChannelIds',
+    'strikeWarnThreshold', 'strikeWindowDays', 'strikeAction',
+    'strikeTimeoutMinutes',
+];
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -33,30 +56,9 @@ module.exports = {
                 .setDescription('Update a server setting')
                 .addStringOption(option =>
                     option.setName('key')
-                        .setDescription('The setting name to update')
+                        .setDescription('The setting name to update (start typing to see options)')
                         .setRequired(true)
-                        .addChoices(
-                            { name: 'xp_enabled', value: 'xpEnabled' },
-                            { name: 'voice_xp_enabled', value: 'voiceXpEnabled' },
-                            { name: 'anti_spam_enabled', value: 'antiSpamEnabled' },
-                            { name: 'content_filter_enabled', value: 'contentFilterEnabled' },
-                            { name: 'audit_log_enabled', value: 'auditLogEnabled' },
-                            { name: 'lfg_channel_id', value: 'lfgChannelId' },
-                            { name: 'lfg_ping_role_id', value: 'lfgPingRoleId' },
-                            { name: 'announcements_channel_id', value: 'announcementsChannelId' },
-                            { name: 'levelup_log_channel_id', value: 'levelUpLogChannelId' },
-                            { name: 'mod_log_channel_id', value: 'modLogChannelId' },
-                            { name: 'double_xp_role_id', value: 'doubleXpRoleId' },
-                            { name: 'starboard_channel_id', value: 'starboardChannelId' },
-                            { name: 'starboard_threshold', value: 'starboardThreshold' },
-                            { name: 'starboard_emoji', value: 'starboardEmoji' },
-                            { name: 'streamer_channel_id', value: 'streamerChannelId' },
-                            { name: 'streamer_ping_role_id', value: 'streamerPingRoleId' },
-                            { name: 'suggestion_channel_id', value: 'suggestionChannelId' },
-                            { name: 'text_cooldown_seconds', value: 'textCooldownSeconds' },
-                            { name: 'voice_xp_per_tick', value: 'voiceXpPerTick' },
-                            { name: 'voice_tick_minutes', value: 'voiceTickMinutes' },
-                        ))
+                        .setAutocomplete(true))
                 .addStringOption(option =>
                     option.setName('value')
                         .setDescription('The new value for the setting')
@@ -104,6 +106,13 @@ module.exports = {
                 `textCooldownSeconds: ${config.textCooldownSeconds}`,
                 `voiceXpPerTick: ${config.voiceXpPerTick}`,
                 `voiceTickMinutes: ${config.voiceTickMinutes}`,
+                `minAccountAgeDays: ${config.minAccountAgeDays} (0 = off)`,
+                `newAccountHoldMinutes: ${config.newAccountHoldMinutes} (0 = flag only)`,
+                `cjkExemptChannelIds: ${config.cjkExemptChannelIds?.join(', ') || 'none'}`,
+                `strikeWarnThreshold: ${config.strikeWarnThreshold} (0 = off)`,
+                `strikeWindowDays: ${config.strikeWindowDays}`,
+                `strikeAction: ${config.strikeAction}`,
+                `strikeTimeoutMinutes: ${config.strikeTimeoutMinutes}`,
                 `levelRewardRoles: ${config.levelRewardRoles.map(r => `level ${r.level}: <@&${r.roleId}>`).join(', ') || 'none'}`,
             ];
             return interaction.reply({ content: fields.join('\n'), flags: MessageFlags.Ephemeral });
@@ -112,6 +121,10 @@ module.exports = {
         if (subcommand === 'set') {
             const key = interaction.options.getString('key');
             const value = interaction.options.getString('value');
+
+            if (!SETTABLE_KEYS.includes(key)) {
+                return interaction.reply({ content: `Unknown setting. Valid keys: ${SETTABLE_KEYS.join(', ')}`, flags: MessageFlags.Ephemeral });
+            }
 
             if (NUMERIC_BOUNDS[key]) {
                 const { min, max } = NUMERIC_BOUNDS[key];
@@ -132,6 +145,19 @@ module.exports = {
                     return interaction.reply({ content: 'That value must be true or false.', flags: MessageFlags.Ephemeral });
                 }
                 config[key] = value.toLowerCase() === 'true';
+            } else if (key === 'cjkExemptChannelIds') {
+                // Comma-separated channel IDs. Anything that isn't a snowflake
+                // is rejected rather than stored.
+                const ids = value.split(',').map(s => s.trim()).filter(Boolean);
+                if (!ids.every(id => /^\d{17,20}$/.test(id))) {
+                    return interaction.reply({ content: 'Give comma-separated channel IDs, e.g. `123456789012345678, 987654321098765432`.', flags: MessageFlags.Ephemeral });
+                }
+                config[key] = ids;
+            } else if (key === 'strikeAction') {
+                if (!STRIKE_ACTIONS.includes(value.toLowerCase())) {
+                    return interaction.reply({ content: `That value must be one of: ${STRIKE_ACTIONS.join(', ')}.`, flags: MessageFlags.Ephemeral });
+                }
+                config[key] = value.toLowerCase();
             } else {
                 config[key] = value;
             }
@@ -165,5 +191,16 @@ module.exports = {
         }
 
         return interaction.reply({ content: 'Invalid settings command.', flags: MessageFlags.Ephemeral });
+    },
+
+    async autocomplete(interaction) {
+        const focused = interaction.options.getFocused().toLowerCase();
+        // Match the camelCase key and its snake_case twin, so both
+        // "contentFilter" and "content_filter" find contentFilterEnabled.
+        const matches = SETTABLE_KEYS.filter(k => {
+            const snake = k.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+            return k.toLowerCase().includes(focused) || snake.includes(focused);
+        }).slice(0, 25);
+        await interaction.respond(matches.map(k => ({ name: k, value: k })));
     },
 };

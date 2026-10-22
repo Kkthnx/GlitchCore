@@ -315,6 +315,71 @@ function bulkDelete(entry) {
     }];
 }
 
+// ── webhooks, invites, bot additions ─────────────────────────────────────────
+// The entries that matter when something goes wrong at 3 AM: a compromised
+// moderator spinning up a webhook to spam from, or a rogue bot joining the
+// server. These used to pass through silently.
+function webhookCreate(entry) {
+    const channel = find(entry, 'channel_id')?.new;
+    return [{
+        title: 'WEBHOOK_CREATED',
+        color: 'danger',
+        fields: [
+            { name: 'Webhook', value: show(entry.target?.name ?? entry.targetId), inline: true },
+            { name: 'Moderator', value: moderator(entry), inline: true },
+            ...(channel ? [{ name: 'Channel', value: `<#${channel}>`, inline: true }] : []),
+        ],
+    }];
+}
+
+function webhookDelete(entry) {
+    return [{
+        title: 'WEBHOOK_DELETED',
+        color: 'danger',
+        fields: [
+            { name: 'Webhook', value: show(entry.target?.name ?? entry.targetId), inline: true },
+            { name: 'Moderator', value: moderator(entry), inline: true },
+        ],
+    }];
+}
+
+function inviteCreate(entry) {
+    const channel = find(entry, 'channel_id')?.new;
+    const maxUses = find(entry, 'max_uses')?.new;
+    return [{
+        title: 'INVITE_CREATED',
+        color: 'primary',
+        fields: [
+            { name: 'Code', value: `\`${entry.targetId || 'unknown'}\``, inline: true },
+            { name: 'Moderator', value: moderator(entry), inline: true },
+            ...(channel ? [{ name: 'Channel', value: `<#${channel}>`, inline: true }] : []),
+            ...(maxUses !== undefined ? [{ name: 'Max uses', value: String(maxUses), inline: true }] : []),
+        ],
+    }];
+}
+
+function inviteDelete(entry) {
+    return [{
+        title: 'INVITE_DELETED',
+        color: 'primary',
+        fields: [
+            { name: 'Code', value: `\`${entry.targetId || 'unknown'}\``, inline: true },
+            { name: 'Moderator', value: moderator(entry), inline: true },
+        ],
+    }];
+}
+
+function botAdd(entry) {
+    return [{
+        title: 'BOT_ADDED',
+        color: 'danger',
+        fields: [
+            { name: 'Bot', value: userLabel(entry), inline: true },
+            { name: 'Added by', value: moderator(entry), inline: true },
+        ],
+    }];
+}
+
 const HANDLERS = {
     [A.MemberKick]: memberAction('MEMBER_KICKED', 'danger'),
     [A.MemberBanAdd]: memberAction('MEMBER_BANNED', 'danger'),
@@ -332,6 +397,11 @@ const HANDLERS = {
     [A.RoleUpdate]: roleUpdate,
     [A.GuildUpdate]: guildUpdate,
     [A.MessageBulkDelete]: bulkDelete,
+    [A.WebhookCreate]: webhookCreate,
+    [A.WebhookDelete]: webhookDelete,
+    [A.InviteCreate]: inviteCreate,
+    [A.InviteDelete]: inviteDelete,
+    [A.BotAdd]: botAdd,
 };
 
 /**

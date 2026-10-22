@@ -6,9 +6,10 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
+const { blockReason, recordInfraction, notifyTarget, auditReason } = require('../../utils/moderationManager');
 const { parseDuration, humanizeDuration } = require('../../utils/duration');
 const { scheduleTempBan, clearTempBan } = require('../../utils/tempBanManager');
+const logger = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -44,19 +45,26 @@ module.exports = {
             if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
         }
 
-        // DM first, while we can still resolve them.
-        await notifyTarget(targetUser, interaction.guild.name, 'ban', reason);
-
+        // DM after the ban lands. DMing first meant a failed ban still sent
+        // "you were banned" to someone sitting in the server.
         try {
             await interaction.guild.members.ban(targetUser.id, {
-                reason: `${interaction.user.tag}: ${reason}`,
+                reason: auditReason(interaction.user.tag, reason),
                 deleteMessageSeconds: deleteDays * 24 * 60 * 60,
             });
         } catch (err) {
             return interaction.reply({ content: `Failed to ban that user: ${err.message}`, flags: MessageFlags.Ephemeral });
         }
+        await notifyTarget(targetUser, interaction.guild.name, 'ban', reason);
 
-        await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'ban', reason, durationMs });
+        // The ban already landed, so a failed history write must not look like
+        // a failed ban. Say so plainly instead.
+        try {
+            await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'ban', reason, durationMs });
+        } catch (err) {
+            logger.error('recordInfraction failed after a successful ban:', err);
+            return interaction.reply({ content: `🔨 Banned <@${targetUser.id}>, but I couldn't write the infraction record. Check /infractions for them later.`, flags: MessageFlags.Ephemeral });
+        }
 
         if (durationMs) {
             const unbanAt = new Date(Date.now() + durationMs);

@@ -6,7 +6,7 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { logModAction } = require('../../utils/moderationManager');
+const { snapshotPurge } = require('../../utils/moderationManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -23,27 +23,26 @@ module.exports = {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
-            let deleted;
-            if (user) {
-                const messages = await interaction.channel.messages.fetch({ limit: 100 });
-                const mine = [...messages.values()].filter(m => m.author.id === user.id).slice(0, amount);
-                deleted = await interaction.channel.bulkDelete(mine, true);
-            } else {
-                deleted = await interaction.channel.bulkDelete(amount, true);
-            }
-            // Leave an audit trail. The ephemeral reply below is only seen by
-            // the mod who ran it, and Discord's own audit log doesn't record who
-            // asked the bot to do this.
-            await logModAction({
+            // Fetch first so the evidence can be snapshotted before anything is
+            // deleted. bulkDelete with a bare count fetches internally and gives
+            // us nothing to archive.
+            const fetched = await interaction.channel.messages.fetch({ limit: Math.min(amount, 100) });
+            let targets = [...fetched.values()];
+            if (user) targets = targets.filter(m => m.author.id === user.id);
+            targets = targets.slice(0, amount);
+
+            // Leave an audit trail with the message contents attached. The
+            // ephemeral reply below is only seen by the mod who ran it, and
+            // Discord's own audit log doesn't record who asked the bot to do this.
+            await snapshotPurge({
                 guild: interaction.guild,
                 moderator: interaction.user,
-                title: 'Messages purged',
-                fields: [
-                    { name: 'Channel', value: `<#${interaction.channel.id}>`, inline: true },
-                    { name: 'Deleted', value: `${deleted.size}`, inline: true },
-                    ...(user ? [{ name: 'Only from', value: `<@${user.id}> \`${user.tag}\``, inline: false }] : []),
-                ],
+                channel: interaction.channel,
+                messages: targets,
+                onlyUser: user,
             });
+
+            const deleted = await interaction.channel.bulkDelete(targets, true);
 
             // Fewer than asked for means Discord skipped some: either they were
             // over 14 days old, or the user filter simply matched fewer.

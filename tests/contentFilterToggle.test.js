@@ -28,24 +28,35 @@ describe('contentFilterEnabled gate', () => {
     });
 });
 
-describe('/settings exposes the toggle', () => {
-    const json = settings.data.toJSON();
-    const keyChoices = json.options
-        .find(o => o.name === 'set').options
-        .find(o => o.name === 'key').choices;
+describe('/settings offers the toggle', () => {
+    // The key option moved from a fixed choice list to autocomplete (Discord
+    // caps choices at 25 and the list outgrew it), so these tests drive the
+    // autocomplete handler instead of reading .choices off the option.
+    async function offeredKeys(focused) {
+        const seen = [];
+        await settings.autocomplete({
+            options: { getFocused: () => focused },
+            respond: async (items) => { seen.push(...items); },
+        });
+        return seen;
+    }
 
-    test('content_filter_enabled is an offered key', () => {
-        expect(keyChoices.map(c => c.value)).toContain('contentFilterEnabled');
+    test('contentFilterEnabled is offered', async () => {
+        const keys = await offeredKeys('content_filter');
+        expect(keys.map(k => k.value)).toContain('contentFilterEnabled');
     });
 
-    test('it is named consistently with the other switches', () => {
-        const byValue = Object.fromEntries(keyChoices.map(c => [c.value, c.name]));
-        expect(byValue.contentFilterEnabled).toBe('content_filter_enabled');
-        expect(byValue.antiSpamEnabled).toBe('anti_spam_enabled');
+    test('the new moderation keys are offered', async () => {
+        const keys = await offeredKeys('strike');
+        const values = keys.map(k => k.value);
+        expect(values).toContain('strikeWarnThreshold');
+        expect(values).toContain('strikeAction');
+        expect(values).toContain('strikeTimeoutMinutes');
     });
 
-    test('every offered key is unique', () => {
-        const values = keyChoices.map(c => c.value);
+    test('every offered key is unique', async () => {
+        const keys = await offeredKeys('');
+        const values = keys.map(k => k.value);
         expect(new Set(values).size).toBe(values.length);
     });
 });

@@ -38,16 +38,24 @@ async function processDueUnbans(client) {
 
     for (const b of due) {
         const guild = client.guilds.cache.get(b.guildId);
-        if (guild) {
-            try {
-                await guild.members.unban(b.userId, 'Temp-ban expired');
-                logger.info(`[TEMPBAN] Lifted ban on ${b.userId} in ${b.guildId}.`);
-            } catch (err) {
-                // Already unbanned or missing perms, drop the record either way.
-                logger.warn(`[TEMPBAN] Could not unban ${b.userId}: ${err.message}`);
+        if (!guild) continue;
+
+        try {
+            await guild.members.unban(b.userId, 'Temp-ban expired');
+            logger.info(`[TEMPBAN] Lifted ban on ${b.userId} in ${b.guildId}.`);
+            await TempBan.deleteOne({ _id: b._id }).catch(() => {});
+        } catch (err) {
+            // 10026 (Unknown Ban) means someone already unbanned them by hand,
+            // so the record served its purpose. Anything else (missing
+            // permission, network blip) keeps the row so the next tick retries:
+            // dropping it would quietly turn the temp-ban permanent.
+            if (err.code === 10026) {
+                logger.info(`[TEMPBAN] ${b.userId} already unbanned in ${b.guildId}, clearing record.`);
+                await TempBan.deleteOne({ _id: b._id }).catch(() => {});
+            } else {
+                logger.warn(`[TEMPBAN] Could not unban ${b.userId} (code ${err.code}), will retry: ${err.message}`);
             }
         }
-        await TempBan.deleteOne({ _id: b._id }).catch(() => {});
     }
 }
 

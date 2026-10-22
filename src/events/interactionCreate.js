@@ -11,6 +11,7 @@ const { BTN: EVENT_BTN, handleEventRsvp, handleEventCancel } = require('../utils
 const { CONFIRM_ID: FORGET_CONFIRM_ID, handleForgetConfirm } = require('../utils/privacyManager');
 const { ENTER_ID: GIVEAWAY_ENTER_ID, handleGiveawayEntry } = require('../utils/giveawayManager');
 const { handleSuggestionButton } = require('../utils/suggestionManager');
+const { APPEAL_MODAL_ID, handleAppealSubmit } = require('../utils/appealManager');
 const { MessageFlags } = require('discord.js');
 const { consume } = require('../utils/commandCooldowns');
 const logger = require('../utils/logger');
@@ -80,10 +81,12 @@ module.exports = {
             try {
                 if (interaction.customId === 'lfg_modal') {
                     await handleModalSubmit(interaction);
+                } else if (interaction.customId === APPEAL_MODAL_ID) {
+                    await handleAppealSubmit(interaction);
                 }
             } catch (error) {
                 logger.error('Modal submission error:', error);
-                await safeErrorReply(interaction, '`ERROR_500` : Something went wrong creating the LFG.');
+                await safeErrorReply(interaction, '`ERROR_500` : Something went wrong submitting that form.');
             }
         }
 

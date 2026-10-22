@@ -9,7 +9,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const config = require('../../config.json');
 const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { checkMessage, getRandomClapback } = require('../utils/filterManager');
-const { recordAndCheckRate, resetRate, containsInvite, mentionCount } = require('../utils/antiSpam');
+const { recordAndCheckRate, recordAndCheckDuplicate, resetRate, containsInvite, containsScamDomain, mentionCount } = require('../utils/antiSpam');
 const { clearAfk, getAfk } = require('../utils/afkManager');
 const { recordInfraction } = require('../utils/moderationManager');
 const { queueXp } = require('../utils/xpCache');
@@ -26,12 +26,33 @@ async function runAntiSpam(message) {
     const key = `${message.author.id}-${message.guild.id}`;
     const timeoutMs = (AS.timeoutMinutes ?? 5) * 60 * 1000;
 
+    // Shared timeout path for the spam trips below, so they all behave the same.
+    // Returns true when the timeout was applied.
+    async function spamTimeout(reason) {
+        resetRate(key);
+        if (!message.member?.moderatable) return false;
+        await message.member.timeout(timeoutMs, `Auto-mod: ${reason}`).catch(() => {});
+        await recordInfraction({ guild: message.guild, targetUser: message.author, moderator: message.client.user, type: 'timeout', reason: `Auto-mod: ${reason}`, durationMs: timeoutMs });
+        await message.channel.send(`<@${message.author.id}> was timed out for spamming.`).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
+        return true;
+    }
+
     // 1. Invite links
     if (AS.blockInvites && containsInvite(message.content)) {
         await message.delete().catch(() => {});
         const warn = await message.channel.send(`<@${message.author.id}>, posting invite links isn't allowed here.`).catch(() => null);
         if (warn) setTimeout(() => warn.delete().catch(() => {}), 6000);
         await recordInfraction({ guild: message.guild, targetUser: message.author, moderator: message.client.user, type: 'warn', reason: 'Auto-mod: posted an invite link' });
+        return true;
+    }
+
+    // 1b. Phishing / scam domains (fake Nitro, Steam). Same handling as invites:
+    // these are the links that actually compromise accounts.
+    if (containsScamDomain(message.content)) {
+        await message.delete().catch(() => {});
+        const warn = await message.channel.send(`<@${message.author.id}>, that link looks like a phishing scam and isn't allowed here.`).catch(() => null);
+        if (warn) setTimeout(() => warn.delete().catch(() => {}), 6000);
+        await recordInfraction({ guild: message.guild, targetUser: message.author, moderator: message.client.user, type: 'warn', reason: 'Auto-mod: posted a phishing/scam link' });
         return true;
     }
 
@@ -45,13 +66,19 @@ async function runAntiSpam(message) {
         return true;
     }
 
-    // 3. Rapid-fire message flooding
-    const tripped = recordAndCheckRate(key, Date.now(), AS.maxMessages ?? 5, (AS.windowSeconds ?? 5) * 1000);
-    if (tripped && message.member?.moderatable) {
-        resetRate(key);
-        await message.member.timeout(timeoutMs, 'Auto-mod: message flooding').catch(() => {});
-        await recordInfraction({ guild: message.guild, targetUser: message.author, moderator: message.client.user, type: 'timeout', reason: 'Auto-mod: message flooding', durationMs: timeoutMs });
-        await message.channel.send(`<@${message.author.id}> was timed out for spamming.`).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
+    // 3. Rapid-fire message flooding. Attachments, stickers and custom emoji add
+    // weight: five messages carrying ten images apiece is a raid, not chat.
+    const customEmoji = (message.content.match(/<a?:\w+:\d+>/g) || []).length;
+    const weight = 1 + (message.attachments.size + message.stickers.size) * 2 + customEmoji;
+    const tripped = recordAndCheckRate(key, Date.now(), AS.maxMessages ?? 5, (AS.windowSeconds ?? 5) * 1000, weight);
+    if (tripped && await spamTimeout('message flooding')) {
+        return true;
+    }
+
+    // 3b. Duplicate-message spam: the same link or scam text posted a few times
+    // just slowly enough to stay under the rate limiter.
+    const dupTripped = recordAndCheckDuplicate(key, message.content, Date.now(), AS.maxDuplicates ?? 3, (AS.duplicateWindowSeconds ?? 30) * 1000);
+    if (dupTripped && await spamTimeout('duplicate message spam')) {
         return true;
     }
 
@@ -103,14 +130,38 @@ module.exports = {
             if (extras.length) filterViolation = checkMessage(extras.join(' '));
         }
         if (filterViolation) {
+            // The CJK filter only applies to young accounts and never in exempt
+            // channels. Applied server-wide it deletes legitimate messages from
+            // CJK speakers outright; scoped this way it targets the actual
+            // pattern, ban-evasion spam from fresh alts.
+            if (filterViolation === 'Chinese/Korean/Japanese Characters') {
+                const minAgeDays = guildConfig.minAccountAgeDays ?? 7;
+                const exempt = guildConfig.cjkExemptChannelIds || [];
+                const accountAgeMs = Date.now() - (message.author.createdTimestamp || 0);
+                const isNew = minAgeDays > 0 && accountAgeMs < minAgeDays * 24 * 60 * 60 * 1000;
+                if (!isNew || exempt.includes(message.channel.id)) {
+                    filterViolation = null;
+                }
+            }
+        }
+        if (filterViolation) {
             try {
                 await message.delete();
                 logger.info(`[MOD] Deleted message from ${message.author.tag}: "${message.content.slice(0, 50)}${message.content.length > 50 ? '…' : ''}" (Trigger: ${filterViolation})`);
 
-                const clapbackMsg = await message.channel.send(getRandomClapback(`<@${message.author.id}>`));
+                if (filterViolation === 'Racism/Slurs') {
+                    // Slurs get the public clapback, that's the house style.
+                    const clapbackMsg = await message.channel.send(getRandomClapback(`<@${message.author.id}>`));
 
-                // Auto-delete the clapback after 5 seconds to keep chat clean
-                setTimeout(() => clapbackMsg.delete().catch(() => { }), 5000);
+                    // Auto-delete the clapback after 5 seconds to keep chat clean
+                    setTimeout(() => clapbackMsg.delete().catch(() => { }), 5000);
+                } else {
+                    // Politics derails and spam patterns get a quiet notice.
+                    // Shaming someone publicly for a politics mention starts the
+                    // exact fight the filter was trying to prevent.
+                    const notice = await message.channel.send(`<@${message.author.id}>, that message tripped the word filter (${filterViolation}) and was removed.`).catch(() => null);
+                    if (notice) setTimeout(() => notice.delete().catch(() => {}), 6000);
+                }
 
                 // Leave a record, the way anti-spam already does. The clapback is
                 // the only thing the member sees, so without this a repeat

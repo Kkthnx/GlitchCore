@@ -11,16 +11,25 @@
 // key (`userId-guildId`) -> array of recent message timestamps (ms)
 const buckets = new Map();
 
-// Matches discord.gg / discord.com/invite / discordapp.com/invite links.
-const INVITE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:discord(?:app)?\.com\/invite|discord\.gg)\/\S+/i;
+// Matches discord.gg / discord.com/invite / discordapp.com/invite links, plus
+// dsc.gg, a popular invite shortener and a favorite of scam servers.
+const INVITE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:discord(?:app)?\.com\/invite|discord\.gg|dsc\.gg)\/\S+/i;
+
+// Short curated blocklist of domains behind fake Nitro / Steam / "free skins"
+// scams. These are the links that actually compromise accounts in gaming
+// servers. Curated by hand and intentionally short: it needs a human to
+// review additions, since an aggressive pattern here deletes legit chat. The
+// steamcommunity branch excludes the real steamcommunity.com domain.
+const SCAM_DOMAIN_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:disc0rd\w*|disord\w*|discord[-.]?nitro|nitro[-.]?discord|steamcommunity(?!\.com\b)\w*|steam[-.]?gift|free[-.]?nitro)\.[a-z]{2,}/i;
 
 /**
- * Records a message timestamp and reports whether the user has exceeded
- * `maxMessages` within the rolling `windowMs` window. Old timestamps are
- * pruned on each call so the map can't grow unbounded.
+ * Records a message and reports whether the user has exceeded `maxMessages`
+ * within the rolling `windowMs` window. `weight` folds heavy payloads into the
+ * same bucket: a message carrying ten images counts more than a text-only one.
+ * Old timestamps are pruned on each call so the map can't grow unbounded.
  * @returns {boolean} true if this message trips the rate limit.
  */
-function recordAndCheckRate(key, now, maxMessages, windowMs) {
+function recordAndCheckRate(key, now, maxMessages, windowMs, weight = 1) {
     let recent = buckets.get(key);
     if (!recent) {
         recent = [];
@@ -34,7 +43,7 @@ function recordAndCheckRate(key, now, maxMessages, windowMs) {
     while (expired < recent.length && now - recent[expired] >= windowMs) expired += 1;
     if (expired) recent.splice(0, expired);
 
-    recent.push(now);
+    for (let i = 0; i < weight; i += 1) recent.push(now);
     return recent.length > maxMessages;
 }
 
@@ -60,6 +69,66 @@ function containsInvite(text) {
     return INVITE_REGEX.test(String(text || ''));
 }
 
+/** True if the text links a known scam/phishing domain (fake Nitro, Steam). */
+function containsScamDomain(text) {
+    return SCAM_DOMAIN_REGEX.test(String(text || ''));
+}
+
+// key (`userId-guildId`) -> array of { hash, at } for recent message bodies.
+// Catches the classic spam shape: the same link or scam text posted a few
+// times just slowly enough to stay under the rate limiter.
+const duplicateRings = new Map();
+const DUPLICATE_RING_SIZE = 10;
+
+function contentHash(text) {
+    return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Records a message body and reports whether the same content appeared
+ * `maxDuplicates` times within `windowMs`. Short messages (under 8 chars after
+ * normalization) are ignored so "lol" x3 doesn't time anyone out.
+ * @returns {boolean} true if this message trips duplicate detection.
+ */
+function recordAndCheckDuplicate(key, content, now, maxDuplicates, windowMs) {
+    const hash = contentHash(content);
+    if (hash.length < 8) return false;
+
+    let ring = duplicateRings.get(key);
+    if (!ring) {
+        ring = [];
+        duplicateRings.set(key, ring);
+    }
+
+    while (ring.length && now - ring[0].at >= windowMs) ring.shift();
+    ring.push({ hash, at: now });
+    if (ring.length > DUPLICATE_RING_SIZE) ring.splice(0, ring.length - DUPLICATE_RING_SIZE);
+
+    let matches = 0;
+    for (const entry of ring) {
+        if (entry.hash === hash) matches += 1;
+    }
+    return matches >= maxDuplicates;
+}
+
+/** Test seam, drop all tracked state. */
+function _clearAll() {
+    buckets.clear();
+    duplicateRings.clear();
+}
+
+module.exports = {
+    recordAndCheckRate,
+    recordAndCheckDuplicate,
+    resetRate,
+    sweepIdle,
+    containsInvite,
+    containsScamDomain,
+    mentionCount,
+    INVITE_REGEX,
+    _clearAll,
+};
+
 /**
  * Total distinct user + role mentions in a message. `@everyone`/`@here`
  * count as one so a single mass-ping is caught.
@@ -70,18 +139,3 @@ function mentionCount(message) {
     const everyone = message.mentions?.everyone ? 1 : 0;
     return users + roles + everyone;
 }
-
-/** Test seam, drop all tracked state. */
-function _clearAll() {
-    buckets.clear();
-}
-
-module.exports = {
-    recordAndCheckRate,
-    resetRate,
-    sweepIdle,
-    containsInvite,
-    mentionCount,
-    INVITE_REGEX,
-    _clearAll,
-};

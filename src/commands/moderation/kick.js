@@ -6,7 +6,8 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { blockReason, recordInfraction, notifyTarget } = require('../../utils/moderationManager');
+const { blockReason, recordInfraction, notifyTarget, auditReason } = require('../../utils/moderationManager');
+const logger = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -27,16 +28,23 @@ module.exports = {
         const block = blockReason(interaction, member, { needKickable: true });
         if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
-        // DM before removing them, once kicked we can't message via the guild.
-        await notifyTarget(targetUser, interaction.guild.name, 'kick', reason);
-
+        // DM after the kick lands. DMing first meant a failed kick still sent
+        // "you were kicked" to someone sitting in the server.
         try {
-            await member.kick(`${interaction.user.tag}: ${reason}`);
+            await member.kick(auditReason(interaction.user.tag, reason));
         } catch (err) {
             return interaction.reply({ content: `Failed to kick that member: ${err.message}`, flags: MessageFlags.Ephemeral });
         }
+        await notifyTarget(targetUser, interaction.guild.name, 'kick', reason);
 
-        await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'kick', reason });
+        // The kick already landed, so a failed history write must not look
+        // like a failed kick. Say so plainly instead.
+        try {
+            await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'kick', reason });
+        } catch (err) {
+            logger.error('recordInfraction failed after a successful kick:', err);
+            return interaction.reply({ content: `👢 Kicked <@${targetUser.id}>, but I couldn't write the infraction record. Check /infractions for them later.`, flags: MessageFlags.Ephemeral });
+        }
         return interaction.reply({ content: `👢 Kicked <@${targetUser.id}>, ${reason}` });
     },
 };
