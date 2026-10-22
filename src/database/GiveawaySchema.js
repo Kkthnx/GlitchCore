@@ -24,7 +24,9 @@ const giveawaySchema = new mongoose.Schema({
     winners: { type: [String], default: [] },
 }, { timestamps: true });
 
-// Scheduler query: find live giveaways whose time is up.
-giveawaySchema.index({ ended: 1, endsAt: 1 });
+// Scheduler query: live giveaways in this shard's guilds whose time is up.
+// guildId leads because every query filters on it first (equality fields
+// before the range field, so the planner can use the whole key).
+giveawaySchema.index({ guildId: 1, ended: 1, endsAt: 1 });
 
 module.exports = mongoose.model('Giveaway', giveawaySchema);

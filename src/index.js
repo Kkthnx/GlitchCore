@@ -212,6 +212,7 @@ client.login(process.env.TOKEN)
 // since the child process may not receive the stop signal directly.
 client.flushXp = async () => {
     try {
+        await require('./events/voiceStateUpdate').finalizeVoiceSessions();
         await require('./utils/xpCache').flushXpBuffer(client);
     } catch (err) {
         logger.error('flushXp failed:', err);
@@ -232,6 +233,12 @@ async function gracefulShutdown(signal) {
 
     try {
         const { flushXpBuffer } = require('./utils/xpCache');
+        const { finalizeVoiceSessions } = require('./events/voiceStateUpdate');
+        // Voice sessions live only in memory, so finalize them into the XP
+        // buffer first. Otherwise every restart silently drops the voice XP
+        // earned since the last tick.
+        const finalized = await finalizeVoiceSessions();
+        if (finalized > 0) logger.info(`Finalized ${finalized} voice session(s) before shutdown.`);
         await flushXpBuffer(client);
         logger.info('Final XP flush complete.');
     } catch (err) {

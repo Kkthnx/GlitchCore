@@ -16,6 +16,7 @@ const tempBanSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 tempBanSchema.index({ guildId: 1, userId: 1 }, { unique: true });
-tempBanSchema.index({ unbanAt: 1 });
+// Scheduler query: expired temp-bans in this shard's guilds.
+tempBanSchema.index({ guildId: 1, unbanAt: 1 });
 
 module.exports = mongoose.model('TempBan', tempBanSchema);

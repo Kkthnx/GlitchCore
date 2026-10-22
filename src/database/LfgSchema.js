@@ -27,8 +27,10 @@ const lfgSchema = new mongoose.Schema({
     status:     { type: String, enum: ['OPEN', 'LOCKED', 'CANCELLED'], default: 'OPEN' },
 }, { timestamps: true });
 
-// Index for the stale-session cleanup query: find OPEN sessions inactive for 1h.
-// Without this, cleanUpStaleLfgSessions does a full collection scan every 30 minutes.
-lfgSchema.index({ status: 1, updatedAt: 1 });
+// Index for the stale-session cleanup query: OPEN sessions in this shard's
+// guilds inactive for 1h. Without the guildId prefix, cleanUpStaleLfgSessions
+// does a full collection scan every 30 minutes.
+// (Button clicks query by messageId, which is already indexed via unique:true.)
+lfgSchema.index({ guildId: 1, status: 1, updatedAt: 1 });
 
 module.exports = mongoose.model('LfgSession', lfgSchema);

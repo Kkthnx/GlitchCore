@@ -8,6 +8,7 @@
 const Reminder = require('../database/ReminderSchema');
 const { startPolling } = require('./scheduler');
 const logger = require('./logger');
+const config = require('../../config.json');
 
 async function processDueReminders(client) {
     // Only this shard's guilds, so multiple shards never fire the same reminder.
@@ -51,7 +52,7 @@ function startReminderScheduler(client) {
     startPolling({
         name: 'REMIND',
         task: () => processDueReminders(client),
-        intervalMs: 30 * 1000,
+        intervalMs: (config.tuning && config.tuning.reminderCheckMs) || 30 * 1000,
     });
 }
 

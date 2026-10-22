@@ -17,8 +17,10 @@ const reminderSchema = new mongoose.Schema({
     remindAt: { type: Date, required: true },
 }, { timestamps: true });
 
-// Scheduler query: everything due, across guilds.
-reminderSchema.index({ remindAt: 1 });
+// Scheduler query: due reminders in this shard's guilds. guildId leads
+// because the query always filters on it (the old remindAt-only index
+// couldn't serve that shape).
+reminderSchema.index({ guildId: 1, remindAt: 1 });
 
 // /remind list, /remind cancel's autocomplete, and the per-user cap all look up
 // one member's pending reminders, soonest first.

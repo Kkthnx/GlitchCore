@@ -23,6 +23,11 @@ const botStateSchema = new mongoose.Schema({
     // Short commit hash the last update announcement was posted for, so a
     // restart on the same build never re-announces.
     lastAnnouncedCommit: { type: String, default: null },
+
+    // When slash commands were last registered successfully, so a crash loop
+    // respawning shard 0 doesn't burn the command-registration rate limit by
+    // re-registering on every boot.
+    lastCommandRegisterAt: { type: Date, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('BotState', botStateSchema);

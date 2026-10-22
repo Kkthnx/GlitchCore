@@ -11,9 +11,10 @@ const { getLiveStreams, isConfigured } = require('./twitchClient');
 const { getGuildConfig } = require('./guildConfigCache');
 const { startPolling } = require('./scheduler');
 const logger = require('./logger');
+const config = require('../../config.json');
 
 const TWITCH_PURPLE = 0x9146ff;
-const POLL_INTERVAL_MS = 3 * 60 * 1000;
+const POLL_INTERVAL_MS = (config.tuning && config.tuning.twitchPollMs) || 3 * 60 * 1000;
 
 async function announceLive(client, streamer, stream) {
     const cfg = await getGuildConfig(streamer.guildId) || {};
@@ -51,10 +52,13 @@ async function announceLive(client, streamer, stream) {
         allowedMentions: { roles: cfg.streamerPingRoleId ? [cfg.streamerPingRoleId] : [] },
     });
 
-    // Remember the message so we can clean it up when they go offline.
-    streamer.liveMessageId = msg.id;
-    streamer.liveChannelId = channel.id;
-    await streamer.save().catch(() => {});
+    // Remember the message so we can clean it up when they go offline. A
+    // targeted update avoids clobbering fields a concurrent tick may have
+    // written since this document was read.
+    await Streamer.findOneAndUpdate(
+        { _id: streamer._id },
+        { $set: { liveMessageId: msg.id, liveChannelId: channel.id } },
+    ).catch(err => logger.warn('[TWITCH] Failed to record live message id:', err.message));
     logger.info(`[TWITCH] Announced ${streamer.twitchLogin} live in guild ${streamer.guildId}.`);
 }
 
@@ -97,14 +101,14 @@ async function pollStreamers(client) {
             if (!streamer.isLive || streamer.lastStreamId !== stream.id) {
                 streamer.isLive = true;
                 streamer.lastStreamId = stream.id;
-                await streamer.save().catch(() => {});
+                await streamer.save().catch(err => logger.warn('[TWITCH] Streamer save failed:', err.message));
                 await announceLive(client, streamer, stream).catch(err => logger.error('[TWITCH] Announce failed:', err));
             }
         } else if (streamer.isLive) {
             // Went offline, remove the announcement and reset state.
             streamer.isLive = false;
             await cleanupAnnouncement(client, streamer);
-            await streamer.save().catch(() => {});
+            await streamer.save().catch(err => logger.warn('[TWITCH] Streamer save failed:', err.message));
             logger.info(`[TWITCH] ${streamer.twitchLogin} went offline, cleaned up announcement.`);
         }
     }

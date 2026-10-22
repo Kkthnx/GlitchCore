@@ -11,6 +11,7 @@ const { startPolling } = require('./scheduler');
 const { brandedEmbed, COLORS } = require('./brand');
 const { shuffle } = require('./random');
 const logger = require('./logger');
+const config = require('../../config.json');
 
 const ENTER_ID = 'giveaway:enter';
 
@@ -128,7 +129,7 @@ function startGiveawayScheduler(client) {
     startPolling({
         name: 'GIVEAWAY',
         task: () => processEndedGiveaways(client),
-        intervalMs: 30 * 1000,
+        intervalMs: (config.tuning && config.tuning.giveawayCheckMs) || 30 * 1000,
     });
 }
 

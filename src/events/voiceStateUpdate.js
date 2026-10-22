@@ -9,7 +9,12 @@ const config = require('../../config.json');
 const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { queueXp } = require('../utils/xpCache');
 const { getGuildConfig } = require('../utils/guildConfigCache');
+const { startPolling } = require('../utils/scheduler');
 const logger = require('../utils/logger');
+
+const tuning = config.tuning || {};
+const VOICE_TICK_CHECK_MS = tuning.voiceTickCheckMs || 60 * 1000;
+const VOICE_DEBOUNCE_MS = tuning.voiceDebounceMs || 5000;
 
 // In-memory map tracking active voice session start times: `${userId}-${guildId}` -> timestamp
 const voiceSessions = new Map();
@@ -48,12 +53,14 @@ function isMemberActive(member) {
 
 /**
  * Shared function to grant voice XP via the high-performance memory cache.
+ * Pass preloaded values when the caller already read the guild config, so a
+ * tick over many members doesn't fetch it once per member.
  */
-async function processVoiceXp(userId, guildId, member, client, ticks) {
-    const guildConfig = await getGuildConfig(guildId) || {};
+async function processVoiceXp(userId, guildId, member, client, ticks, preloaded = {}) {
+    const guildConfig = preloaded.guildConfig || (await getGuildConfig(guildId)) || {};
     if (guildConfig.voiceXpEnabled === false) return;
 
-    const voiceXpPerTick = guildConfig.voiceXpPerTick ?? config.xpSettings.voiceXpPerTick;
+    const voiceXpPerTick = preloaded.voiceXpPerTick ?? guildConfig.voiceXpPerTick ?? config.xpSettings.voiceXpPerTick;
     const xpToGive = Math.floor(ticks * voiceXpPerTick * getXpMultiplier());
 
     try {
@@ -90,7 +97,7 @@ async function updateMemberSession(member, client) {
         const ticks = Math.floor(minutesInVoice / voiceTickMinutes);
         if (ticks >= 1) {
             try {
-                await processVoiceXp(userId, guildId, member, client, ticks);
+                await processVoiceXp(userId, guildId, member, client, ticks, { guildConfig });
             } catch (err) {
                 logger.error('[VoiceXP] processVoiceXp failed; restoring session to retry next tick:', err);
                 voiceSessions.set(sessionKey, joinTime);
@@ -101,47 +108,103 @@ async function updateMemberSession(member, client) {
 
 /**
  * Periodically checks all active voice sessions and awards XP in real-time.
+ * Sessions are grouped by guild so the config is read once per guild per tick
+ * (not once per member), and the per-guild tick length applies here exactly
+ * like it does when a session is finalized on leave.
+ */
+async function tickVoiceSessions(client) {
+    const now = Date.now();
+
+    const sessionsByGuild = new Map();
+    for (const [sessionKey, joinTime] of voiceSessions.entries()) {
+        const [userId, guildId] = sessionKey.split('-');
+        const list = sessionsByGuild.get(guildId);
+        if (list) list.push({ sessionKey, userId, joinTime });
+        else sessionsByGuild.set(guildId, [{ sessionKey, userId, joinTime }]);
+    }
+
+    for (const [guildId, sessions] of sessionsByGuild) {
+        const guildConfig = await getGuildConfig(guildId) || {};
+        if (guildConfig.voiceXpEnabled === false) continue;
+
+        const voiceTickMinutes = guildConfig.voiceTickMinutes ?? config.xpSettings.voiceTickMinutes;
+        const voiceXpPerTick = guildConfig.voiceXpPerTick ?? config.xpSettings.voiceXpPerTick;
+
+        for (const { sessionKey, userId, joinTime } of sessions) {
+            const minutesInVoice = (now - joinTime) / 1000 / 60;
+            const ticks = Math.floor(minutesInVoice / voiceTickMinutes);
+            if (ticks < 1) continue;
+
+            const guild = client.guilds.cache.get(guildId);
+            const member = guild ? guild.members.cache.get(userId) : null;
+
+            // Sanity check: Ensure they are actually still active. If not, delete their ghost session.
+            if (!member || !isMemberActive(member)) {
+                voiceSessions.delete(sessionKey);
+                continue;
+            }
+
+            // Fire and forget, but never unhandled: a DB blip here would
+            // otherwise surface as an unhandled rejection.
+            processVoiceXp(userId, guildId, member, client, ticks, { guildConfig, voiceXpPerTick })
+                .catch(err => logger.error('[VoiceXP] Tick grant failed:', err));
+
+            // Reset the joinTime so they can start earning the next tick
+            voiceSessions.set(sessionKey, now);
+        }
+    }
+}
+
+/**
+ * Finalizes every tracked voice session, queueing the XP earned so far.
+ * Called on graceful shutdown so a restart or redeploy doesn't silently drop
+ * the voice XP accumulated since the last tick.
+ * @returns {number} sessions that earned XP
+ */
+async function finalizeVoiceSessions() {
+    let finalized = 0;
+
+    const sessionsByGuild = new Map();
+    for (const [sessionKey, joinTime] of voiceSessions.entries()) {
+        const [userId, guildId] = sessionKey.split('-');
+        const list = sessionsByGuild.get(guildId);
+        if (list) list.push({ sessionKey, userId, joinTime });
+        else sessionsByGuild.set(guildId, [{ sessionKey, userId, joinTime }]);
+    }
+
+    for (const [guildId, sessions] of sessionsByGuild) {
+        const guildConfig = await getGuildConfig(guildId) || {};
+        const voiceTickMinutes = guildConfig.voiceTickMinutes ?? config.xpSettings.voiceTickMinutes;
+        const voiceXpPerTick = guildConfig.voiceXpPerTick ?? config.xpSettings.voiceXpPerTick;
+        const enabled = guildConfig.voiceXpEnabled !== false;
+
+        for (const { sessionKey, userId, joinTime } of sessions) {
+            voiceSessions.delete(sessionKey);
+            if (!enabled) continue;
+            const minutesInVoice = (Date.now() - joinTime) / 1000 / 60;
+            const ticks = Math.floor(minutesInVoice / voiceTickMinutes);
+            if (ticks < 1) continue;
+            const xpToGive = Math.floor(ticks * voiceXpPerTick * getXpMultiplier());
+            if (xpToGive > 0) {
+                queueXp(userId, guildId, xpToGive, null, { isMessage: false });
+                finalized += 1;
+            }
+        }
+    }
+
+    return finalized;
+}
+
+/**
+ * Starts the periodic voice XP tick. Routed through the shared scheduler so a
+ * slow tick can never overlap the next one.
  */
 function startVoiceXpSync(client) {
-    let running = false;
-    setInterval(async () => {
-        if (running) return;
-        running = true;
-        try {
-            const now = Date.now();
-            const { voiceTickMinutes } = config.xpSettings;
-
-            for (const [sessionKey, joinTime] of voiceSessions.entries()) {
-                const minutesInVoice = (now - joinTime) / 1000 / 60;
-                const ticks = Math.floor(minutesInVoice / voiceTickMinutes);
-
-                if (ticks >= 1) {
-                    const [userId, guildId] = sessionKey.split('-');
-                    const guild = client.guilds.cache.get(guildId);
-                    let member = null;
-                    if (guild) {
-                        member = guild.members.cache.get(userId);
-                    }
-
-                    // Sanity check: Ensure they are actually still active. If not, delete their ghost session.
-                    if (!member || !isMemberActive(member)) {
-                        voiceSessions.delete(sessionKey);
-                        continue;
-                    }
-
-                    // Fire and forget, but never unhandled: a DB blip here would
-                    // otherwise surface as an unhandled rejection.
-                    processVoiceXp(userId, guildId, member, client, ticks)
-                        .catch(err => logger.error('[VoiceXP] Tick grant failed:', err));
-
-                    // Reset the joinTime so they can start earning the next tick
-                    voiceSessions.set(sessionKey, now);
-                }
-            }
-        } finally {
-            running = false;
-        }
-    }, 60 * 1000); // Check every minute
+    startPolling({
+        name: 'VOICEXP',
+        task: () => tickVoiceSessions(client),
+        intervalMs: VOICE_TICK_CHECK_MS,
+    });
 }
 
 module.exports = {
@@ -150,6 +213,7 @@ module.exports = {
     isMemberActive,
     updateMemberSession,
     startVoiceXpSync,
+    finalizeVoiceSessions,
     async execute(oldState, newState, client) {
         const membersToUpdate = new Set();
 
@@ -179,7 +243,7 @@ module.exports = {
             const timer = setTimeout(async () => {
                 await updateMemberSession(member, client).catch(err => logger.error('[VoiceXP] updateMemberSession failed:', err));
                 voiceDebounceTimers.delete(debounceKey);
-            }, 5000); // 5-second stabilization frame
+            }, VOICE_DEBOUNCE_MS); // 5-second stabilization frame
 
             voiceDebounceTimers.set(debounceKey, timer);
         }

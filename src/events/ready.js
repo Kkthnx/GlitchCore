@@ -201,7 +201,7 @@ module.exports = {
             }
         };
         updateStatus();
-        setInterval(updateStatus, 10 * 60 * 1000);
+        setInterval(updateStatus, (config.tuning && config.tuning.statusRotationMs) || 10 * 60 * 1000);
 
         // 1. Initialize High-Performance Caching & Voice Real-time Loops
         startXpSync(client);
@@ -217,7 +217,7 @@ module.exports = {
         startPolling({
             name: 'LFG_CLEANUP',
             task: () => cleanUpStaleLfgSessions(client),
-            intervalMs: 30 * 60 * 1000,
+            intervalMs: (config.tuning && config.tuning.lfgCleanupIntervalMs) || 30 * 60 * 1000,
             immediate: true,
         });
 
@@ -257,9 +257,15 @@ module.exports = {
             return logger.warn('No guilds found in cache.');
         }
 
-        for (const guild of client.guilds.cache.values()) {
-            await checkAndAnnounceDoubleXp(client, guild.id);
-        }
+        // One guild's slow announcement must not hold up the rest; each check
+        // already handles its own errors, and a stray rejection is caught per
+        // guild so the midnight check below still gets scheduled.
+        await Promise.all(
+            Array.from(client.guilds.cache.values()).map(guild =>
+                checkAndAnnounceDoubleXp(client, guild.id)
+                    .catch(err => logger.error(`[DOUBLEXP] Check failed for guild ${guild.id}:`, err))
+            )
+        );
 
         scheduleMidnightCheck(client);
     },

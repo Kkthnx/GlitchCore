@@ -6,10 +6,11 @@
  */
 
 const GuildConfig = require('../database/GuildConfigSchema');
+const config = require('../../config.json');
 const logger = require('./logger');
 
 const configCache = new Map();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL_MS = (config.tuning && config.tuning.guildConfigCacheTtlMs) || 10 * 60 * 1000; // 10 minutes
 
 // In-flight fetches, keyed by guild. A cold cache plus a burst of messages
 // would otherwise fire one identical query per message; sharing the promise
@@ -81,9 +82,14 @@ function pruneGuildConfigCache(liveGuildIds) {
  * use getGuildConfig() for read-only, cached access.
  */
 async function getOrCreateGuildConfig(guildId) {
-    let config = await GuildConfig.findOne({ guildId });
-    if (!config) config = await GuildConfig.create({ guildId });
-    return config;
+    // Single atomic upsert. The old findOne-then-create raced when two admins
+    // saved settings at once: both saw nothing and both tried to create, and
+    // the loser ate an E11000 on the unique guildId index.
+    return GuildConfig.findOneAndUpdate(
+        { guildId },
+        { $setOnInsert: { guildId } },
+        { upsert: true, returnDocument: 'after' }
+    );
 }
 
 module.exports = {

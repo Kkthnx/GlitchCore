@@ -19,6 +19,7 @@ const MODELS = {
     GiveawaySchema: 'Giveaway',
     StreamerSchema: 'Streamer',
     SuggestionSchema: 'Suggestion',
+    TagSchema: 'Tag',
 };
 
 // One shared record of every call, so a test can assert which collections were
@@ -58,7 +59,7 @@ describe('exportUserData', () => {
     test('reads every collection that keys on a person', () => {
         // If a new user-keyed collection is added, this is the list to extend,
         // along with the PRIVACY.md table.
-        for (const name of ['User', 'Infraction', 'Event', 'LfgSession', 'Birthday', 'Reminder', 'Giveaway', 'Streamer', 'Suggestion']) {
+        for (const name of ['User', 'Infraction', 'Event', 'LfgSession', 'Birthday', 'Reminder', 'Giveaway', 'Streamer', 'Suggestion', 'Tag']) {
             expect(calls.some(c => c.name === name)).toBe(true);
         }
     });
@@ -88,6 +89,7 @@ describe('exportUserData', () => {
             giveawayEntries: [],
             twitchLinks: [],
             suggestions: [],
+            tags: [],
         });
         expect(typeof out.exportedAt).toBe('string');
     });

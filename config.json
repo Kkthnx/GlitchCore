@@ -35,6 +35,25 @@
             "timeoutMinutes": 5
         }
     },
+    "tuning": {
+        "xpFlushIntervalMs": 60000,
+        "xpBufferMaxEntries": 2000,
+        "xpFlushBackoffBaseMs": 60000,
+        "xpFlushMaxBackoffMs": 1800000,
+        "guildConfigCacheTtlMs": 600000,
+        "voiceTickCheckMs": 60000,
+        "voiceDebounceMs": 5000,
+        "statusRotationMs": 600000,
+        "lfgCleanupIntervalMs": 1800000,
+        "eventStartCheckMs": 60000,
+        "eventCleanupIntervalMs": 900000,
+        "giveawayCheckMs": 30000,
+        "reminderCheckMs": 30000,
+        "tempBanCheckMs": 60000,
+        "twitchPollMs": 180000,
+        "twitchFetchTimeoutMs": 10000,
+        "commandRegisterMinIntervalMs": 3600000
+    },
     "channels": {
         "welcome": "",
         "leave": "",

@@ -15,6 +15,7 @@ const { bannerAttachment } = require('./eventBanners');
 const { LIMITS, fitLines, mentionBatches } = require('./embedText');
 const { startPolling } = require('./scheduler');
 const logger = require('./logger');
+const config = require('../../config.json');
 
 const BTN = { going: 'event:going', maybe: 'event:maybe', decline: 'event:decline', cancel: 'event:cancel' };
 
@@ -474,14 +475,14 @@ function startEventScheduler(client) {
     startPolling({
         name: 'EVENTS',
         task: () => processStartingEvents(client),
-        intervalMs: 60 * 1000,
+        intervalMs: (config.tuning && config.tuning.eventStartCheckMs) || 60 * 1000,
     });
 
     // Cleanup: sweep concluded/cancelled events every 15 minutes (+ once on boot).
     startPolling({
         name: 'EVENTS_CLEANUP',
         task: () => cleanUpFinishedEvents(client),
-        intervalMs: 15 * 60 * 1000,
+        intervalMs: (config.tuning && config.tuning.eventCleanupIntervalMs) || 15 * 60 * 1000,
         immediate: true,
     });
 }

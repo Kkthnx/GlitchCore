@@ -14,6 +14,7 @@ const Reminder = require('../database/ReminderSchema');
 const Giveaway = require('../database/GiveawaySchema');
 const Streamer = require('../database/StreamerSchema');
 const Suggestion = require('../database/SuggestionSchema');
+const Tag = require('../database/TagSchema');
 const { brandedEmbed, COLORS } = require('./brand');
 const logger = require('./logger');
 
@@ -26,7 +27,7 @@ const logger = require('./logger');
  * PRIVACY.md and, unless there's a reason to keep it, in deleteUserData below.
  */
 async function exportUserData(guildId, userId) {
-    const [profile, infractions, events, lfg, birthday, reminders, giveaways, streamers, suggestions] = await Promise.all([
+    const [profile, infractions, events, lfg, birthday, reminders, giveaways, streamers, suggestions, tags] = await Promise.all([
         User.findOne({ guildId, userId }).lean(),
         Infraction.find({ guildId, userId }).lean(),
         Event.find({ guildId, $or: [{ 'going.userId': userId }, { 'maybe.userId': userId }, { 'waitlist.userId': userId }] }, { title: 1, game: 1, startsAt: 1 }).lean(),
@@ -36,6 +37,7 @@ async function exportUserData(guildId, userId) {
         Giveaway.find({ guildId, entries: userId }, { prize: 1, endsAt: 1, winners: 1 }).lean(),
         Streamer.find({ guildId, discordUserId: userId }, { twitchLogin: 1, twitchDisplayName: 1 }).lean(),
         Suggestion.find({ guildId, authorId: userId }, { text: 1, status: 1, createdAt: 1 }).lean(),
+        Tag.find({ guildId, authorId: userId }, { name: 1, uses: 1, createdAt: 1 }).lean(),
     ]);
 
     return {
@@ -60,6 +62,7 @@ async function exportUserData(guildId, userId) {
         giveawayEntries: giveaways.map(g => ({ prize: g.prize, endsAt: g.endsAt, won: (g.winners || []).includes(userId) })),
         twitchLinks: streamers.map(s => ({ twitchLogin: s.twitchLogin, displayName: s.twitchDisplayName })),
         suggestions: suggestions.map(s => ({ text: s.text, status: s.status, at: s.createdAt })),
+        tags: tags.map(t => ({ name: t.name, uses: t.uses, at: t.createdAt })),
     };
 }
 

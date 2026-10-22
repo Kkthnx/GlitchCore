@@ -43,7 +43,8 @@ const eventSchema = new mongoose.Schema({
     spawnedNext: { type: Boolean, default: false },
 }, { timestamps: true });
 
-// Scheduler query: find SCHEDULED events whose start time has passed.
-eventSchema.index({ status: 1, startNotified: 1, startsAt: 1 });
+// Scheduler query: SCHEDULED events in this shard's guilds whose start time
+// has passed. guildId leads because every query filters on it first.
+eventSchema.index({ guildId: 1, status: 1, startNotified: 1, startsAt: 1 });
 
 module.exports = mongoose.model('Event', eventSchema);

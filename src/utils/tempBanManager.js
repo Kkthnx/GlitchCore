@@ -8,6 +8,7 @@
 const TempBan = require('../database/TempBanSchema');
 const { startPolling } = require('./scheduler');
 const logger = require('./logger');
+const config = require('../../config.json');
 
 // Records (or extends) a timed ban so the scheduler can lift it later.
 async function scheduleTempBan(guildId, userId, unbanAt, reason) {
@@ -54,7 +55,7 @@ function startTempBanScheduler(client) {
     startPolling({
         name: 'TEMPBAN',
         task: () => processDueUnbans(client),
-        intervalMs: 60 * 1000,
+        intervalMs: (config.tuning && config.tuning.tempBanCheckMs) || 60 * 1000,
     });
 }
 

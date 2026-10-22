@@ -6,6 +6,12 @@
  */
 
 const logger = require('./logger');
+const config = require('../../config.json');
+
+// A stalled socket used to hang the whole go-live poller: the overlap guard
+// then skipped every later tick, so one bad connection paused all go-live
+// detection until the socket died on its own. Bound every request instead.
+const FETCH_TIMEOUT_MS = (config.tuning && config.tuning.twitchFetchTimeoutMs) || 10_000;
 
 // Minimal Twitch Helix client using the app (client-credentials) token flow.
 // Uses the global fetch (Node 18+). No streamer OAuth needed, we only read
@@ -22,6 +28,7 @@ async function getAppToken() {
 
     const res = await fetch('https://id.twitch.tv/oauth2/token', {
         method: 'POST',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
             client_id: process.env.TWITCH_CLIENT_ID,
@@ -38,6 +45,7 @@ async function getAppToken() {
 async function helix(pathAndQuery) {
     const token = await getAppToken();
     const res = await fetch(`https://api.twitch.tv/helix/${pathAndQuery}`, {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         headers: { 'Client-Id': process.env.TWITCH_CLIENT_ID, Authorization: `Bearer ${token}` },
     });
     if (res.status === 401) { tokenCache = { token: null, expiresAt: 0 }; } // force refresh next call
