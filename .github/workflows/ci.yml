@@ -16,11 +16,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      # Reproducible installs straight from the lockfile (no surprise updates).
+      # No lockfile is tracked in this repo (the host regenerates it on every
+      # boot, see .gitignore), so install without cache instead of npm ci.
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       # Fail fast if any source file has a syntax error.
       - name: Syntax check
