@@ -5,7 +5,9 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
+const { AuditLogEvent } = require('discord.js');
 const { getAuditChannel, postAudit } = require('../utils/auditLog');
+const { clearTempBan } = require('../utils/tempBanManager');
 const { describeEntry } = require('../utils/auditEntries');
 
 // Discord hands us every audit log entry the moment it is written, with the
@@ -19,6 +21,13 @@ module.exports = {
         // are routine housekeeping (level roles, self roles), so repeating them
         // here would only add noise.
         if (entry.executorId && entry.executorId === client.user.id) return;
+
+        // A person changed someone's ban state straight from Discord. Any timed
+        // ban the bot was still holding for that user is now out of date, and
+        // left alone it would lift a ban a moderator just made permanent.
+        if ((entry.action === AuditLogEvent.MemberBanAdd || entry.action === AuditLogEvent.MemberBanRemove) && entry.targetId) {
+            await clearTempBan(guild.id, entry.targetId);
+        }
 
         const channel = await getAuditChannel(guild);
         if (!channel) return;

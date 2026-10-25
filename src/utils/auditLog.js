@@ -14,21 +14,33 @@ const channels = require('./channels');
 const logger = require('./logger');
 
 /**
- * The channel audit entries should be posted to, or null when audit logging is
- * switched off, no mod-log channel is configured, or the configured one is
- * gone or can't hold messages. A per-guild setting wins over the env default.
+ * The guild's mod-log channel, or null when none is configured or the
+ * configured one is gone or can't hold messages. A per-guild setting wins over
+ * the env default. Moderation actions, appeals and audit entries all resolve
+ * the channel here so they always land in the same place.
+ *
+ * @param {import('discord.js').Guild} guild
+ * @param {object} [cfg] the guild config, when the caller already has it
+ */
+async function getModLogChannel(guild, cfg = null) {
+    const settings = cfg || await getGuildConfig(guild.id) || {};
+    const id = settings.modLogChannelId || channels.modLog;
+    if (!id) return null;
+
+    const channel = guild.channels.cache.get(id);
+    return channel?.isTextBased?.() ? channel : null;
+}
+
+/**
+ * The channel audit entries should be posted to: the mod-log channel, unless
+ * audit logging is switched off for the guild.
  *
  * @param {import('discord.js').Guild} guild
  */
 async function getAuditChannel(guild) {
     const cfg = await getGuildConfig(guild.id) || {};
     if (cfg.auditLogEnabled === false) return null;
-
-    const id = cfg.modLogChannelId || channels.modLog;
-    if (!id) return null;
-
-    const channel = guild.channels.cache.get(id);
-    return channel?.isTextBased?.() ? channel : null;
+    return getModLogChannel(guild, cfg);
 }
 
 /**
@@ -66,4 +78,4 @@ async function postAudit(guild, entry, channel = null) {
     }
 }
 
-module.exports = { getAuditChannel, postAudit };
+module.exports = { getModLogChannel, getAuditChannel, postAudit };

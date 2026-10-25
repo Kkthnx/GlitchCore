@@ -6,8 +6,9 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { recordInfraction, auditReason } = require('../../utils/moderationManager');
-const logger = require('../../utils/logger');
+const { blockReason, tryRecordInfraction, auditReason } = require('../../utils/moderationManager');
+const { clearTempBan } = require('../../utils/tempBanManager');
+const { isSnowflake } = require('../../utils/snowflake');
 
 // Banning raiders one /ban at a time is too slow when fifteen spam accounts
 // join in a minute. This takes a space-separated list of user IDs and bans
@@ -30,7 +31,7 @@ module.exports = {
         const deleteDays = interaction.options.getInteger('delete_days') ?? 0;
 
         const ids = [...new Set(rawIds)];
-        const bad = ids.filter(id => !/^\d{17,20}$/.test(id));
+        const bad = ids.filter(id => !isSnowflake(id));
         if (bad.length) {
             return interaction.reply({ content: `These aren't valid user IDs: ${bad.join(', ')}`, flags: MessageFlags.Ephemeral });
         }
@@ -48,24 +49,37 @@ module.exports = {
                 failed.push(`${id} (not banning you or me)`);
                 continue;
             }
+
+            // The bot bans with its own role, so without this a moderator could
+            // ban anyone the bot outranks, including people above them. Members
+            // still in the server get the same hierarchy check /ban applies.
+            const member = await interaction.guild.members.fetch(id).catch(() => null);
+            if (member) {
+                const block = blockReason(interaction, member, { needBannable: true });
+                if (block) {
+                    failed.push(`${id} (${block})`);
+                    continue;
+                }
+            }
+
             try {
-                const user = await interaction.client.users.fetch(id).catch(() => null);
+                const user = member?.user || await interaction.client.users.fetch(id).catch(() => null);
                 await interaction.guild.members.ban(id, {
                     reason: auditReason(interaction.user.tag, reason),
                     deleteMessageSeconds: deleteDays * 24 * 60 * 60,
                 });
                 banned.push(id);
-                try {
-                    await recordInfraction({
-                        guild: interaction.guild,
-                        targetUser: user || { id, tag: `unknown (${id})`, displayAvatarURL: () => null },
-                        moderator: interaction.user,
-                        type: 'ban',
-                        reason: `Mass-ban: ${reason}`,
-                    });
-                } catch (err) {
-                    logger.error(`recordInfraction failed after mass-banning ${id}:`, err);
-                }
+
+                // A permanent ban cancels any earlier temp-ban, or the scheduler
+                // lifts it when the old timer ends.
+                await clearTempBan(interaction.guild.id, id);
+                await tryRecordInfraction({
+                    guild: interaction.guild,
+                    targetUser: user || { id, tag: `unknown (${id})`, displayAvatarURL: () => null },
+                    moderator: interaction.user,
+                    type: 'ban',
+                    reason: `Mass-ban: ${reason}`,
+                });
             } catch (err) {
                 failed.push(`${id} (${err.message})`);
             }

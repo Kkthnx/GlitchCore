@@ -9,6 +9,10 @@ const { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Act
 const { APPEAL_MODAL_ID, APPEAL_USER_ID_INPUT, APPEAL_STATEMENT_INPUT } = require('../../utils/appealManager');
 
 module.exports = {
+    // Anyone can run this and it posts into the mod-log, so it is rate limited
+    // per member to keep one account from flooding the mods' channel.
+    cooldown: 120,
+
     data: new SlashCommandBuilder()
         .setName('appeal')
         .setDescription('File an appeal for a ban, timeout, or warn')

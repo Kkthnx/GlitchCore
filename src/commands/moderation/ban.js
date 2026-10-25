@@ -6,8 +6,8 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { blockReason, recordInfraction, notifyTarget, auditReason } = require('../../utils/moderationManager');
-const { parseDuration, humanizeDuration } = require('../../utils/duration');
+const { blockReason, tryRecordInfraction, withTargetNotice, auditReason, RECORD_FAILED_NOTE } = require('../../utils/moderationManager');
+const { parseDuration, humanizeDuration, MAX_TEMPBAN_MS } = require('../../utils/duration');
 const { scheduleTempBan, clearTempBan } = require('../../utils/tempBanManager');
 const logger = require('../../utils/logger');
 
@@ -19,7 +19,7 @@ module.exports = {
         .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('target').setDescription('User to ban (works even if they left)').setRequired(true))
         .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false).setMaxLength(500))
-        .addStringOption(o => o.setName('duration').setDescription('Temp-ban length, e.g. 3d, 12h, 1w (blank = permanent)').setRequired(false))
+        .addStringOption(o => o.setName('duration').setDescription('Temp-ban length, e.g. 3d, 12h, 1w (max 1y, blank = permanent)').setRequired(false))
         .addIntegerOption(o => o.setName('delete_days').setDescription('Delete their messages from the last N days (0-7)').setMinValue(0).setMaxValue(7).setRequired(false)),
 
     async execute(interaction) {
@@ -37,6 +37,9 @@ module.exports = {
             if (!durationMs) {
                 return interaction.reply({ content: 'Invalid duration. Use formats like `3d`, `12h`, `1w`.', flags: MessageFlags.Ephemeral });
             }
+            if (durationMs > MAX_TEMPBAN_MS) {
+                return interaction.reply({ content: 'Temp-bans top out at 1 year. Leave the duration blank for a permanent ban.', flags: MessageFlags.Ephemeral });
+            }
         }
 
         // If they're in the guild, enforce hierarchy/bannable. If not, allow ban by ID.
@@ -45,36 +48,43 @@ module.exports = {
             if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
         }
 
-        // DM after the ban lands. DMing first meant a failed ban still sent
-        // "you were banned" to someone sitting in the server.
+        // The ban, the DM and the history write each take a network round trip,
+        // and a slow one means the 3 second reply window closes and the
+        // moderator never sees the result.
+        await interaction.deferReply();
+
         try {
-            await interaction.guild.members.ban(targetUser.id, {
-                reason: auditReason(interaction.user.tag, reason),
-                deleteMessageSeconds: deleteDays * 24 * 60 * 60,
-            });
+            await withTargetNotice(
+                { targetUser, guildName: interaction.guild.name, type: 'ban', reason, durationMs },
+                () => interaction.guild.members.ban(targetUser.id, {
+                    reason: auditReason(interaction.user.tag, reason),
+                    deleteMessageSeconds: deleteDays * 24 * 60 * 60,
+                }),
+            );
         } catch (err) {
-            return interaction.reply({ content: `Failed to ban that user: ${err.message}`, flags: MessageFlags.Ephemeral });
+            return interaction.editReply({ content: `Failed to ban that user: ${err.message}` });
         }
-        await notifyTarget(targetUser, interaction.guild.name, 'ban', reason);
 
-        // The ban already landed, so a failed history write must not look like
-        // a failed ban. Say so plainly instead.
+        // Settle the unban timer before anything else can fail. It used to run
+        // after the history write, so a database hiccup there skipped it and a
+        // temp-ban quietly became permanent. A permanent ban also has to cancel
+        // any earlier temp-ban, or the scheduler lifts it when the old timer ends.
+        let timerNote = '';
         try {
-            await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'ban', reason, durationMs });
+            if (durationMs) await scheduleTempBan(interaction.guild.id, targetUser.id, new Date(Date.now() + durationMs), reason);
+            else await clearTempBan(interaction.guild.id, targetUser.id);
         } catch (err) {
-            logger.error('recordInfraction failed after a successful ban:', err);
-            return interaction.reply({ content: `🔨 Banned <@${targetUser.id}>, but I couldn't write the infraction record. Check /infractions for them later.`, flags: MessageFlags.Ephemeral });
+            logger.error(`Could not update the temp-ban timer for ${targetUser.id}:`, err);
+            timerNote = durationMs
+                ? '\n⚠️ The unban timer did not save, so this ban is permanent until someone runs `/unban`.'
+                : '\n⚠️ An older unban timer may still be pending and could lift this ban early.';
         }
 
-        if (durationMs) {
-            const unbanAt = new Date(Date.now() + durationMs);
-            await scheduleTempBan(interaction.guild.id, targetUser.id, unbanAt, reason);
-            return interaction.reply({ content: `🔨 Temp-banned <@${targetUser.id}> for ${humanizeDuration(durationMs)}, ${reason}` });
-        }
+        const recorded = await tryRecordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'ban', reason, durationMs });
 
-        // A permanent ban must cancel any earlier temp-ban so the scheduler
-        // doesn't quietly unban them when the old timer expires.
-        await clearTempBan(interaction.guild.id, targetUser.id);
-        return interaction.reply({ content: `🔨 Banned <@${targetUser.id}>, ${reason}` });
+        const lead = durationMs
+            ? `🔨 Temp-banned <@${targetUser.id}> for ${humanizeDuration(durationMs)}`
+            : `🔨 Banned <@${targetUser.id}>`;
+        return interaction.editReply({ content: `${lead}, ${recorded ? reason : RECORD_FAILED_NOTE}${timerNote}` });
     },
 };

@@ -39,12 +39,13 @@ module.exports = {
                 fields: [
                     { name: 'Joins', value: `${recent} in the last 20s`, inline: true },
                     { name: 'Duration', value: humanizeDuration(AUTO_DURATION_MS), inline: true },
+                    { name: 'Next step', value: 'Ban the raiders (`/massban`), then `/raidmode release` to let the genuine joiners in.', inline: false },
                 ],
             });
         }
 
         if (isRaidMode(member.guild.id)) {
-            const held = recordHeldJoin(member.guild.id);
+            const held = recordHeldJoin(member.guild.id, member.id);
             logger.warn(`[WELCOME] Join held (raid mode, #${held}): ${member.user.tag} in ${member.guild.id}.`);
             return;
         }

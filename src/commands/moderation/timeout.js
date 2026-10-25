@@ -6,9 +6,8 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { blockReason, recordInfraction, notifyTarget, auditReason } = require('../../utils/moderationManager');
+const { blockReason, tryRecordInfraction, withTargetNotice, auditReason, RECORD_FAILED_NOTE } = require('../../utils/moderationManager');
 const { parseDuration, clampTimeout, humanizeDuration } = require('../../utils/duration');
-const logger = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -34,22 +33,19 @@ module.exports = {
         if (!parsed) return interaction.reply({ content: 'Invalid duration. Try `10m`, `1h`, or `1d`.', flags: MessageFlags.Ephemeral });
         const durationMs = clampTimeout(parsed);
 
+        await interaction.deferReply();
+
         try {
-            await member.timeout(durationMs, auditReason(interaction.user.tag, reason));
+            await withTargetNotice(
+                { targetUser, guildName: interaction.guild.name, type: 'timeout', reason, durationMs },
+                () => member.timeout(durationMs, auditReason(interaction.user.tag, reason)),
+            );
         } catch (err) {
-            return interaction.reply({ content: `Failed to time out that member: ${err.message}`, flags: MessageFlags.Ephemeral });
+            return interaction.editReply({ content: `Failed to time out that member: ${err.message}` });
         }
 
-        // The timeout already landed, so a failed history write must not look
-        // like a failed timeout. Say so plainly instead.
-        try {
-            await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'timeout', reason, durationMs });
-        } catch (err) {
-            logger.error('recordInfraction failed after a successful timeout:', err);
-            return interaction.reply({ content: `🔇 Timed out <@${targetUser.id}>, but I couldn't write the infraction record. Check /infractions for them later.`, flags: MessageFlags.Ephemeral });
-        }
-        await notifyTarget(targetUser, interaction.guild.name, 'timeout', reason, durationMs);
-
-        return interaction.reply({ content: `🔇 Timed out <@${targetUser.id}> for **${humanizeDuration(durationMs)}**, ${reason}` });
+        const recorded = await tryRecordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'timeout', reason, durationMs });
+        const lead = `🔇 Timed out <@${targetUser.id}> for **${humanizeDuration(durationMs)}**`;
+        return interaction.editReply({ content: `${lead}, ${recorded ? reason : RECORD_FAILED_NOTE}` });
     },
 };

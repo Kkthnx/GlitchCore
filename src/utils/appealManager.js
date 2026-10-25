@@ -8,8 +8,8 @@
 const { MessageFlags } = require('discord.js');
 const Infraction = require('../database/InfractionSchema');
 const { brandedEmbed, COLORS } = require('./brand');
-const { getGuildConfig } = require('./guildConfigCache');
-const channels = require('./channels');
+const { getModLogChannel } = require('./auditLog');
+const { isSnowflake } = require('./snowflake');
 const logger = require('./logger');
 
 // Ban appeals. Banned members can't run guild commands, so this covers appeals
@@ -24,7 +24,7 @@ async function handleAppealSubmit(interaction) {
     const targetId = interaction.fields.getTextInputValue(APPEAL_USER_ID_INPUT).trim();
     const statement = interaction.fields.getTextInputValue(APPEAL_STATEMENT_INPUT).trim();
 
-    if (!/^\d{17,20}$/.test(targetId)) {
+    if (!isSnowflake(targetId)) {
         return interaction.reply({ content: "That doesn't look like a user ID.", flags: MessageFlags.Ephemeral });
     }
 
@@ -39,9 +39,7 @@ async function handleAppealSubmit(interaction) {
         : ['No infractions on record.'];
 
     try {
-        const cfg = await getGuildConfig(interaction.guild.id) || {};
-        const modLogId = cfg.modLogChannelId || channels.modLog;
-        const channel = modLogId && interaction.guild.channels.cache.get(modLogId);
+        const channel = await getModLogChannel(interaction.guild);
         if (!channel) {
             return interaction.reply({ content: 'No mod-log channel is configured, so there is nowhere to send this.', flags: MessageFlags.Ephemeral });
         }

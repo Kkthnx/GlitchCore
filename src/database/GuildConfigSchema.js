@@ -69,6 +69,10 @@ const guildConfigSchema = new mongoose.Schema({
     strikeWindowDays: { type: Number, default: 30 },
     strikeAction: { type: String, default: 'timeout' },
     strikeTimeoutMinutes: { type: Number, default: 60 },
+    // Off by default: only moderator warns count toward strikes. When on, the
+    // warns auto-mod issues (filter hits, invites, scam links) count too, so a
+    // repeat offender escalates without a moderator having to be around.
+    autoModStrikes: { type: Boolean, default: false },
 
     // Master switch for the audit log posted to the mod-log channel. Nothing is
     // stored, this only decides whether entries are posted.

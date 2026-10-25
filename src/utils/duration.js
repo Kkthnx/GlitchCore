@@ -8,6 +8,11 @@
 // Human-friendly duration parsing/formatting for moderation timeouts.
 // Discord caps member timeouts at 28 days.
 const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000;
+// Temp-bans longer than a year are a permanent ban with extra steps.
+const MAX_TEMPBAN_MS = 365 * 24 * 60 * 60 * 1000;
+// Anything parsed above this is a typo or an attempt to overflow Date, which
+// tops out near 8.64e15 ms. Rejected outright rather than clamped.
+const MAX_PARSE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 
 const UNIT_MS = {
     s: 1000,
@@ -31,7 +36,7 @@ function parseDuration(input) {
         const [, amount, unit] = part.match(/(\d+)\s*([smhdw])/);
         total += parseInt(amount, 10) * UNIT_MS[unit];
     }
-    return total > 0 ? total : null;
+    return total > 0 && total <= MAX_PARSE_MS ? total : null;
 }
 
 /**
@@ -59,4 +64,4 @@ function humanizeDuration(ms) {
     return parts.join(' ') || '0s';
 }
 
-module.exports = { parseDuration, clampTimeout, humanizeDuration, MAX_TIMEOUT_MS };
+module.exports = { parseDuration, clampTimeout, humanizeDuration, MAX_TIMEOUT_MS, MAX_TEMPBAN_MS };

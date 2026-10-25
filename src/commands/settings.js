@@ -7,6 +7,7 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../utils/guildConfigCache');
+const { isSnowflake } = require('../utils/snowflake');
 
 // Ranges for the numeric settings. These are guard rails, not taste: a zero or
 // negative tick length divides by zero in the voice XP loop, and an absurd
@@ -26,6 +27,8 @@ const NUMERIC_BOUNDS = {
 // strikeAction isn't numeric, so it's validated separately in the set handler.
 const STRIKE_ACTIONS = ['timeout', 'kick', 'ban'];
 
+const BOOLEAN_KEYS = ['xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled', 'contentFilterEnabled', 'auditLogEnabled', 'autoModStrikes'];
+
 // Every key the set subcommand accepts. These used to be a fixed choice list,
 // but Discord caps an option at 25 choices and the moderation settings pushed
 // it to 27, so the option now uses autocomplete against this list instead.
@@ -38,7 +41,7 @@ const SETTABLE_KEYS = [
     'textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes',
     'minAccountAgeDays', 'newAccountHoldMinutes', 'cjkExemptChannelIds',
     'strikeWarnThreshold', 'strikeWindowDays', 'strikeAction',
-    'strikeTimeoutMinutes',
+    'strikeTimeoutMinutes', 'autoModStrikes',
 ];
 
 module.exports = {
@@ -113,6 +116,7 @@ module.exports = {
                 `strikeWindowDays: ${config.strikeWindowDays}`,
                 `strikeAction: ${config.strikeAction}`,
                 `strikeTimeoutMinutes: ${config.strikeTimeoutMinutes}`,
+                `autoModStrikes: ${config.autoModStrikes} (auto-mod warns count toward strikes)`,
                 `levelRewardRoles: ${config.levelRewardRoles.map(r => `level ${r.level}: <@&${r.roleId}>`).join(', ') || 'none'}`,
             ];
             return interaction.reply({ content: fields.join('\n'), flags: MessageFlags.Ephemeral });
@@ -140,7 +144,7 @@ module.exports = {
                     return interaction.reply({ content: `\`${key}\` must be between ${min} and ${max}.`, flags: MessageFlags.Ephemeral });
                 }
                 config[key] = n;
-            } else if (['xpEnabled', 'voiceXpEnabled', 'antiSpamEnabled', 'contentFilterEnabled', 'auditLogEnabled'].includes(key)) {
+            } else if (BOOLEAN_KEYS.includes(key)) {
                 if (!['true', 'false'].includes(value.toLowerCase())) {
                     return interaction.reply({ content: 'That value must be true or false.', flags: MessageFlags.Ephemeral });
                 }
@@ -149,7 +153,7 @@ module.exports = {
                 // Comma-separated channel IDs. Anything that isn't a snowflake
                 // is rejected rather than stored.
                 const ids = value.split(',').map(s => s.trim()).filter(Boolean);
-                if (!ids.every(id => /^\d{17,20}$/.test(id))) {
+                if (!ids.every(isSnowflake)) {
                     return interaction.reply({ content: 'Give comma-separated channel IDs, e.g. `123456789012345678, 987654321098765432`.', flags: MessageFlags.Ephemeral });
                 }
                 config[key] = ids;

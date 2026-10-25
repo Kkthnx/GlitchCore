@@ -6,8 +6,7 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { blockReason, recordInfraction, notifyTarget, auditReason } = require('../../utils/moderationManager');
-const logger = require('../../utils/logger');
+const { blockReason, tryRecordInfraction, withTargetNotice, auditReason, RECORD_FAILED_NOTE } = require('../../utils/moderationManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -28,23 +27,23 @@ module.exports = {
         const block = blockReason(interaction, member, { needKickable: true });
         if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
-        // DM after the kick lands. DMing first meant a failed kick still sent
-        // "you were kicked" to someone sitting in the server.
-        try {
-            await member.kick(auditReason(interaction.user.tag, reason));
-        } catch (err) {
-            return interaction.reply({ content: `Failed to kick that member: ${err.message}`, flags: MessageFlags.Ephemeral });
-        }
-        await notifyTarget(targetUser, interaction.guild.name, 'kick', reason);
+        // Defer first: the kick, the DM and the history write can outlast the
+        // 3 second reply window.
+        await interaction.deferReply();
 
-        // The kick already landed, so a failed history write must not look
-        // like a failed kick. Say so plainly instead.
+        // The DM goes out before the kick and is retracted if the kick fails.
+        // Afterwards the member shares no server with the bot and Discord
+        // refuses the message.
         try {
-            await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'kick', reason });
+            await withTargetNotice(
+                { targetUser, guildName: interaction.guild.name, type: 'kick', reason },
+                () => member.kick(auditReason(interaction.user.tag, reason)),
+            );
         } catch (err) {
-            logger.error('recordInfraction failed after a successful kick:', err);
-            return interaction.reply({ content: `👢 Kicked <@${targetUser.id}>, but I couldn't write the infraction record. Check /infractions for them later.`, flags: MessageFlags.Ephemeral });
+            return interaction.editReply({ content: `Failed to kick that member: ${err.message}` });
         }
-        return interaction.reply({ content: `👢 Kicked <@${targetUser.id}>, ${reason}` });
+
+        const recorded = await tryRecordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'kick', reason });
+        return interaction.editReply({ content: `👢 Kicked <@${targetUser.id}>, ${recorded ? reason : RECORD_FAILED_NOTE}` });
     },
 };

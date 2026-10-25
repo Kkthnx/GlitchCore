@@ -9,9 +9,16 @@ const Infraction = require('../database/InfractionSchema');
 const { AttachmentBuilder } = require('discord.js');
 const { brandedEmbed, COLORS } = require('./brand');
 const { getGuildConfig } = require('./guildConfigCache');
+const { getModLogChannel } = require('./auditLog');
 const { humanizeDuration, clampTimeout } = require('./duration');
-const channels = require('./channels');
 const logger = require('./logger');
+
+const MOD_FOOTER = 'Glitch Haven, Moderation';
+
+/** The base embed every moderation message shares. */
+function modEmbed() {
+    return brandedEmbed({ color: COLORS.danger, footer: MOD_FOOTER });
+}
 
 const ACTION_VERB = { warn: 'warned', timeout: 'timed out', kick: 'kicked', ban: 'banned', unban: 'unbanned' };
 
@@ -73,13 +80,9 @@ async function recordInfraction({ guild, targetUser, moderator, type, reason, du
     });
 
     try {
-        const cfg = await getGuildConfig(guild.id) || {};
-        // Per-guild override wins; fall back to the env-configured mod-log so
-        // moderation and audit events land in the same place.
-        const modLogId = cfg.modLogChannelId || channels.modLog;
-        const channel = modLogId && guild.channels.cache.get(modLogId);
+        const channel = await getModLogChannel(guild);
         if (channel) {
-            const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
+            const embed = modEmbed()
                 .setTitle(`Member ${ACTION_VERB[type] || type}`)
                 .setThumbnail(targetUser.displayAvatarURL())
                 .addFields(
@@ -112,12 +115,10 @@ async function recordInfraction({ guild, targetUser, moderator, type, reason, du
  */
 async function logModAction({ guild, moderator, title, fields }) {
     try {
-        const cfg = await getGuildConfig(guild.id) || {};
-        const modLogId = cfg.modLogChannelId || channels.modLog;
-        const channel = modLogId && guild.channels.cache.get(modLogId);
+        const channel = await getModLogChannel(guild);
         if (!channel) return;
 
-        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
+        const embed = modEmbed()
             .setTitle(title)
             .addFields({ name: 'Moderator', value: `<@${moderator.id}>`, inline: true }, ...fields);
 
@@ -136,9 +137,7 @@ async function logModAction({ guild, moderator, title, fields }) {
  */
 async function snapshotPurge({ guild, moderator, channel, messages, onlyUser = null }) {
     try {
-        const cfg = await getGuildConfig(guild.id) || {};
-        const modLogId = cfg.modLogChannelId || channels.modLog;
-        const logChannel = modLogId && guild.channels.cache.get(modLogId);
+        const logChannel = await getModLogChannel(guild);
         if (!logChannel || !messages.length) return;
 
         const sorted = [...messages].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
@@ -150,7 +149,7 @@ async function snapshotPurge({ guild, moderator, channel, messages, onlyUser = n
         });
         const transcript = lines.join('\n').slice(0, 200000);
 
-        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
+        const embed = modEmbed()
             .setTitle('Messages purged')
             .addFields(
                 { name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
@@ -166,18 +165,63 @@ async function snapshotPurge({ guild, moderator, channel, messages, onlyUser = n
     }
 }
 
-/** Best-effort DM to the target so they know what happened and why. */
+/**
+ * Best-effort DM to the target so they know what happened and why. Resolves to
+ * the sent message, or null when the DM couldn't be delivered (closed DMs are
+ * normal, not an error).
+ */
 async function notifyTarget(targetUser, guildName, type, reason, durationMs) {
     try {
-        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
+        const embed = modEmbed()
             .setTitle(`You were ${ACTION_VERB[type] || type} in ${guildName}`)
             .addFields({ name: 'Reason', value: reason || 'No reason provided' });
         if (durationMs) embed.addFields({ name: 'Duration', value: humanizeDuration(durationMs), inline: true });
-        await targetUser.send({ embeds: [embed] });
+        return await targetUser.send({ embeds: [embed] });
     } catch {
-        // User has DMs closed, not an error.
+        return null;
     }
 }
+
+/**
+ * Runs a kick, ban or timeout with the target's DM sent FIRST, and retracts the
+ * DM if the action then fails. The DM has to go out before a kick or ban:
+ * afterwards the member is gone, and when the bot shares no other server with
+ * them Discord refuses the DM (error 50007 / 50278), so "DM after the action"
+ * silently never reached anyone. Sending first and deleting on failure keeps
+ * both properties: the member is told, and nobody is told about an action that
+ * didn't happen.
+ *
+ * @param {{targetUser: import('discord.js').User, guildName: string, type: string, reason?: string, durationMs?: number|null}} notice
+ * @param {() => Promise<any>} action the Discord-side action
+ */
+async function withTargetNotice({ targetUser, guildName, type, reason, durationMs }, action) {
+    const dm = await notifyTarget(targetUser, guildName, type, reason, durationMs);
+    try {
+        return await action();
+    } catch (err) {
+        if (dm) await dm.delete().catch(() => {});
+        throw err;
+    }
+}
+
+/**
+ * Records an infraction for an action that already landed on Discord. A failed
+ * history write must not look like a failed action, so this logs and reports
+ * instead of throwing.
+ * @returns {Promise<boolean>} whether the record was saved
+ */
+async function tryRecordInfraction(opts) {
+    try {
+        await recordInfraction(opts);
+        return true;
+    } catch (err) {
+        logger.error(`recordInfraction failed after a ${opts.type} of ${opts.targetUser?.id}:`, err);
+        return false;
+    }
+}
+
+/** Appended to a command reply when the action worked but its record didn't save. */
+const RECORD_FAILED_NOTE = "but I couldn't write the infraction record. Check /infractions for them later.";
 
 async function countInfractions(guildId, userId) {
     return Infraction.countDocuments({ guildId, userId });
@@ -212,22 +256,22 @@ async function checkStrikeEscalation({ guild, member, targetUser, moderator }) {
         if (action === 'timeout') {
             const durationMs = clampTimeout((cfg.strikeTimeoutMinutes ?? 60) * 60 * 1000);
             if (!member?.moderatable) return `\nStrike threshold hit (${recentWarns} warns in ${windowDays}d) but I can't time them out.`;
-            await member.timeout(durationMs, auditReason(autoMod.tag || 'GlitchCore auto-mod', reason));
+            await withTargetNotice({ targetUser, guildName: guild.name, type: 'timeout', reason, durationMs },
+                () => member.timeout(durationMs, auditReason(autoMod.tag || 'GlitchCore auto-mod', reason)));
             await recordInfraction({ guild, targetUser, moderator: autoMod, type: 'timeout', reason, durationMs });
-            await notifyTarget(targetUser, guild.name, 'timeout', reason, durationMs);
             return `\nStrike threshold hit: automatically timed out for ${humanizeDuration(durationMs)}.`;
         }
         if (action === 'kick') {
             if (!member) return `\nStrike threshold hit (${recentWarns} warns in ${windowDays}d) but they're not in the server.`;
-            await member.kick(auditReason(autoMod.tag || 'GlitchCore auto-mod', reason));
+            await withTargetNotice({ targetUser, guildName: guild.name, type: 'kick', reason },
+                () => member.kick(auditReason(autoMod.tag || 'GlitchCore auto-mod', reason)));
             await recordInfraction({ guild, targetUser, moderator: autoMod, type: 'kick', reason });
-            await notifyTarget(targetUser, guild.name, 'kick', reason);
             return '\nStrike threshold hit: automatically kicked.';
         }
         if (action === 'ban') {
-            await guild.members.ban(targetUser.id, { reason: auditReason(autoMod.tag || 'GlitchCore auto-mod', reason) });
+            await withTargetNotice({ targetUser, guildName: guild.name, type: 'ban', reason },
+                () => guild.members.ban(targetUser.id, { reason: auditReason(autoMod.tag || 'GlitchCore auto-mod', reason) }));
             await recordInfraction({ guild, targetUser, moderator: autoMod, type: 'ban', reason });
-            await notifyTarget(targetUser, guild.name, 'ban', reason);
             return '\nStrike threshold hit: automatically banned.';
         }
         logger.warn(`[MOD] Unknown strikeAction "${action}" in guild ${guild.id}, skipping escalation.`);
@@ -238,4 +282,19 @@ async function checkStrikeEscalation({ guild, member, targetUser, moderator }) {
     }
 }
 
-module.exports = { blockReason, recordInfraction, logModAction, snapshotPurge, notifyTarget, countInfractions, checkStrikeEscalation, auditReason, ACTION_VERB };
+module.exports = {
+    blockReason,
+    recordInfraction,
+    tryRecordInfraction,
+    logModAction,
+    snapshotPurge,
+    notifyTarget,
+    withTargetNotice,
+    countInfractions,
+    checkStrikeEscalation,
+    auditReason,
+    ACTION_VERB,
+    RECORD_FAILED_NOTE,
+    MOD_FOOTER,
+    modEmbed,
+};

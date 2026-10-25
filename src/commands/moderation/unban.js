@@ -6,11 +6,9 @@
  */
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
-const { recordInfraction } = require('../../utils/moderationManager');
+const { tryRecordInfraction, RECORD_FAILED_NOTE } = require('../../utils/moderationManager');
 const { clearTempBan } = require('../../utils/tempBanManager');
-
-// Discord snowflakes are 17 to 20 digits.
-const ID_PATTERN = /^\d{17,20}$/;
+const { isSnowflake } = require('../../utils/snowflake');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -25,7 +23,7 @@ module.exports = {
         const userId = interaction.options.getString('user_id').trim();
         const reason = interaction.options.getString('reason') || 'No reason provided';
 
-        if (!ID_PATTERN.test(userId)) {
+        if (!isSnowflake(userId)) {
             return interaction.reply({ content: 'That is not a valid user ID. Right click the user in the ban list and copy their ID.', flags: MessageFlags.Ephemeral });
         }
 
@@ -46,7 +44,7 @@ module.exports = {
         // that is already gone.
         await clearTempBan(interaction.guild.id, userId);
 
-        await recordInfraction({
+        const recorded = await tryRecordInfraction({
             guild: interaction.guild,
             targetUser: ban.user,
             moderator: interaction.user,
@@ -54,6 +52,6 @@ module.exports = {
             reason,
         });
 
-        return interaction.reply({ content: `♻️ Unbanned **${ban.user.tag}**, ${reason}` });
+        return interaction.reply({ content: `♻️ Unbanned **${ban.user.tag}**, ${recorded ? reason : RECORD_FAILED_NOTE}` });
     },
 };

@@ -21,7 +21,11 @@ async function scheduleTempBan(guildId, userId, unbanAt, reason) {
 
 // Clears any pending timed ban for a user (e.g. after a manual unban).
 async function clearTempBan(guildId, userId) {
-    await TempBan.deleteOne({ guildId, userId }).catch(() => {});
+    await TempBan.deleteOne({ guildId, userId }).catch(err => {
+        // A leftover row would lift a ban that was meant to stand, so a failure
+        // here is worth a line in the log even though callers carry on.
+        logger.error(`[TEMPBAN] Could not clear the timer for ${userId} in ${guildId}:`, err);
+    });
 }
 
 async function processDueUnbans(client) {

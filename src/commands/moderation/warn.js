@@ -30,13 +30,17 @@ module.exports = {
         const block = blockReason(interaction, member, { requireBotAction: false });
         if (block) return interaction.reply({ content: block, flags: MessageFlags.Ephemeral });
 
+        // The write, the DM and a possible escalation all take round trips, so
+        // acknowledge first or a slow one closes the 3 second reply window.
+        await interaction.deferReply();
+
         // A warning IS the database record (no Discord-side action), so a failed
         // write means the warn didn't happen. Say so instead of pretending.
         try {
             await recordInfraction({ guild: interaction.guild, targetUser, moderator: interaction.user, type: 'warn', reason });
         } catch (err) {
             logger.error('recordInfraction failed for warn:', err);
-            return interaction.reply({ content: 'Failed to record the warning, nothing was issued. Try again.', flags: MessageFlags.Ephemeral });
+            return interaction.editReply({ content: 'Failed to record the warning, nothing was issued. Try again.' });
         }
         await notifyTarget(targetUser, interaction.guild.name, 'warn', reason);
 
@@ -55,6 +59,6 @@ module.exports = {
         }
 
         const total = await countInfractions(interaction.guild.id, targetUser.id);
-        return interaction.reply({ content: `⚠️ Warned <@${targetUser.id}>, ${reason}\nThey now have **${total}** infraction(s) on record.${escalationNote}` });
+        return interaction.editReply({ content: `⚠️ Warned <@${targetUser.id}>, ${reason}\nThey now have **${total}** infraction(s) on record.${escalationNote}` });
     },
 };

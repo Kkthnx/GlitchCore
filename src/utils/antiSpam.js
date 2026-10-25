@@ -62,6 +62,13 @@ function sweepIdle(now = Date.now(), idleMs = 5 * 60 * 1000) {
             buckets.delete(key);
         }
     }
+    // The duplicate rings were never swept: one entry per member per server
+    // stayed in memory for the life of the process.
+    for (const [key, ring] of duplicateRings) {
+        if (!ring.length || now - ring[ring.length - 1].at > idleMs) {
+            duplicateRings.delete(key);
+        }
+    }
 }
 
 /** True if the text contains a Discord invite link. */
@@ -74,25 +81,42 @@ function containsScamDomain(text) {
     return SCAM_DOMAIN_REGEX.test(String(text || ''));
 }
 
-// key (`userId-guildId`) -> array of { hash, at } for recent message bodies.
+// key (`userId-guildId`) -> array of { hash, at, ref } for recent message bodies.
 // Catches the classic spam shape: the same link or scam text posted a few
 // times just slowly enough to stay under the rate limiter.
 const duplicateRings = new Map();
 const DUPLICATE_RING_SIZE = 10;
+const MIN_DUPLICATE_LENGTH = 8;
 
-function contentHash(text) {
+function normalizeBody(text) {
     return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// FNV-1a. The ring only needs to tell "same body" from "different body", so it
+// keeps a short fingerprint instead of the text. Holding the full body cost a
+// message-length string per entry for every member who ever spoke.
+function fingerprint(normalized) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < normalized.length; i += 1) {
+        h ^= normalized.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return `${normalized.length}:${(h >>> 0).toString(36)}`;
 }
 
 /**
  * Records a message body and reports whether the same content appeared
  * `maxDuplicates` times within `windowMs`. Short messages (under 8 chars after
  * normalization) are ignored so "lol" x3 doesn't time anyone out.
+ *
+ * `ref` ({channelId, id}) is kept alongside the fingerprint so a trip can
+ * delete the repeats, see takeDuplicateRefs.
  * @returns {boolean} true if this message trips duplicate detection.
  */
-function recordAndCheckDuplicate(key, content, now, maxDuplicates, windowMs) {
-    const hash = contentHash(content);
-    if (hash.length < 8) return false;
+function recordAndCheckDuplicate(key, content, now, maxDuplicates, windowMs, ref = null) {
+    const normalized = normalizeBody(content);
+    if (normalized.length < MIN_DUPLICATE_LENGTH) return false;
+    const hash = fingerprint(normalized);
 
     let ring = duplicateRings.get(key);
     if (!ring) {
@@ -101,7 +125,7 @@ function recordAndCheckDuplicate(key, content, now, maxDuplicates, windowMs) {
     }
 
     while (ring.length && now - ring[0].at >= windowMs) ring.shift();
-    ring.push({ hash, at: now });
+    ring.push({ hash, at: now, ref });
     if (ring.length > DUPLICATE_RING_SIZE) ring.splice(0, ring.length - DUPLICATE_RING_SIZE);
 
     let matches = 0;
@@ -109,6 +133,29 @@ function recordAndCheckDuplicate(key, content, now, maxDuplicates, windowMs) {
         if (entry.hash === hash) matches += 1;
     }
     return matches >= maxDuplicates;
+}
+
+/**
+ * The message refs behind a duplicate trip, so the repeats can be deleted and
+ * not just punished. Removes them from the ring.
+ * @returns {{channelId: string, id: string}[]}
+ */
+function takeDuplicateRefs(key, content) {
+    const ring = duplicateRings.get(key);
+    if (!ring) return [];
+
+    const hash = fingerprint(normalizeBody(content));
+    const refs = [];
+    const keep = [];
+    for (const entry of ring) {
+        if (entry.hash === hash) {
+            if (entry.ref) refs.push(entry.ref);
+        } else {
+            keep.push(entry);
+        }
+    }
+    duplicateRings.set(key, keep);
+    return refs;
 }
 
 /** Test seam, drop all tracked state. */
@@ -120,6 +167,7 @@ function _clearAll() {
 module.exports = {
     recordAndCheckRate,
     recordAndCheckDuplicate,
+    takeDuplicateRefs,
     resetRate,
     sweepIdle,
     containsInvite,

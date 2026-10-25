@@ -6,6 +6,8 @@
  */
 
 const { getAuditChannel, postAudit } = require('../utils/auditLog');
+const { evaluateContentFilter, enforceContentFilter } = require('../utils/autoMod');
+const { getGuildConfig } = require('../utils/guildConfigCache');
 const logger = require('../utils/logger');
 
 function clip(text) {
@@ -24,6 +26,16 @@ module.exports = {
             if (oldMessage.partial) return;
             // Only content edits matter here. Embed unfurls fire this too.
             if (oldMessage.content === newMessage.content) return;
+
+            // Run the word filter on the edit. Without this, posting something
+            // clean and editing it into a slur walked straight past the filter.
+            // The audit entry below still logs the edit, so mods see what it
+            // was changed to.
+            if (!newMessage.partial && newMessage.author) {
+                const guildConfig = await getGuildConfig(newMessage.guild.id) || {};
+                const violation = evaluateContentFilter(newMessage, guildConfig);
+                if (violation) await enforceContentFilter(newMessage, violation, guildConfig);
+            }
 
             const channel = await getAuditChannel(newMessage.guild);
             if (!channel) return;

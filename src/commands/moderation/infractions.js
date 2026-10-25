@@ -7,9 +7,9 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, InteractionContextType } = require('discord.js');
 const Infraction = require('../../database/InfractionSchema');
-const { brandedEmbed, COLORS } = require('../../utils/brand');
 const { humanizeDuration } = require('../../utils/duration');
 const { clamp, fitLines, LIMITS } = require('../../utils/embedText');
+const { logModAction, modEmbed, MOD_FOOTER } = require('../../utils/moderationManager');
 
 const TYPE_ICON = { warn: '⚠️', timeout: '🔇', kick: '👢', ban: '🔨', unban: '🔓' };
 
@@ -42,6 +42,17 @@ module.exports = {
                 return interaction.reply({ content: 'You need the **Manage Server** permission to clear infractions.', flags: MessageFlags.Ephemeral });
             }
             const { deletedCount } = await Infraction.deleteMany({ guildId: interaction.guild.id, userId: targetUser.id });
+            // Wiping a record is the one moderation action that erases evidence,
+            // so it leaves a trace in the mod-log.
+            await logModAction({
+                guild: interaction.guild,
+                moderator: interaction.user,
+                title: 'Infractions cleared',
+                fields: [
+                    { name: 'User', value: `<@${targetUser.id}> \`${targetUser.tag}\``, inline: true },
+                    { name: 'Records removed', value: `${deletedCount}`, inline: true },
+                ],
+            });
             return interaction.reply({ content: `🧹 Cleared **${deletedCount}** infraction(s) for <@${targetUser.id}>.`, flags: MessageFlags.Ephemeral });
         }
 
@@ -54,7 +65,7 @@ module.exports = {
             Infraction.aggregate([{ $match: filter }, { $group: { _id: '$type', n: { $sum: 1 } } }]),
         ]);
 
-        const embed = brandedEmbed({ color: COLORS.danger, footer: 'Glitch Haven, Moderation' })
+        const embed = modEmbed()
             .setAuthor({ name: `Infractions, ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() });
 
         if (!records.length) {
@@ -82,7 +93,7 @@ module.exports = {
         embed.setDescription(heading + fitLines(lines, LIMITS.description - heading.length - 2));
 
         if (total > records.length) {
-            embed.setFooter({ text: `Glitch Haven, Moderation, showing the latest ${records.length} of ${total}` });
+            embed.setFooter({ text: `${MOD_FOOTER}, showing the latest ${records.length} of ${total}` });
         }
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

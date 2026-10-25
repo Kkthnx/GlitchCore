@@ -19,7 +19,7 @@ GlitchCore is self-hosted. You need Node.js v20 or newer, a MongoDB instance, an
 3. Set your community's timezone in `config.json`.
 4. Run `npm start`. Slash commands register on startup.
 
-See PRIVACY.md for the data-handling policy.
+See PRIVACY.md for the data-handling policy and [docs/MODERATION.md](docs/MODERATION.md) for how moderation, auto-mod and raid mode work.
 
 ## Quick start
 
