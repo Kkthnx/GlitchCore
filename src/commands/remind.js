@@ -6,6 +6,7 @@
  */
 
 const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
+const { screenText, TEXT_REFUSED } = require('../utils/textGuard');
 const Reminder = require('../database/ReminderSchema');
 const { parseDuration, humanizeDuration } = require('../utils/duration');
 const { brandedEmbed, COLORS } = require('../utils/brand');
@@ -101,6 +102,10 @@ module.exports = {
         }
         if (ms > MAX_MS) {
             return interaction.reply({ content: 'That\'s too far out, max is 1 year.', flags: MessageFlags.Ephemeral });
+        }
+
+        if (screenText(interaction.options.getString('message'))) {
+            return interaction.reply({ content: TEXT_REFUSED, flags: MessageFlags.Ephemeral });
         }
 
         const existing = await Reminder.countDocuments({ guildId, userId });

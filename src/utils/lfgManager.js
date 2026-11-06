@@ -13,6 +13,7 @@ const LfgSession = require('../database/LfgSchema');
 const { fetchGameBanner } = require('./steamGridClient');
 const { getGuildConfig } = require('./guildConfigCache');
 const channels = require('./channels');
+const { screenText, TEXT_REFUSED } = require('./textGuard');
 const logger = require('./logger');
 
 // ---------------------------------------------------------------------------
@@ -186,9 +187,16 @@ async function handleModalSubmit(interaction) {
         });
     }
 
+    if (screenText(game, activity)) {
+        return interaction.reply({ content: TEXT_REFUSED, flags: MessageFlags.Ephemeral });
+    }
+
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const lfgChannel = interaction.guild.channels.cache.get(channels.lfg);
+    // The per-server setting wins, the environment value is the fallback. This
+    // read the environment only, so `/settings set lfgChannelId` did nothing.
+    const guildCfg = await getGuildConfig(interaction.guild.id) || {};
+    const lfgChannel = interaction.guild.channels.cache.get(guildCfg.lfgChannelId || channels.lfg);
     if (!lfgChannel) {
         return interaction.editReply({ content: '`ERROR_404` : LFG channel not configured. Contact an admin.' });
     }
@@ -204,7 +212,6 @@ async function handleModalSubmit(interaction) {
     const buttons = buildLfgButtons(false);
 
     // Ping the opt-in LFG role so interested members get alerted.
-    const guildCfg = await getGuildConfig(interaction.guild.id) || {};
     const pingRoleId = guildCfg.lfgPingRoleId;
 
     try {

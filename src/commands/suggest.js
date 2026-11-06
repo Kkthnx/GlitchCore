@@ -6,6 +6,7 @@
  */
 
 const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
+const { screenText, TEXT_REFUSED } = require('../utils/textGuard');
 const Suggestion = require('../database/SuggestionSchema');
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { buildSuggestionEmbed, buildSuggestionButtons } = require('../utils/suggestionManager');
@@ -20,6 +21,9 @@ module.exports = {
 
     async execute(interaction) {
         const text = interaction.options.getString('text').trim();
+        if (screenText(text)) {
+            return interaction.reply({ content: TEXT_REFUSED, flags: MessageFlags.Ephemeral });
+        }
 
         const cfg = await getGuildConfig(interaction.guild.id) || {};
         const channel = cfg.suggestionChannelId

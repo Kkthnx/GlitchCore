@@ -6,6 +6,7 @@
  */
 
 const { SlashCommandBuilder, MessageFlags, InteractionContextType, PermissionFlagsBits } = require('discord.js');
+const { screenText, TEXT_REFUSED } = require('../utils/textGuard');
 const Event = require('../database/EventSchema');
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const { buildEventEmbed, buildEventButtons } = require('../utils/eventManager');
@@ -113,6 +114,10 @@ module.exports = {
         const bannerKey = interaction.options.getString('banner');
         const bannerFile = bannerFileForKey(bannerKey);
         const description = interaction.options.getString('description') || bannerBlurbForKey(bannerKey);
+
+        if (screenText(game, title, description)) {
+            return interaction.reply({ content: TEXT_REFUSED, flags: MessageFlags.Ephemeral });
+        }
 
         const startsAt = parseStartTime(when);
         if (!startsAt) {

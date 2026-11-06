@@ -6,6 +6,7 @@
  */
 
 const { SlashCommandBuilder, PollLayoutType, MessageFlags, InteractionContextType } = require('discord.js');
+const { screenText, TEXT_REFUSED } = require('../utils/textGuard');
 
 module.exports = {
     data: (() => {
@@ -30,6 +31,9 @@ module.exports = {
         for (let i = 1; i <= 6; i++) {
             const val = interaction.options.getString(`option${i}`);
             if (val) answers.push({ text: val });
+        }
+        if (screenText(question, ...answers.map(a => a.text))) {
+            return interaction.reply({ content: TEXT_REFUSED, flags: MessageFlags.Ephemeral });
         }
         const hours = interaction.options.getInteger('hours') ?? 24;
         const multi = interaction.options.getBoolean('multi') ?? false;

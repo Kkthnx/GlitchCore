@@ -5,6 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
+const { screenText, TEXT_REFUSED } = require('../utils/textGuard');
 const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require('discord.js');
 const { setAfk } = require('../utils/afkManager');
 
@@ -17,6 +18,9 @@ module.exports = {
 
     async execute(interaction) {
         const reason = interaction.options.getString('reason') || 'AFK';
+        if (screenText(reason)) {
+            return interaction.reply({ content: TEXT_REFUSED, flags: MessageFlags.Ephemeral });
+        }
         setAfk(interaction.guild.id, interaction.user.id, reason);
         return interaction.reply({ content: `💤 You're now AFK: **${reason}**. I'll clear it when you send a message.`, flags: MessageFlags.Ephemeral });
     },
