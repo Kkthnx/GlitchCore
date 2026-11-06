@@ -41,7 +41,7 @@ const SETTABLE_KEYS = [
     'textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes',
     'minAccountAgeDays', 'newAccountHoldMinutes', 'cjkExemptChannelIds',
     'strikeWarnThreshold', 'strikeWindowDays', 'strikeAction',
-    'strikeTimeoutMinutes', 'autoModStrikes', 'tempVoiceHubChannelId',
+    'strikeTimeoutMinutes', 'autoModStrikes', 'tempVoiceHubChannelId', 'countingChannelId',
 ];
 
 module.exports = {
@@ -103,6 +103,7 @@ module.exports = {
                 `modLogChannelId: ${config.modLogChannelId || 'not set'}`,
                 `doubleXpRoleId: ${config.doubleXpRoleId || 'not set'}`,
                 `tempVoiceHubChannelId: ${config.tempVoiceHubChannelId || 'not set'}`,
+                `countingChannelId: ${config.countingChannelId || 'not set'}`,
                 `verifyRoleId: ${config.verifyRoleId || 'off'} (manage with /verify)`,
                 `antiSpamEnabled: ${config.antiSpamEnabled}`,
                 `contentFilterEnabled: ${config.contentFilterEnabled}`,
@@ -167,6 +168,15 @@ module.exports = {
                     return interaction.reply({ content: 'Give the ID of a voice channel in this server, or `none` to turn lobbies off.', flags: MessageFlags.Ephemeral });
                 } else {
                     config[key] = hub.id;
+                }
+            } else if (key === 'countingChannelId') {
+                const target = interaction.guild.channels.cache.get(value.trim());
+                if (value.trim().toLowerCase() === 'none') {
+                    config[key] = null;
+                } else if (!target || target.type !== ChannelType.GuildText) {
+                    return interaction.reply({ content: 'Give the ID of a text channel in this server, or `none` to turn counting off.', flags: MessageFlags.Ephemeral });
+                } else {
+                    config[key] = target.id;
                 }
             } else if (key === 'strikeAction') {
                 if (!STRIKE_ACTIONS.includes(value.toLowerCase())) {

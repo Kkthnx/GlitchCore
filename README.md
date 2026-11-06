@@ -14,8 +14,9 @@ Built on Discord.js v14 and Node.js, stored in MongoDB, and run under a sharding
 **Community**
 - Game nights with RSVP, waitlist and start-time pings (`/event`), and LFG posts with a roster and waitlist (`/lfg`).
 - Join-to-create voice lobbies. Join the hub channel and the bot builds you a lobby, then cleans it up when it empties (`/voice`).
+- A counting channel where members take turns counting up, and a miss resets it to 1 (`countingChannelId`).
 - 18+ verification gate, self-assign roles, reaction roles, polls, giveaways, suggestions, tags, reminders, AFK, birthdays.
-- Twitch go-live announcements that delete themselves when the stream ends (`/streamers`), and a starboard.
+- Twitch go-live announcements that delete themselves when the stream ends (`/streamers`), and a starboard that leaves age-restricted channels alone.
 
 **Moderation**
 - `/warn`, `/timeout`, `/kick`, `/ban` (permanent or timed), `/massban`, `/unban`, `/purge`, `/lock`, `/slowmode`, and a per-member infraction history.
@@ -64,7 +65,8 @@ Run these as someone with Manage Server.
 3. `/levelrewards milestones interval:10` to create the Level 10, 20, 30 roles on demand.
 4. `/roles preset pack:platforms` and friends to create the self-assign roles.
 5. `/settings set tempVoiceHubChannelId <voice channel id>` to turn on join-to-create lobbies.
-6. `/verify setup role:@Member` then `/verify post channel:#rules` to put the age gate in front of your channels. With the gate on, new members stop getting the automatic member role, so lock your channels to the verify role first.
+6. `/settings set countingChannelId <text channel id>` to start the counting game.
+7. `/verify setup role:@Member` then `/verify post channel:#rules` to put the age gate in front of your channels. With the gate on, new members stop getting the automatic member role, so lock your channels to the verify role first.
 
 ## Configuration
 

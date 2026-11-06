@@ -91,6 +91,9 @@ const guildConfigSchema = new mongoose.Schema({
     // automatic member role, clicking the panel button grants this one instead.
     verifyRoleId: { type: String, default: null },
 
+    // Counting game channel. Members count up together, one number each.
+    countingChannelId: { type: String, default: null },
+
     // Join-to-create voice hub. Joining this channel spawns a private lobby.
     tempVoiceHubChannelId: { type: String, default: null },
 

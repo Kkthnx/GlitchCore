@@ -27,6 +27,7 @@ and no data at all about servers it is not in.
 | Suggestions you post (**the text you wrote**, vote tallies) | Published to the suggestion channel like a message. | **No**, see below |
 | Moderation records (type, reason, moderator, duration) | A server's own record of moderation actions. | **No**, see below |
 | Temp voice lobby owner (user ID) | Lets only the owner rename, limit or lock their lobby. Deleted when the lobby empties. | Not needed, it removes itself when the lobby closes |
+| Counting game state (last counter's user ID, current number, best run) | Stops one member counting twice in a row. Overwritten on every count, and the user ID clears when the count resets. | Not needed, it is one row per server and is replaced by the next count |
 | Tags you author (**the text you wrote**) | Saved canned responses for the whole server. A manager can delete one with `/tag delete`. | No, managed by the server |
 | Starboard entries (message IDs only, no content) | Keeps a highlighted message's star count in sync. Removed when the original message is deleted. | No, keyed to a message not a person |
 | Server settings and bot state (channel/role IDs, last announcement dates) | Configuration. Contains no personal data. | Not applicable |

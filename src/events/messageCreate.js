@@ -10,6 +10,7 @@ const { getXpMultiplier } = require('../utils/isDoubleXp');
 const { evaluateContentFilter, enforceContentFilter, runAntiSpam } = require('../utils/autoMod');
 const { clearAfk, getAfk } = require('../utils/afkManager');
 const { queueXp } = require('../utils/xpCache');
+const { handleCountingMessage } = require('../utils/countingManager');
 const { getGuildConfig } = require('../utils/guildConfigCache');
 const logger = require('../utils/logger');
 
@@ -38,6 +39,15 @@ module.exports = {
                 if (await runAntiSpam(message, guildConfig)) return;
             } catch (err) {
                 logger.error('Anti-spam check failed:', err);
+            }
+        }
+
+        // 2b. Counting game, only in the configured channel.
+        if (guildConfig.countingChannelId && message.channelId === guildConfig.countingChannelId) {
+            try {
+                await handleCountingMessage(message);
+            } catch (err) {
+                logger.error('Counting handler failed:', err);
             }
         }
 

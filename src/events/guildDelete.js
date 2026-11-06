@@ -21,6 +21,7 @@ const Tag = require('../database/TagSchema');
 const ReactionRole = require('../database/ReactionRoleSchema');
 const Birthday = require('../database/BirthdaySchema');
 const TempVoice = require('../database/TempVoiceSchema');
+const Counting = require('../database/CountingSchema');
 const { invalidateGuildConfig } = require('../utils/guildConfigCache');
 const logger = require('../utils/logger');
 
@@ -48,7 +49,7 @@ module.exports = {
             users: User, lfgSessions: LfgSession, state: BotState, config: GuildConfig,
             infractions: Infraction, reminders: Reminder, giveaways: Giveaway, events: EventModel,
             streamers: Streamer, suggestions: Suggestion, starboard: Starboard, tempBans: TempBan,
-            tags: Tag, reactionRoles: ReactionRole, birthdays: Birthday, tempVoice: TempVoice,
+            tags: Tag, reactionRoles: ReactionRole, birthdays: Birthday, tempVoice: TempVoice, counting: Counting,
         };
 
         try {
