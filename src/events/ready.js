@@ -226,6 +226,15 @@ module.exports = {
             immediate: true,
         });
 
+        // 3a. Temp voice lobbies, reload after a restart and drop emptied ones
+        const { sweepTempVoice } = require('../utils/tempVoiceManager');
+        startPolling({
+            name: 'TEMPVOICE_SWEEP',
+            task: () => sweepTempVoice(client),
+            intervalMs: (config.tuning && config.tuning.tempVoiceSweepMs) || 30 * 60 * 1000,
+            immediate: true,
+        });
+
         // 3b. Game-night event scheduler, pings rosters at start time (1-min ticks)
         const { startEventScheduler } = require('../utils/eventManager');
         startEventScheduler(client);

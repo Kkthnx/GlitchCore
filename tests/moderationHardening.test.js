@@ -175,6 +175,19 @@ describe('raid mode hold and release', () => {
         expect(raid.heldCount('g1')).toBe(0);
     });
 
+    test('with the verification gate on, release hands out no role', async () => {
+        raid.setRaidMode('g1', true, 60000, false, 1000);
+        ['here', 'banned'].forEach(id => raid.recordHeldJoin('g1', id));
+        const here = member();
+        getGuildConfig.mockResolvedValueOnce({ verifyRoleId: 'gate' });
+
+        const result = await releaseHeldMembers(makeGuild({ here }));
+
+        expect(result).toMatchObject({ released: 1, gone: 1, failed: 0, noRole: false });
+        expect(here.roles.add).not.toHaveBeenCalled();
+        expect(raid.heldCount('g1')).toBe(0);
+    });
+
     test('with no member role configured the held list is kept', async () => {
         raid.setRaidMode('g1', true, 60000, false, 1000);
         raid.recordHeldJoin('g1', 'a');

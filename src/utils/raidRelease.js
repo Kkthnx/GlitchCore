@@ -7,6 +7,7 @@
 
 const channels = require('./channels');
 const { heldCount, takeHeldMembers } = require('./raidMode');
+const { getGuildConfig } = require('./guildConfigCache');
 const logger = require('./logger');
 
 /**
@@ -17,10 +18,23 @@ const logger = require('./logger');
  * Nothing is forgotten unless the role exists, so a missing auto-role config
  * doesn't throw away the list.
  *
+ * With the verification gate on, nobody gets a role here. Releasing only clears
+ * the hold, and the genuine joiners still have to pass the gate themselves.
+ *
  * @param {import('discord.js').Guild} guild
  * @returns {Promise<{ released: number, gone: number, failed: number, noRole: boolean }>}
  */
 async function releaseHeldMembers(guild) {
+    const guildConfig = await getGuildConfig(guild.id) || {};
+    if (guildConfig.verifyRoleId) {
+        const ids = takeHeldMembers(guild.id);
+        let present = 0;
+        for (const id of ids) {
+            if (await guild.members.fetch(id).catch(() => null)) present += 1;
+        }
+        return { released: present, gone: ids.length - present, failed: 0, noRole: false, waiting: 0 };
+    }
+
     const role = channels.roles.member && guild.roles.cache.get(channels.roles.member);
     if (!role) return { released: 0, gone: 0, failed: 0, noRole: true, waiting: heldCount(guild.id) };
 

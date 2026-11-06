@@ -5,7 +5,7 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType } = require('discord.js');
 const { getOrCreateGuildConfig, invalidateGuildConfig } = require('../utils/guildConfigCache');
 const { isSnowflake } = require('../utils/snowflake');
 
@@ -41,7 +41,7 @@ const SETTABLE_KEYS = [
     'textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes',
     'minAccountAgeDays', 'newAccountHoldMinutes', 'cjkExemptChannelIds',
     'strikeWarnThreshold', 'strikeWindowDays', 'strikeAction',
-    'strikeTimeoutMinutes', 'autoModStrikes',
+    'strikeTimeoutMinutes', 'autoModStrikes', 'tempVoiceHubChannelId',
 ];
 
 module.exports = {
@@ -102,6 +102,8 @@ module.exports = {
                 `levelUpLogChannelId: ${config.levelUpLogChannelId || 'not set'}`,
                 `modLogChannelId: ${config.modLogChannelId || 'not set'}`,
                 `doubleXpRoleId: ${config.doubleXpRoleId || 'not set'}`,
+                `tempVoiceHubChannelId: ${config.tempVoiceHubChannelId || 'not set'}`,
+                `verifyRoleId: ${config.verifyRoleId || 'off'} (manage with /verify)`,
                 `antiSpamEnabled: ${config.antiSpamEnabled}`,
                 `contentFilterEnabled: ${config.contentFilterEnabled}`,
                 `auditLogEnabled: ${config.auditLogEnabled}`,
@@ -157,6 +159,15 @@ module.exports = {
                     return interaction.reply({ content: 'Give comma-separated channel IDs, e.g. `123456789012345678, 987654321098765432`.', flags: MessageFlags.Ephemeral });
                 }
                 config[key] = ids;
+            } else if (key === 'tempVoiceHubChannelId') {
+                const hub = interaction.guild.channels.cache.get(value.trim());
+                if (value.trim().toLowerCase() === 'none') {
+                    config[key] = null;
+                } else if (!hub || hub.type !== ChannelType.GuildVoice) {
+                    return interaction.reply({ content: 'Give the ID of a voice channel in this server, or `none` to turn lobbies off.', flags: MessageFlags.Ephemeral });
+                } else {
+                    config[key] = hub.id;
+                }
             } else if (key === 'strikeAction') {
                 if (!STRIKE_ACTIONS.includes(value.toLowerCase())) {
                     return interaction.reply({ content: `That value must be one of: ${STRIKE_ACTIONS.join(', ')}.`, flags: MessageFlags.Ephemeral });

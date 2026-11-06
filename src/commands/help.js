@@ -12,7 +12,7 @@ const { chunkLines } = require('../utils/embedText');
 // Admin-only commands are grouped separately so they don't clutter the
 // member-facing list. Everything else is auto-discovered from the loaded
 // command collection, so this never drifts out of sync with reality.
-const ADMIN_COMMANDS = new Set(['settings', 'levelrewards', 'giveaway', 'streamers', 'reactionrole', 'warn', 'timeout', 'kick', 'ban', 'unban', 'infractions', 'purge', 'slowmode', 'lock', 'unlock']);
+const ADMIN_COMMANDS = new Set(['settings', 'verify', 'massban', 'raidmode', 'levelrewards', 'giveaway', 'streamers', 'reactionrole', 'warn', 'timeout', 'kick', 'ban', 'unban', 'infractions', 'purge', 'slowmode', 'lock', 'unlock']);
 
 // Adds a group as one or more embed fields, never exceeding Discord's 1024-char
 // field limit. Continuation fields use a zero-width name so it reads as one

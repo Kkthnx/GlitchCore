@@ -12,6 +12,7 @@ const { CONFIRM_ID: FORGET_CONFIRM_ID, handleForgetConfirm } = require('../utils
 const { ENTER_ID: GIVEAWAY_ENTER_ID, handleGiveawayEntry } = require('../utils/giveawayManager');
 const { handleSuggestionButton } = require('../utils/suggestionManager');
 const { APPEAL_MODAL_ID, handleAppealSubmit } = require('../utils/appealManager');
+const { VERIFY_ID, handleVerifyButton } = require('../utils/verifyManager');
 const { MessageFlags } = require('discord.js');
 const { consume } = require('../utils/commandCooldowns');
 const logger = require('../utils/logger');
@@ -116,6 +117,7 @@ module.exports = {
                 else if (interaction.customId === FORGET_CONFIRM_ID) await handleForgetConfirm(interaction);
                 else if (interaction.customId === OPEN_ID)           await handleOpenPicker(interaction);
                 else if (interaction.customId === GIVEAWAY_ENTER_ID)  await handleGiveawayEntry(interaction);
+                else if (interaction.customId === VERIFY_ID)          await handleVerifyButton(interaction);
                 else if (interaction.customId.startsWith('suggest:')) await handleSuggestionButton(interaction);
             } catch (error) {
                 logger.error('Button interaction error:', error);

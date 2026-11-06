@@ -87,6 +87,13 @@ const guildConfigSchema = new mongoose.Schema({
     streamerChannelId: { type: String, default: null },
     streamerPingRoleId: { type: String, default: null },
 
+    // 18+ verification gate. When set, joining no longer hands out the
+    // automatic member role, clicking the panel button grants this one instead.
+    verifyRoleId: { type: String, default: null },
+
+    // Join-to-create voice hub. Joining this channel spawns a private lobby.
+    tempVoiceHubChannelId: { type: String, default: null },
+
     // Suggestion board channel.
     suggestionChannelId: { type: String, default: null },
 

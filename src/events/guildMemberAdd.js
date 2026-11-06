@@ -82,13 +82,15 @@ module.exports = {
             }
         }
 
-        // 1. Auto-Role Assignment
+        // 1. Auto-Role Assignment. Skipped when the verification gate is on,
+        // because the gate's button hands out the role instead.
         try {
-            const memberRole = channels.roles.member
+            const memberRole = !guildConfig.verifyRoleId
+                && channels.roles.member
                 && member.guild.roles.cache.get(channels.roles.member);
             if (memberRole) {
                 await member.roles.add(memberRole);
-            } else if (channels.roles.member) {
+            } else if (channels.roles.member && !guildConfig.verifyRoleId) {
                 logger.warn(`[WELCOME] Auto-role ${channels.roles.member} not found in ${member.guild.id}.`);
             }
             // No auto-role configured at all is a valid setup, so it is quiet.
