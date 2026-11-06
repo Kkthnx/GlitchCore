@@ -41,7 +41,7 @@ const SETTABLE_KEYS = [
     'textCooldownSeconds', 'voiceXpPerTick', 'voiceTickMinutes',
     'minAccountAgeDays', 'newAccountHoldMinutes', 'cjkExemptChannelIds',
     'strikeWarnThreshold', 'strikeWindowDays', 'strikeAction',
-    'strikeTimeoutMinutes', 'autoModStrikes', 'tempVoiceHubChannelId', 'countingChannelId',
+    'strikeTimeoutMinutes', 'autoModStrikes', 'tempVoiceHubChannelId', 'countingChannelId', 'weeklyMvpRoleId',
 ];
 
 module.exports = {
@@ -104,6 +104,7 @@ module.exports = {
                 `doubleXpRoleId: ${config.doubleXpRoleId || 'not set'}`,
                 `tempVoiceHubChannelId: ${config.tempVoiceHubChannelId || 'not set'}`,
                 `countingChannelId: ${config.countingChannelId || 'not set'}`,
+                `weeklyMvpRoleId: ${config.weeklyMvpRoleId || 'not set'}`,
                 `verifyRoleId: ${config.verifyRoleId || 'off'} (manage with /verify)`,
                 `antiSpamEnabled: ${config.antiSpamEnabled}`,
                 `contentFilterEnabled: ${config.contentFilterEnabled}`,
@@ -168,6 +169,15 @@ module.exports = {
                     return interaction.reply({ content: 'Give the ID of a voice channel in this server, or `none` to turn lobbies off.', flags: MessageFlags.Ephemeral });
                 } else {
                     config[key] = hub.id;
+                }
+            } else if (key === 'weeklyMvpRoleId') {
+                const role = interaction.guild.roles.cache.get(value.trim());
+                if (value.trim().toLowerCase() === 'none') {
+                    config[key] = null;
+                } else if (!role || role.managed || role.id === interaction.guild.id) {
+                    return interaction.reply({ content: 'Give the ID of a normal role in this server, or `none` to turn the MVP role off.', flags: MessageFlags.Ephemeral });
+                } else {
+                    config[key] = role.id;
                 }
             } else if (key === 'countingChannelId') {
                 const target = interaction.guild.channels.cache.get(value.trim());

@@ -15,6 +15,9 @@ const userSchema = new mongoose.Schema({
     totalMessages: { type: Number, default: 0 },
     cardStyle: { type: String, default: 'default' },
 
+    // XP earned since the last Monday reset in the community timezone.
+    weeklyXp: { type: Number, default: 0 },
+
     // Daily streak claim (/daily)
     dailyStreak: { type: Number, default: 0 },
     lastDailyDate: { type: String, default: null }, // YYYY-MM-DD in community tz

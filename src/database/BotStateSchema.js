@@ -24,6 +24,11 @@ const botStateSchema = new mongoose.Schema({
     // restart on the same build never re-announces.
     lastAnnouncedCommit: { type: String, default: null },
 
+    // Monday (YYYY-MM-DD, community timezone) of the last weekly rollover, so a
+    // restart in the same week never announces or resets twice.
+    lastWeeklyKey: { type: String, default: null },
+    lastWeeklyWinnerId: { type: String, default: null },
+
     // When slash commands were last registered successfully, so a crash loop
     // respawning shard 0 doesn't burn the command-registration rate limit by
     // re-registering on every boot.

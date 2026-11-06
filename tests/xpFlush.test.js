@@ -64,7 +64,7 @@ describe('flushXpBuffer', () => {
         expect(opUserIds(User.bulkWrite.mock.calls[0][0])).toEqual(['u1', 'u2']);
         // upserts carry the $inc payloads
         const u1op = User.bulkWrite.mock.calls[0][0][0].updateOne;
-        expect(u1op.update.$inc).toEqual({ xp: 15, totalMessages: 2 });
+        expect(u1op.update.$inc).toEqual({ xp: 15, weeklyXp: 15, totalMessages: 2 });
         expect(u1op.upsert).toBe(true);
 
         // A second flush is a no-op: nothing was re-queued.

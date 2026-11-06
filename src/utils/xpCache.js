@@ -124,7 +124,7 @@ async function flushXpBuffer(client = null) {
 
     for (const [key, data] of batch.entries()) {
         const [userId, guildId] = key.split('::');
-        const incOps = { xp: data.xp };
+        const incOps = { xp: data.xp, weeklyXp: data.xp };
         if (data.textMessageCount) incOps.totalMessages = data.textMessageCount;
 
         bulkOps.push({

@@ -9,6 +9,7 @@ Built on Discord.js v14 and Node.js, stored in MongoDB, and run under a sharding
 **Levels and activity**
 - XP from text and voice, with per-server tuning. Voice only pays when you are unmuted and not alone.
 - Rank cards drawn in code (`/rank`, 10 styles via `/rankstyle`), `/leaderboard`, `/profile`, and a `/daily` streak.
+- A weekly leaderboard (`/leaderboard period:This week`) that resets every Monday in your timezone. The top five get announced, and an optional MVP role moves to the winner (`weeklyMvpRoleId`).
 - Milestone level roles that create themselves (`/levelrewards`), plus Double XP every Friday and Saturday with an opt-in ping role.
 
 **Community**
@@ -65,8 +66,9 @@ Run these as someone with Manage Server.
 3. `/levelrewards milestones interval:10` to create the Level 10, 20, 30 roles on demand.
 4. `/roles preset pack:platforms` and friends to create the self-assign roles.
 5. `/settings set tempVoiceHubChannelId <voice channel id>` to turn on join-to-create lobbies.
-6. `/settings set countingChannelId <text channel id>` to start the counting game.
-7. `/verify setup role:@Member` then `/verify post channel:#rules` to put the age gate in front of your channels. With the gate on, new members stop getting the automatic member role, so lock your channels to the verify role first.
+6. `/settings set weeklyMvpRoleId <role id>` if you want a role passed to each week's top earner.
+7. `/settings set countingChannelId <text channel id>` to start the counting game.
+8. `/verify setup role:@Member` then `/verify post channel:#rules` to put the age gate in front of your channels. With the gate on, new members stop getting the automatic member role, so lock your channels to the verify role first.
 
 ## Configuration
 

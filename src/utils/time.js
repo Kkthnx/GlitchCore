@@ -158,8 +158,34 @@ function addWeeksKeepingLocalTime(date, weeks = 1) {
     return zonedWallTimeToDate(`${newDate} ${timePart}`);
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The Monday that starts the local week containing `date`, as "YYYY-MM-DD".
+ * Used as the key for weekly resets. Pure calendar arithmetic on the local
+ * date, so DST changes cannot move a week boundary.
+ */
+function getLocalWeekStart(date = new Date()) {
+    const sinceMonday = (getLocalDay(date) + 6) % 7;
+    let day = getLocalDateString(date);
+    for (let i = 0; i < sinceMonday; i += 1) day = previousLocalDate(day);
+    return day;
+}
+
+/**
+ * Milliseconds until the next Monday 00:00 in the community timezone. Built on
+ * the midnight helper plus whole days, so it can be an hour off on the week of a
+ * DST change. Fine for a "resets in" label, not for scheduling.
+ */
+function msUntilNextWeekStart(date = new Date()) {
+    const daysToMonday = ((8 - getLocalDay(date)) % 7) || 7;
+    return msUntilNextLocalMidnight(date) + (daysToMonday - 1) * DAY_MS;
+}
+
 module.exports = {
     TIMEZONE,
+    getLocalWeekStart,
+    msUntilNextWeekStart,
     getLocalDateString,
     getLocalDay,
     getLocalDayName,

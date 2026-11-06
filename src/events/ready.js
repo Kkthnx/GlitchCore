@@ -235,6 +235,10 @@ module.exports = {
             immediate: true,
         });
 
+        // 3a2. Weekly MVP rollover, hourly check, acts once per local week
+        const { startWeeklyScheduler } = require('../utils/weeklyManager');
+        startWeeklyScheduler(client);
+
         // 3b. Game-night event scheduler, pings rosters at start time (1-min ticks)
         const { startEventScheduler } = require('../utils/eventManager');
         startEventScheduler(client);

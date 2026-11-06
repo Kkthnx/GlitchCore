@@ -9,6 +9,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const User = require('../../database/UserSchema');
 const { PALETTE } = require('../../utils/brand');
 const { getUserRank } = require('../../utils/ranking');
+const { msUntilNextWeekStart } = require('../../utils/time');
 
 const ESC = '\x1b';
 const G = `${ESC}[1;32m`;  // green
@@ -32,7 +33,11 @@ function row(rank, name, level, xp) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('leaderboard')
-        .setDescription('Show the top ranked members in Glitch Haven'),
+        .setDescription('Show the top ranked members in Glitch Haven')
+        .addStringOption(o => o
+            .setName('period')
+            .setDescription('All-time levels or XP earned this week (default all-time)')
+            .addChoices({ name: 'All time', value: 'alltime' }, { name: 'This week', value: 'weekly' })),
 
     // Cooldown: sorted scan, a count, and a bulk member fetch.
     cooldown: 10,
@@ -40,14 +45,19 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
         const guildId = interaction.guild.id;
+        const weekly = interaction.options.getString('period') === 'weekly';
 
         const [topUsers, totalRanked] = await Promise.all([
-            User.find({ guildId }, { userId: 1, level: 1, xp: 1 }).sort({ level: -1, xp: -1 }).limit(10).lean(),
-            User.countDocuments({ guildId }),
+            weekly
+                ? User.find({ guildId, weeklyXp: { $gt: 0 } }, { userId: 1, level: 1, xp: 1, weeklyXp: 1 }).sort({ weeklyXp: -1 }).limit(10).lean()
+                : User.find({ guildId }, { userId: 1, level: 1, xp: 1 }).sort({ level: -1, xp: -1 }).limit(10).lean(),
+            weekly ? User.countDocuments({ guildId, weeklyXp: { $gt: 0 } }) : User.countDocuments({ guildId }),
         ]);
 
         if (!topUsers.length) {
-            return interaction.editReply('`ERROR_204` : No rankings yet. Be the first to start chatting.');
+            return interaction.editReply(weekly
+                ? '`ERROR_204` : Nobody has earned XP this week yet. Go be first.'
+                : '`ERROR_204` : No rankings yet. Be the first to start chatting.');
         }
 
         // Resolve display names, preferring the cache. The top of the leaderboard
@@ -68,12 +78,12 @@ module.exports = {
         }
         const nameOf = id => names.get(id) || 'Unknown';
 
-        const headerRow = `${col('RNK', 4)}${col('PLAYER', NAME_W)}  ${col('LVL', 6)}  ${'XP'.padStart(9)}`;
-        const rows = topUsers.map((u, i) => row(`#${String(i + 1).padStart(2, '0')}`, nameOf(u.userId), u.level, u.xp));
+        const headerRow = `${col('RNK', 4)}${col('PLAYER', NAME_W)}  ${col('LVL', 6)}  ${(weekly ? 'WEEK XP' : 'XP').padStart(9)}`;
+        const rows = topUsers.map((u, i) => row(`#${String(i + 1).padStart(2, '0')}`, nameOf(u.userId), u.level, weekly ? u.weeklyXp : u.xp));
 
         const block = [
             '```ansi',
-            `${G}> DECRYPTING RANKINGS...  PLAYERS: ${totalRanked}${RST}`,
+            `${G}> DECRYPTING ${weekly ? 'WEEKLY ' : ''}RANKINGS...  PLAYERS: ${totalRanked}${RST}`,
             `${G}${headerRow}${RST}`,
             ...rows,
             '```',
@@ -85,12 +95,16 @@ module.exports = {
             .setTitle('> GLITCH HAVEN // TOP PLAYERS')
             .setThumbnail(interaction.guild.iconURL() || null)
             .setDescription(block)
-            .setFooter({ text: 'GLITCH_HAVEN // LEADERBOARD' })
+            .setFooter({ text: weekly ? 'GLITCH_HAVEN // WEEKLY_LEADERBOARD' : 'GLITCH_HAVEN // LEADERBOARD' })
             .setTimestamp();
+        if (weekly) {
+            const resetAt = Math.floor((Date.now() + msUntilNextWeekStart()) / 1000);
+            embed.addFields({ name: '> RESETS', value: `<t:${resetAt}:R>` });
+        }
 
         // If the requester is not in the top 10, show their standing too.
         const inTop = topUsers.some(u => u.userId === interaction.user.id);
-        if (!inTop) {
+        if (!inTop && !weekly) {
             const me = await User.findOne({ userId: interaction.user.id, guildId }, { level: 1, xp: 1 }).lean();
             if (me) {
                 const rank = await getUserRank(guildId, me.level, me.xp);

@@ -15,7 +15,7 @@ and no data at all about servers it is not in.
 | Data | Stored because | Removed by `/forgetme delete` |
 | :--- | :--- | :--- |
 | Discord User ID + Server ID | Associates everything below with you in a given server. | Yes |
-| XP, level, total message count | Powers leveling, `/rank` and `/leaderboard`. | Yes |
+| XP, weekly XP, level, total message count | Powers leveling, `/rank` and `/leaderboard`. | Yes |
 | Rank-card style preference | Renders your chosen `/rankstyle` theme. | Yes |
 | Daily streak + last claim date | Powers `/daily` streak rewards. | Yes |
 | Birthday (month and day, **no year**) | Powers the birthday shoutout, if you opt in with `/birthday set`. | Yes |
