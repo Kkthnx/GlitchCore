@@ -110,8 +110,13 @@ function scheduleMidnightCheck(client) {
     const msUntilMidnight = msUntilNextLocalMidnight();
 
     setTimeout(async () => {
+        // Per-guild catch: one rejected check used to skip the reschedule below,
+        // which ended every later Double XP announcement until a restart.
         await Promise.all(
-            Array.from(client.guilds.cache.values()).map(guild => checkAndAnnounceDoubleXp(client, guild.id))
+            Array.from(client.guilds.cache.values()).map(guild =>
+                checkAndAnnounceDoubleXp(client, guild.id)
+                    .catch(err => logger.error(`[DOUBLEXP] Midnight check failed for guild ${guild.id}:`, err))
+            )
         );
         scheduleMidnightCheck(client);
     }, msUntilMidnight);

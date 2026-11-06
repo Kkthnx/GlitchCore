@@ -15,8 +15,8 @@ const logger = require('./utils/logger');
 // ---------------------------------------------------------------------------
 // Global error handlers, prevents the bot from dying on unhandled rejections
 // ---------------------------------------------------------------------------
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Promise Rejection:', { reason, promise });
+process.on('unhandledRejection', (reason) => {
+    logger.error(`Unhandled Promise Rejection: ${reason?.stack || reason}`);
 });
 process.on('uncaughtException', (err) => {
     logger.error('Uncaught Exception:', err);
@@ -98,8 +98,8 @@ setInterval(() => {
 // Note: Background XP loops are safely managed within events/ready.js 
 // to guarantee Discord guild caches are loaded before data aggregation hooks begin.
 let mongoRetryCount = 0;
-const MAX_RETRY_ATTEMPTS = 5;
 const BASE_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 60 * 1000;
 
 function connectMongo() {
     mongoose.connect(process.env.MONGO_URI, {
@@ -118,14 +118,14 @@ function connectMongo() {
         .catch((err) => {
             logger.error('MongoDB Connection Error:', err.message);
 
-            if (mongoRetryCount < MAX_RETRY_ATTEMPTS) {
-                mongoRetryCount += 1;
-                const delayMs = BASE_RETRY_DELAY * Math.pow(2, mongoRetryCount - 1);
-                logger.warn(`Retrying MongoDB connection in ${delayMs}ms (attempt ${mongoRetryCount}/${MAX_RETRY_ATTEMPTS})...`);
-                setTimeout(connectMongo, delayMs);
-            } else {
-                logger.error('MongoDB connection failed after maximum retries. Bot will continue without DB.');
-            }
+            // Never give up. Once the first connect succeeds the driver reconnects
+            // by itself, but a failed first connect leaves nothing retrying, so a
+            // database that was down at boot used to leave the bot without storage
+            // until someone restarted it.
+            mongoRetryCount += 1;
+            const delayMs = Math.min(BASE_RETRY_DELAY * Math.pow(2, Math.min(mongoRetryCount - 1, 10)), MAX_RETRY_DELAY);
+            logger.warn(`Retrying MongoDB connection in ${delayMs}ms (attempt ${mongoRetryCount})...`);
+            setTimeout(connectMongo, delayMs);
         });
 }
 

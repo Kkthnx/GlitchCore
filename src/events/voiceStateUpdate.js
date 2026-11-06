@@ -149,8 +149,10 @@ async function tickVoiceSessions(client) {
             processVoiceXp(userId, guildId, member, client, ticks, { guildConfig, voiceXpPerTick })
                 .catch(err => logger.error('[VoiceXP] Tick grant failed:', err));
 
-            // Reset the joinTime so they can start earning the next tick
-            voiceSessions.set(sessionKey, now);
+            // Advance by the ticks paid, not to "now", so the part-tick already
+            // served carries over. Resetting to now cost up to a minute of
+            // voice time on every payout (the check runs once a minute).
+            voiceSessions.set(sessionKey, joinTime + ticks * voiceTickMinutes * 60 * 1000);
         }
     }
 }
@@ -212,6 +214,7 @@ module.exports = {
     voiceSessions,
     isMemberActive,
     updateMemberSession,
+    tickVoiceSessions,
     startVoiceXpSync,
     finalizeVoiceSessions,
     async execute(oldState, newState, client) {
@@ -241,8 +244,12 @@ module.exports = {
             }
 
             const timer = setTimeout(async () => {
+                // Release the slot before awaiting. A newer event can claim the
+                // key while the update below is in flight, and deleting after
+                // the await would drop that newer timer from the map so a later
+                // event could no longer cancel it.
+                if (voiceDebounceTimers.get(debounceKey) === timer) voiceDebounceTimers.delete(debounceKey);
                 await updateMemberSession(member, client).catch(err => logger.error('[VoiceXP] updateMemberSession failed:', err));
-                voiceDebounceTimers.delete(debounceKey);
             }, VOICE_DEBOUNCE_MS); // 5-second stabilization frame
 
             voiceDebounceTimers.set(debounceKey, timer);

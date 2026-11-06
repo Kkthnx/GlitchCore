@@ -9,6 +9,14 @@ require('dotenv').config({ quiet: true });
 const { ShardingManager } = require('discord.js');
 const path = require('path');
 
+// Fail here with a clear message. A shard that exits on a missing variable
+// would just be respawned into the same failure.
+const missingEnv = ['TOKEN', 'MONGO_URI'].filter(name => !process.env[name]);
+if (missingEnv.length > 0) {
+    console.error(`[SHARD] Missing required environment variable(s): ${missingEnv.join(', ')}. Copy .env.example to .env and fill them in.`);
+    process.exit(1);
+}
+
 const manager = new ShardingManager(path.join(__dirname, 'src/index.js'), {
     token: process.env.TOKEN,
     // 'auto' lets Discord pick the shard count from guild size. Set a number to pin it.
