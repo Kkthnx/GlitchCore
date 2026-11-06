@@ -1,6 +1,6 @@
 # GlitchCore Privacy Policy
 
-_Last updated: 2026-09-24_
+_Last updated: 2026-11-06_
 
 GlitchCore ("the bot") is a Discord bot that provides leveling, voice/text XP,
 moderation, events, and looking-for-group (LFG) features. This policy explains
@@ -26,6 +26,7 @@ and no data at all about servers it is not in.
 | Twitch channel link, if an admin links a tracked channel to your account | Credits you on go-live announcements. | The link, yes; the channel itself is server config |
 | Suggestions you post (**the text you wrote**, vote tallies) | Published to the suggestion channel like a message. | **No**, see below |
 | Moderation records (type, reason, moderator, duration) | A server's own record of moderation actions. | **No**, see below |
+| Temp voice lobby owner (user ID) | Lets only the owner rename, limit or lock their lobby. Deleted when the lobby empties. | Not needed, it removes itself when the lobby closes |
 | Tags you author (**the text you wrote**) | Saved canned responses for the whole server. A manager can delete one with `/tag delete`. | No, managed by the server |
 | Starboard entries (message IDs only, no content) | Keeps a highlighted message's star count in sync. Removed when the original message is deleted. | No, keyed to a message not a person |
 | Server settings and bot state (channel/role IDs, last announcement dates) | Configuration. Contains no personal data. | Not applicable |

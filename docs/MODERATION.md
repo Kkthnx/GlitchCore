@@ -85,7 +85,13 @@ When a member collects `strikeWarnThreshold` warns inside `strikeWindowDays`, `s
 
 Turns on by hand with `/raidmode on` or automatically when more than 10 members join in 20 seconds. While on, new joins get no auto-role, no welcome DM and no welcome post. State lives in memory, so a restart ends it.
 
-Held members are remembered, up to 500 per server, even after raid mode ends. The usual cleanup is `/massban` the raiders, then `/raidmode release` to give the member role to everyone held who is still in the server. `/raidmode status` shows how many are waiting. If no member role is configured, release does nothing and keeps the list.
+Held members are remembered, up to 500 per server, even after raid mode ends. The usual cleanup is `/massban` the raiders, then `/raidmode release` to give the member role to everyone held who is still in the server. `/raidmode status` shows how many are waiting. If no member role is configured, release does nothing and keeps the list. With the verification gate on, release hands out no role at all. It only clears the hold, and the members still have to press the verify button.
+
+## Verification gate
+
+`/verify setup` picks the role members earn, `/verify post` puts the panel with the 18+ and rules button in a channel, and `/verify off` goes back to the automatic member role. While the gate is on, new joins do not get `MEMBER_ROLE_ID`, so lock your channels to the verify role first.
+
+The button refuses to work during raid mode, when the role was deleted, and when the bot's role sits below the verify role. A click only proves the member said yes, it is not an identity check.
 
 ## Known limits
 
