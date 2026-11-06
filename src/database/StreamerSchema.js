@@ -17,6 +17,8 @@ const streamerSchema = new mongoose.Schema({
 
     isLive: { type: Boolean, default: false },
     lastStreamId: { type: String, default: null },
+    // Consecutive polls that did not see the stream while isLive was set.
+    missedPolls: { type: Number, default: 0 },
 
     // The live-announcement message, so it can be cleaned up when they go offline.
     liveMessageId: { type: String, default: null },

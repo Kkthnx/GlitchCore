@@ -5,7 +5,6 @@
  * prohibited. See the LICENSE file for full terms.
  */
 
-const logger = require('./logger');
 const config = require('../../config.json');
 
 // A stalled socket used to hang the whole go-live poller: the overlap guard
@@ -65,12 +64,11 @@ async function getLiveStreams(logins) {
     const out = [];
     for (let i = 0; i < logins.length; i += 100) {
         const batch = logins.slice(i, i + 100).map(l => `user_login=${encodeURIComponent(l)}`).join('&');
-        try {
-            const json = await helix(`streams?${batch}`);
-            out.push(...(json.data || []));
-        } catch (err) {
-            logger.error('[TWITCH] getLiveStreams batch failed:', err.message);
-        }
+        // A failed batch has to fail the whole poll. Swallowing it returned a
+        // partial list, so every streamer in that batch looked offline and their
+        // announcements were deleted, then posted again on the next good poll.
+        const json = await helix(`streams?${batch}`);
+        out.push(...(json.data || []));
     }
     return out;
 }

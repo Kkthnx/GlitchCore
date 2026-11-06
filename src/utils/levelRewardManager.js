@@ -10,6 +10,42 @@ const { PALETTE } = require('./brand');
 const { currentMilestone, roleNameFor, milestoneNameRegex } = require('./levelRoles');
 const logger = require('./logger');
 
+// Role creations in flight, keyed by guild and lowercase name. A flush can push
+// dozens of members past the same milestone at once, and each one used to see an
+// empty role cache while the first creation was still pending, so the server
+// ended up with several roles of the same name.
+const pendingRoles = new Map();
+
+async function findOrCreateRole(guild, name, reason) {
+    const existing = guild.roles.cache.find(r => r.name.toLowerCase() === name.toLowerCase());
+    if (existing) return existing;
+
+    const key = `${guild.id}:${name.toLowerCase()}`;
+    const inflight = pendingRoles.get(key);
+    if (inflight) return inflight;
+
+    const creation = guild.roles.create({
+        name,
+        colors: { primaryColor: PALETTE.accent },
+        reason,
+    }).catch(err => {
+        logger.error(`[LEVEL_ROLE] Could not create milestone role "${name}": ${err.message}`);
+        return null;
+    }).finally(() => pendingRoles.delete(key));
+
+    pendingRoles.set(key, creation);
+    return creation;
+}
+
+/**
+ * Explicit reward roles a member has earned by reaching `level`. Every reward at
+ * or below the level counts, so someone who jumps from level 4 to 6 in one flush
+ * still gets the level 5 role instead of skipping past it.
+ */
+function rewardsEarned(rewardRoles, level) {
+    return (rewardRoles || []).filter(reward => reward.level <= level);
+}
+
 // Ensures a member holds the milestone role for their current level, creating
 // the role on demand and (unless stacking is enabled) removing superseded
 // milestone roles so they read as a single prestige rank.
@@ -23,18 +59,8 @@ async function applyMilestoneRole(member, level, config) {
     const guild = member.guild;
     const name = roleNameFor(config.levelRoleTemplate, milestone);
 
-    let role = guild.roles.cache.find(r => r.name.toLowerCase() === name.toLowerCase());
-    if (!role) {
-        role = await guild.roles.create({
-            name,
-            colors: { primaryColor: PALETTE.accent },
-            reason: `Milestone role for level ${milestone}`,
-        }).catch(err => {
-            logger.error(`[LEVEL_ROLE] Could not create milestone role "${name}": ${err.message}`);
-            return null;
-        });
-        if (!role) return;
-    }
+    const role = await findOrCreateRole(guild, name, `Milestone role for level ${milestone}`);
+    if (!role) return;
 
     if (!member.roles.cache.has(role.id)) {
         await member.roles.add(role.id, 'Level milestone reached').catch(err =>
@@ -64,8 +90,7 @@ async function applyLevelRewards(userId, guildId, level, client, member = null) 
     if (!member) return;
 
     // 1. Explicit per-level reward roles (configured via /settings reward).
-    const rewards = (config.levelRewardRoles || []).filter(reward => reward.level === level);
-    for (const reward of rewards) {
+    for (const reward of rewardsEarned(config.levelRewardRoles, level)) {
         try {
             if (!member.roles.cache.has(reward.roleId)) {
                 await member.roles.add(reward.roleId, 'Level reward');
@@ -84,4 +109,4 @@ async function applyLevelRewards(userId, guildId, level, client, member = null) 
     }
 }
 
-module.exports = { applyLevelRewards, applyMilestoneRole };
+module.exports = { applyLevelRewards, applyMilestoneRole, rewardsEarned, findOrCreateRole };

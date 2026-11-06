@@ -14,6 +14,10 @@ const logger = require('./logger');
 const config = require('../../config.json');
 
 const TWITCH_PURPLE = 0x9146ff;
+// Twitch's stream list drops a live channel for a poll or two now and then. Going
+// offline needs this many misses in a row, or a blip deletes the announcement and
+// the next poll posts it again with a fresh role ping.
+const OFFLINE_GRACE_POLLS = 2;
 const POLL_INTERVAL_MS = (config.tuning && config.tuning.twitchPollMs) || 3 * 60 * 1000;
 
 async function announceLive(client, streamer, stream) {
@@ -97,6 +101,11 @@ async function pollStreamers(client) {
     for (const streamer of streamers) {
         const stream = byLogin.get(streamer.twitchLogin);
         if (stream) {
+            // Seen again, so any run of misses is over.
+            if (streamer.missedPolls) {
+                streamer.missedPolls = 0;
+                await streamer.save().catch(err => logger.warn('[TWITCH] Streamer save failed:', err.message));
+            }
             // Announce only on a fresh stream (new id) or a live edge.
             if (!streamer.isLive || streamer.lastStreamId !== stream.id) {
                 streamer.isLive = true;
@@ -105,8 +114,14 @@ async function pollStreamers(client) {
                 await announceLive(client, streamer, stream).catch(err => logger.error('[TWITCH] Announce failed:', err));
             }
         } else if (streamer.isLive) {
-            // Went offline, remove the announcement and reset state.
+            streamer.missedPolls = (streamer.missedPolls || 0) + 1;
+            if (streamer.missedPolls < OFFLINE_GRACE_POLLS) {
+                await streamer.save().catch(err => logger.warn('[TWITCH] Streamer save failed:', err.message));
+                continue;
+            }
+            // Missed enough polls in a row, remove the announcement and reset state.
             streamer.isLive = false;
+            streamer.missedPolls = 0;
             await cleanupAnnouncement(client, streamer);
             await streamer.save().catch(err => logger.warn('[TWITCH] Streamer save failed:', err.message));
             logger.info(`[TWITCH] ${streamer.twitchLogin} went offline, cleaned up announcement.`);
@@ -131,4 +146,4 @@ function startStreamerScheduler(client) {
     logger.info('[TWITCH] Streamer go-live poller started.');
 }
 
-module.exports = { pollStreamers, announceLive, startStreamerScheduler };
+module.exports = { OFFLINE_GRACE_POLLS, pollStreamers, announceLive, startStreamerScheduler };

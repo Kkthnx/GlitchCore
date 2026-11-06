@@ -8,7 +8,7 @@
 const { EmbedBuilder } = require('discord.js');
 const Starboard = require('../database/StarboardSchema');
 const { getGuildConfig } = require('./guildConfigCache');
-const { PALETTE } = require('./brand');
+const { COLORS } = require('./brand');
 const logger = require('./logger');
 
 // Resolve a possibly-partial structure, swallowing fetch errors.
@@ -21,7 +21,7 @@ async function resolvePartial(obj) {
 
 function buildEmbed(message) {
     const embed = new EmbedBuilder()
-        .setColor(PALETTE.gold)
+        .setColor(COLORS.hype)
         .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
         .setDescription(message.content?.slice(0, 2048) || '*[no text]*')
         .addFields({ name: '​', value: `[Jump to message](${message.url})` })
@@ -33,10 +33,30 @@ function buildEmbed(message) {
     return embed;
 }
 
+// One sync per origin message at a time. Two stars landing together both saw no
+// existing entry and both posted, leaving a duplicate in the highlights channel.
+const syncChains = new Map();
+
+function serializeSync(messageId, task) {
+    const previous = syncChains.get(messageId) || Promise.resolve();
+    const next = previous.then(task, task);
+    const tail = next.catch(() => {}).finally(() => {
+        if (syncChains.get(messageId) === tail) syncChains.delete(messageId);
+    });
+    syncChains.set(messageId, tail);
+    return next;
+}
+
 // Recomputes the starboard state for a message from the live reaction count.
 // Called on both add and remove so the count can go up or down and the post is
 // removed if stars fall back under the threshold.
 async function syncStarboard(reaction) {
+    const messageId = reaction.message?.id;
+    if (!messageId) return;
+    return serializeSync(messageId, () => runSyncStarboard(reaction));
+}
+
+async function runSyncStarboard(reaction) {
     // Cheap gates first, using only what the gateway payload already carries.
     // Every reaction in the server lands here, and fetching a partial costs an
     // HTTP round trip, so nothing is fetched until we know this reaction can
@@ -67,6 +87,10 @@ async function syncStarboard(reaction) {
 
     const starChannel = message.guild.channels.cache.get(channelId);
     if (!starChannel) return;
+
+    // Age-restricted chat stays where it was posted. Copying it into an ordinary
+    // highlights channel would show it to people who never opted into that room.
+    if (message.channel.nsfw && !starChannel.nsfw) return;
 
     const threshold = cfg.starboardThreshold || 3;
     const count = reaction.count || 0;
