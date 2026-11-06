@@ -15,6 +15,7 @@ const Giveaway = require('../database/GiveawaySchema');
 const Streamer = require('../database/StreamerSchema');
 const Suggestion = require('../database/SuggestionSchema');
 const Tag = require('../database/TagSchema');
+const Counting = require('../database/CountingSchema');
 const { brandedEmbed, COLORS } = require('./brand');
 const logger = require('./logger');
 
@@ -47,6 +48,7 @@ async function exportUserData(guildId, userId) {
         profile: profile
             ? {
                 xp: profile.xp,
+                weeklyXp: profile.weeklyXp,
                 level: profile.level,
                 totalMessages: profile.totalMessages,
                 cardStyle: profile.cardStyle,
@@ -80,7 +82,7 @@ async function exportUserData(guildId, userId) {
 async function deleteUserData(guildId, userId) {
     const [
         profileRes, eventRes, lfgRes, birthdayRes, reminderRes, giveawayRes, streamerRes,
-        infractionCount, suggestionCount,
+        infractionCount, suggestionCount, countingRes,
     ] = await Promise.all([
         User.deleteOne({ guildId, userId }),
         Event.updateMany(
@@ -101,6 +103,9 @@ async function deleteUserData(guildId, userId) {
         Streamer.updateMany({ guildId, discordUserId: userId }, { $set: { discordUserId: null } }),
         Infraction.countDocuments({ guildId, userId }),
         Suggestion.countDocuments({ guildId, authorId: userId }),
+        // The counting game remembers who counted last. Clear it for them, the
+        // number itself belongs to the server.
+        Counting.updateMany({ guildId, lastUserId: userId }, { $set: { lastUserId: null } }),
     ]);
 
     logger.info(
@@ -116,6 +121,7 @@ async function deleteUserData(guildId, userId) {
         lfgUpdated: lfgRes.modifiedCount,
         giveawaysUpdated: giveawayRes.modifiedCount,
         twitchUnlinked: streamerRes.modifiedCount,
+        countingCleared: countingRes.modifiedCount,
         infractionsKept: infractionCount,
         suggestionsKept: suggestionCount,
     };

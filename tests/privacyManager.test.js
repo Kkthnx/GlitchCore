@@ -20,6 +20,7 @@ const MODELS = {
     StreamerSchema: 'Streamer',
     SuggestionSchema: 'Suggestion',
     TagSchema: 'Tag',
+    CountingSchema: 'Counting',
 };
 
 // One shared record of every call, so a test can assert which collections were
@@ -128,6 +129,13 @@ describe('deleteUserData', () => {
         expect(streamer.update).toEqual({ $set: { discordUserId: null } });
         expect(touched('Streamer', 'deleteOne')).toHaveLength(0);
         expect(touched('Streamer', 'deleteMany')).toHaveLength(0);
+    });
+
+    test('clears them as the last counter without touching the count', () => {
+        const [counting] = touched('Counting', 'updateMany');
+        expect(counting.filter).toEqual({ guildId: GUILD, lastUserId: USER });
+        expect(counting.update).toEqual({ $set: { lastUserId: null } });
+        expect(touched('Counting', 'deleteOne')).toHaveLength(0);
     });
 
     test('keeps moderation records, and only counts them', () => {

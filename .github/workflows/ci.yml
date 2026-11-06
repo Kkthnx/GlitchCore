@@ -29,5 +29,8 @@ jobs:
             node --check "$f"
           done
 
+      - name: Lint
+        run: npm run lint
+
       - name: Run unit tests
         run: npm test

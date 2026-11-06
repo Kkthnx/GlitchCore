@@ -33,6 +33,11 @@ const RST = `${ESC}[0m`;
 // How long after start time an event is considered concluded and swept away.
 const CONCLUDE_GRACE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+// An event whose start time passed longer ago than this while the bot was down
+// is closed out quietly. Pinging a roster about a game that began hours ago is
+// noise, and the restart that follows an outage is exactly when it would happen.
+const LATE_START_GRACE_MS = 30 * 60 * 1000;
+
 // How long a recurring event's "starting now" heads-up stays before it self-
 // deletes, so weekly reminders never pile up in the channel.
 const REMINDER_PING_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -401,6 +406,7 @@ async function processStartingEvents(client) {
         if (!ev) continue; // already handled elsewhere
 
         const weekly = ev.recurrence === 'weekly';
+        const late = Date.now() - new Date(ev.startsAt).getTime() > LATE_START_GRACE_MS;
 
         // Post next week's copy once so a weekly event is always up in the
         // channel. The claim above already makes this run once, and spawnedNext
@@ -419,12 +425,14 @@ async function processStartingEvents(client) {
             // sign-ups. Ping the role if one is set. The heads-up self-deletes
             // after a grace window so weekly reminders never pile up.
             const rolePing = ev.pingRoleId ? `<@&${ev.pingRoleId}> ` : '';
-            channel.send({
-                content: `🎮 **${ev.title}** is starting now! ${rolePing}`.trim(),
-                allowedMentions: { roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
-            }).then(ping => {
-                setTimeout(() => ping.delete().catch(() => {}), REMINDER_PING_TTL_MS);
-            }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
+            if (!late) {
+                channel.send({
+                    content: `🎮 **${ev.title}** is starting now! ${rolePing}`.trim(),
+                    allowedMentions: { roles: ev.pingRoleId ? [ev.pingRoleId] : [] },
+                }).then(ping => {
+                    setTimeout(() => ping.delete().catch(() => {}), REMINDER_PING_TTL_MS);
+                }).catch(err => logger.warn(`[EVENTS] Start ping failed for ${ev._id}: ${err.message}`));
+            }
 
             // Replace itself: delete the old card so the channel only shows the
             // upcoming one, not a pile of finished reminders.
@@ -446,7 +454,7 @@ async function processStartingEvents(client) {
                 ? mentionBatches(mentions, `${lead}\n`)
                 : [`${lead}\n*No one RSVP'd, but the lobby is open.*`];
 
-            (async () => {
+            if (!late) (async () => {
                 for (const [i, content] of batches.entries()) {
                     await channel.send({
                         content,
@@ -489,6 +497,7 @@ function startEventScheduler(client) {
 
 module.exports = {
     BTN,
+    LATE_START_GRACE_MS,
     commitRsvp,
     buildEventEmbed,
     buildEventButtons,
