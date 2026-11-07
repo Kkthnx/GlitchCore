@@ -20,8 +20,11 @@ if (missingEnv.length > 0) {
 
 const manager = new ShardingManager(path.join(__dirname, 'src/index.js'), {
     token: process.env.TOKEN,
-    // 'auto' lets Discord pick the shard count from guild size. Set a number to pin it.
-    totalShards: 'auto',
+    // A fixed count keeps the manager from calling GET /gateway/bot just to
+    // size itself. That call is the one that hit HTTP 429 on a rate-limited
+    // host IP, and one shard is plenty until the bot nears 2,500 guilds. Set
+    // SHARD_COUNT to a number to change it, or to 'auto' to let Discord decide.
+    totalShards: process.env.SHARD_COUNT === 'auto' ? 'auto' : (Number.parseInt(process.env.SHARD_COUNT, 10) || 1),
     // Respawn a shard automatically if its process dies.
     respawn: true,
 });
@@ -55,6 +58,9 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 async function spawnWithRetry() {
     let attempt = 0;
     for (;;) {
+        // A shard that came up despite the failed call (or on an earlier try)
+        // means the bot is running. Spawning again would start a duplicate.
+        if (manager.shards.size > 0) return;
         try {
             const shards = await manager.spawn();
             console.log(`[SHARD] Spawned ${shards.size} shard(s)`);

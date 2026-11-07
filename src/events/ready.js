@@ -267,6 +267,11 @@ module.exports = {
         const { loadMenuCache } = require('../utils/reactionRoleManager');
         loadMenuCache().catch(err => logger.error('[REACTIONROLE] Cache load failed:', err));
 
+        // 3h2. Flag channels the bot cannot post in, so a denied Send Messages
+        // shows up in the log as a cause rather than as scattered 50013s.
+        const { auditChannelAccess } = require('../utils/channelAccess');
+        auditChannelAccess(client, getGuildConfig).catch(err => logger.error('[ACCESS] Audit failed:', err));
+
         // 3i. Post a changelog to announcements if this is a new build
         const { announceUpdate } = require('../utils/updateAnnouncer');
         announceUpdate(client).catch(err => logger.error('[UPDATE] Announce failed:', err));

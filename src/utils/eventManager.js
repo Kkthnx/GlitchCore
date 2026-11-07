@@ -14,6 +14,7 @@ const { addWeeksKeepingLocalTime } = require('./time');
 const { bannerAttachment } = require('./eventBanners');
 const { LIMITS, fitLines, mentionBatches } = require('./embedText');
 const { startPolling } = require('./scheduler');
+const { missingPermissions, describeMissing, sendWithFallback } = require('./channelAccess');
 const logger = require('./logger');
 const config = require('../../config.json');
 
@@ -316,6 +317,15 @@ async function cleanUpFinishedEvents(client) {
     }
 
     for (const ev of stale) {
+        // A weekly event whose next card never got posted (the bot lacked
+        // permission, say) is retried here rather than deleted, so fixing the
+        // permission revives the chain instead of leaving the channel empty.
+        if (ev.recurrence === 'weekly' && !ev.spawnedNext && ev.status === 'STARTED') {
+            const result = await spawnNextOccurrence(client, ev);
+            if (result === 'failed') continue;
+            await Event.updateOne({ _id: ev._id }, { $set: { spawnedNext: true } }).catch(() => {});
+        }
+
         const guild = client.guilds.cache.get(ev.guildId);
         const channel = guild?.channels.cache.get(ev.channelId);
         if (channel) {
@@ -327,10 +337,12 @@ async function cleanUpFinishedEvents(client) {
 }
 
 // ── Recurrence: post next week's copy of a weekly event ──────────────────────
+// Resolves to 'posted', 'gone' (the channel no longer exists, so there is
+// nothing to retry) or 'failed' (Discord refused, worth trying again later).
 async function spawnNextOccurrence(client, ev) {
     const guild = client.guilds.cache.get(ev.guildId);
     const channel = guild?.channels.cache.get(ev.channelId);
-    if (!channel) return;
+    if (!channel) return 'gone';
 
     // Advance a full week, and keep advancing if the bot was down long enough
     // that "next week" is itself already past, so we never post a backlog of
@@ -358,17 +370,25 @@ async function spawnNextOccurrence(client, ev) {
         recurrence: 'weekly', spawnedNext: false,
     };
 
+    const missing = missingPermissions(channel, 'embed');
+    if (missing.includes('SendMessages') || missing.includes('ViewChannel')) {
+        logger.warn(`[EVENTS] Cannot post next "${ev.title}": ${describeMissing(channel, missing)}. Will retry.`);
+        return 'failed';
+    }
+
     try {
         const banner = bannerAttachment(evData.bannerFile);
-        const msg = await channel.send({
+        const msg = await sendWithFallback(channel, {
             embeds: [buildEventEmbed(evData)],
             files: banner ? [banner] : [],
             allowedMentions: { parse: [] },
         });
         await Event.create({ messageId: msg.id, ...evData });
         logger.info(`[EVENTS] Spawned next weekly "${ev.title}" for ${nextStartsAt.toISOString()}.`);
+        return 'posted';
     } catch (err) {
-        logger.error(`[EVENTS] Failed to spawn next occurrence of "${ev.title}":`, err);
+        logger.warn(`[EVENTS] Failed to spawn next occurrence of "${ev.title}", will retry: ${err.message}`);
+        return 'failed';
     }
 }
 
@@ -411,9 +431,16 @@ async function processStartingEvents(client) {
         // Post next week's copy once so a weekly event is always up in the
         // channel. The claim above already makes this run once, and spawnedNext
         // keeps that true across a restart mid-tick.
+        let spawnFailed = false;
         if (weekly && !ev.spawnedNext) {
             await Event.updateOne({ _id: ev._id }, { $set: { spawnedNext: true } }).catch(() => {});
-            await spawnNextOccurrence(client, ev);
+            if (await spawnNextOccurrence(client, ev) === 'failed') {
+                // Keep this card and its record. Deleting them below would end
+                // the weekly chain for good, since nothing else would ever post
+                // the next one. The cleanup sweep retries until it lands.
+                spawnFailed = true;
+                await Event.updateOne({ _id: ev._id }, { $set: { spawnedNext: false } }).catch(() => {});
+            }
         }
 
         const guild = client.guilds.cache.get(ev.guildId);
@@ -436,8 +463,10 @@ async function processStartingEvents(client) {
 
             // Replace itself: delete the old card so the channel only shows the
             // upcoming one, not a pile of finished reminders.
-            await channel.messages.fetch(ev.messageId).then(m => m.delete()).catch(() => {});
-            await Event.deleteOne({ _id: ev._id }).catch(() => {});
+            if (!spawnFailed) {
+                await channel.messages.fetch(ev.messageId).then(m => m.delete()).catch(() => {});
+                await Event.deleteOne({ _id: ev._id }).catch(() => {});
+            }
         } else {
             // Ping the RSVP roster that it's game time.
             //

@@ -11,6 +11,7 @@ const { getVersionInfo, getCommitsSince } = require('./version');
 const { getGuildConfig } = require('./guildConfigCache');
 const { generatePatchBanner } = require('./generatePatchBanner');
 const channels = require('./channels');
+const { missingPermissions, describeMissing, sendWithFallback } = require('./channelAccess');
 const logger = require('./logger');
 
 const NEON_GREEN = 0x39ff14;
@@ -112,9 +113,15 @@ async function announceUpdate(client) {
             const commits = getCommitsSince(last);
             if (!commits.length) continue;
 
-            // Record now that we have a channel and a changelog, before sending,
-            // so a send failure or mid-loop restart can't cause a repeat.
-            await record();
+            // A channel the bot cannot post in would fail the send below. Say so
+            // plainly and leave the dedup untouched, so the changelog goes out
+            // on the first boot after the permission is fixed instead of being
+            // marked as announced and lost.
+            const missing = missingPermissions(channel, 'embed');
+            if (missing.includes('SendMessages') || missing.includes('ViewChannel')) {
+                logger.warn(`[UPDATE] Cannot announce ${commit}: ${describeMissing(channel, missing)}.`);
+                continue;
+            }
 
             const embed = new EmbedBuilder()
                 .setColor(NEON_GREEN)
@@ -135,7 +142,16 @@ async function announceUpdate(client) {
                 logger.warn(`[UPDATE] Patch banner render failed: ${err.message}`);
             }
 
-            await channel.send({ embeds: [embed], files }).catch(() => {});
+            // Only mark the build announced once Discord accepted the message.
+            // This used to swallow the error and log success regardless, so a
+            // refused post still looked announced and was never retried.
+            try {
+                await sendWithFallback(channel, { embeds: [embed], files });
+            } catch (err) {
+                logger.warn(`[UPDATE] Announcement for ${commit} failed in ${guild.id}, will retry next boot: ${err.message}`);
+                continue;
+            }
+            await record();
             logger.info(`[UPDATE] Announced ${commits.length} change(s) to ${guild.id} for ${commit}.`);
         } catch (err) {
             logger.error(`[UPDATE] Announce failed for ${guild.id}:`, err);
